@@ -1,0 +1,22 @@
+[package]
+name = "autozig-tasks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../autozig" }
+
+[build-dependencies]
+autozig-build = { path = "../autozig/gen/build" }
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "parallel"
+path = "examples/parallel.rs"
+
+[[example]]
+name = "complete"
+path = "examples/complete.rs"

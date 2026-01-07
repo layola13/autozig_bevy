@@ -1,0 +1,27 @@
+[package]
+name = "autozig-state"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../autozig" }
+autozig-ecs = { path = "../autozig-ecs" }
+
+[build-dependencies]
+autozig-build = { path = "../autozig/gen/build" }
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "game_menu"
+path = "examples/game_menu.rs"
+
+[[example]]
+name = "complete"
+path = "examples/complete.rs"
+
+[[example]]
+name = "advanced"
+path = "examples/advanced.rs"

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AutoZig-ECS WASM - 闭包系统演示</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .section h3 {
+            margin-top: 0;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .stats {
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .feature::before {
+            content: "✓ ";
+            color: #4CAF50;
+        }
+
+        #log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .highlight {
+            background: rgba(76, 175, 80, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 AutoZig-ECS WASM - 闭包系统演示</h1>
+
+        <div class="section">
+            <p id="version">加载中...</p>
+            <div class="feature">90% Zig + 10% Rust</div>
+            <div class="feature">完全零 unsafe 代码</div>
+            <div class="feature">Bevy API 兼容</div>
+            <div class="feature">闭包系统支持</div>
+            <div class="feature">WebAssembly 运行</div>
+        </div>
+
+        <div class="section">
+            <h3>🎯 闭包系统测试</h3>
+            <button onclick="testClosureDemo()">运行闭包演示</button>
+            <button onclick="testClosureCount()">测试闭包注册</button>
+            <div class="stats" id="closureStats" style="margin-top: 10px;">
+                点击按钮开始测试
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🎮 完整 ECS 功能</h3>
+            <button onclick="initFull()">初始化 ECS</button>
+            <button onclick="createEntities()">创建 5 个实体</button>
+            <button onclick="refreshStats()">刷新统计</button>
+        </div>
+
+        <div class="section">
+            <h3>📦 资源系统</h3>
+            <button onclick="tickFrame()">帧数 +1</button>
+            <button onclick="showFrame()">显示当前帧</button>
+        </div>
+
+        <div class="section">
+            <h3>⚡ 事件系统</h3>
+            <button onclick="sendClickEvent()">发送点击事件</button>
+            <button onclick="updateEvents()">更新事件</button>
+            <button onclick="readEvents()">读取事件</button>
+        </div>
+
+        <div class="section">
+            <h3>📜 命令系统</h3>
+            <button onclick="queueCommands()">队列 3 个命令</button>
+            <button onclick="applyCommands()">应用命令</button>
+        </div>
+
+        <div class="stats">
+            <h3>统计信息:</h3>
+            <div id="stats">点击 "初始化 ECS" 开始</div>
+        </div>
+
+        <div id="log">
+            <h4>事件日志:</h4>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, * as wasm from './pkg/autozig_ecs_wasm.js';
+
+        let ecs = null;
+
+        async function loadWasm() {
+            try {
+                await init();
+                ecs = wasm;
+                log('✓ WASM 模块加载成功');
+                document.getElementById('version').textContent = ecs.get_version();
+            } catch (err) {
+                log('✗ WASM 加载失败: ' + err);
+            }
+        }
+
+        window.testClosureDemo = function () {
+            if (!ecs) return;
+            ecs.run_closure_demo();
+            log('✓ 闭包演示已执行，请查看浏览器控制台');
+        };
+
+        window.testClosureCount = function () {
+            if (!ecs) return;
+            const count = ecs.test_closure_systems();
+            document.getElementById('closureStats').innerHTML =
+                `<div>已注册 <span class="highlight">${count}</span> 个闭包系统</div>
+                 <div>✅ 闭包类型系统工作正常</div>
+                 <div>✅ 链式调用支持完整</div>`;
+            log(`✓ 闭包测试完成: ${count} 个系统`);
+        };
+
+        window.initFull = function () {
+            if (!ecs) return;
+            const result = ecs.init_ecs_full();
+            log(result);
+            refreshStats();
+        };
+
+        window.createEntities = function () {
+            if (!ecs) return;
+
+            for (let i = 0; i < 5; i++) {
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const vx = (Math.random() - 0.5) * 10;
+                const vy = (Math.random() - 0.5) * 10;
+                ecs.create_entity(x, y, vx, vy);
+            }
+
+            log('✓ 创建了 5 个实体');
+            refreshStats();
+        };
+
+        window.tickFrame = function () {
+            if (!ecs) return;
+            const newFrame = ecs.tick_frame();
+            log(`✓ 帧数增加到 ${newFrame}`);
+            refreshStats();
+        };
+
+        window.showFrame = function () {
+            if (!ecs) return;
+            const frame = ecs.get_frame();
+            log(`当前帧: ${frame}`);
+        };
+
+        window.sendClickEvent = function () {
+            if (!ecs) return;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            ecs.send_click_event(x, y);
+            log(`✓ 发送点击事件 (${x.toFixed(1)}, ${y.toFixed(1)})`);
+        };
+
+        window.updateEvents = function () {
+            if (!ecs) return;
+            const count = ecs.update_events();
+            log(`✓ 事件已更新，读取缓冲区有 ${count} 个事件`);
+        };
+
+        window.readEvents = function () {
+            if (!ecs) return;
+            const result = ecs.read_click_events();
+            log(`✓ ${result}`);
+        };
+
+        window.queueCommands = function () {
+            if (!ecs) return;
+
+            for (let i = 0; i < 3; i++) {
+                ecs.create_entity_deferred(i * 10, i * 20);
+            }
+
+            log('✓ 队列了 3 个生成命令');
+        };
+
+        window.applyCommands = function () {
+            if (!ecs) return;
+            const executed = ecs.apply_commands();
+            log(`✓ 应用了 ${executed} 个命令`);
+            refreshStats();
+        };
+
+        window.refreshStats = function () {
+            if (!ecs) return;
+            const stats = ecs.get_stats();
+            document.getElementById('stats').innerHTML = `<div>${stats}</div>`;
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${time}] ${message}`;
+            entry.style.marginBottom = '5px';
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        loadWasm();
+    </script>
+</body>
+
+</html>
+
+.container {
+background: rgba(255, 255, 255, 0.1);
+backdrop-filter: blur(10px);
+border-radius: 15px;
+padding: 30px;
+box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+h1 {
+margin-top: 0;
+text-align: center;
+}
+
+.info {
+background: rgba(255, 255, 255, 0.2);
+padding: 15px;
+border-radius: 8px;
+margin: 20px 0;
+}
+
+button {
+background: #4CAF50;
+color: white;
+border: none;
+padding: 10px 20px;
+margin: 5px;
+border-radius: 5px;
+cursor: pointer;
+font-size: 14px;
+}
+
+button:hover {
+background: #45a049;
+}
+
+button:active {
+transform: scale(0.98);
+}
+
+.stats {
+margin-top: 20px;
+font-family: 'Courier New', monospace;
+}
+
+.feature {
+margin: 10px 0;
+}
+
+.feature::before {
+content: "✓ ";
+color: #4CAF50;
+}
+</style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚀 AutoZig ECS WASM Demo</h1>
+
+        <div class="info">
+            <h3>Version Info:</h3>
+            <p id="version">Loading...</p>
+
+            <h3>Features:</h3>
+            <div class="feature">90% Zig Implementation</div>
+            <div class="feature">10% Rust Wrapper</div>
+            <div class="feature">Zero unsafe Code (user-side)</div>
+            <div class="feature">include_zig! Macro Bridging</div>
+            <div class="feature">WebAssembly Compatible</div>
+        </div>
+
+        <div>
+            <h3>Controls:</h3>
+            <button onclick="initECS()">Initialize ECS</button>
+            <button onclick="createEntities()">Create 10 Entities</button>
+            <button onclick="simulateMovement()">Simulate Movement</button>
+            <button onclick="destroyRandomEntity()">Destroy Random Entity</button>
+            <button onclick="refreshStats()">Refresh Stats</button>
+        </div>
+
+        <div class="stats">
+            <h3>Statistics:</h3>
+            <div id="stats">Click "Initialize ECS" to start</div>
+        </div>
+
+        <div id="log"
+            style="margin-top: 20px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px;">
+            <h4>Event Log:</h4>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, * as wasm from './pkg/autozig_ecs_wasm.js';
+
+        let ecs = null;
+        let entityIds = [];
+
+        async function loadWasm() {
+            try {
+                await init();
+                ecs = wasm;
+                log('✓ WASM module loaded successfully');
+                document.getElementById('version').textContent = ecs.get_version();
+            } catch (err) {
+                log('✗ Failed to load WASM: ' + err);
+            }
+        }
+
+        window.initECS = function () {
+            if (!ecs) {
+                log('✗ WASM not loaded yet');
+                return;
+            }
+            const result = ecs.init_ecs();
+            log(result);
+            refreshStats();
+        };
+
+        window.createEntities = function () {
+            if (!ecs) return;
+
+            for (let i = 0; i < 10; i++) {
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const vx = (Math.random() - 0.5) * 10;
+                const vy = (Math.random() - 0.5) * 10;
+
+                const id = ecs.create_entity(x, y, vx, vy);
+                entityIds.push(id);
+            }
+
+            log(`✓ Created 10 entities`);
+            refreshStats();
+        };
+
+        window.simulateMovement = function () {
+            if (!ecs) return;
+            const result = ecs.simulate_movement(0.016);
+            log(result);
+        };
+
+        window.destroyRandomEntity = function () {
+            if (!ecs || entityIds.length === 0) {
+                log('✗ No entities to destroy');
+                return;
+            }
+
+            const idx = Math.floor(Math.random() * entityIds.length);
+            const entityId = entityIds[idx];
+            const success = ecs.destroy_entity(entityId);
+
+            if (success) {
+                entityIds.splice(idx, 1);
+                log(`✓ Destroyed entity ${entityId}`);
+            } else {
+                log(`✗ Failed to destroy entity ${entityId}`);
+            }
+
+            refreshStats();
+        };
+
+        window.refreshStats = function () {
+            if (!ecs) return;
+
+            const entityCount = ecs.get_entity_count();
+            const componentCounts = ecs.get_component_counts();
+
+            document.getElementById('stats').innerHTML = `
+                <div>Total Entities: ${entityCount}</div>
+                <div>${componentCounts}</div>
+                <div>Tracked Entity IDs: ${entityIds.length}</div>
+            `;
+        };
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.textContent = `[${time}] ${message}`;
+            entry.style.marginBottom = '5px';
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Load WASM on page load
+        loadWasm();
+    </script>
+</body>
+
+</html>

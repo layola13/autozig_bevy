@@ -1,0 +1,34 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Zig
+/zig-cache/
+/zig-out/
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+
+# Build artifacts
+/build/
+*.lib
+*.pdb
+*.exp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated files
+src/zig/autozig_render.h
+libautozig_render_core.*

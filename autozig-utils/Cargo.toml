@@ -1,0 +1,23 @@
+[package]
+name = "autozig-utils"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+description = "AutoZig utilities - HashMap, UUID, concurrency primitives, and time tools (90% Zig + 10% Rust)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+autozig = { path = "../autozig", version = "0.1.2" }
+
+[build-dependencies]
+autozig-build = { path = "../autozig/gen/build", version = "0.1.2" }
+
+[dev-dependencies]
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

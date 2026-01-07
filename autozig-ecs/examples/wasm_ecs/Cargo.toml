@@ -1,0 +1,19 @@
+[package]
+name = "autozig-ecs-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+autozig-ecs = { path = "../.." }
+wasm-bindgen = "0.2"
+
+[build-dependencies]
+autozig-build = { path = "../../../autozig/gen/build" }
+
+[profile.release]
+opt-level = 3       # 最大性能优化
+lto = true          # Link Time Optimization
+codegen-units = 1   # 单个代码生成单元，更好的优化
