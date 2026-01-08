@@ -1,0 +1,4 @@
+[build]
+# Force use of system linker (gcc/clang) instead of rust-lld
+# This fixes "truncated or malformed archive" errors with Zig-generated archives
+rustflags = ["-C", "linker=gcc"]

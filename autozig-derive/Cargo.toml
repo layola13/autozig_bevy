@@ -1,0 +1,18 @@
+[package]
+name = "autozig-derive"
+version = "0.1.0"
+edition = "2021"
+description = "Derive macros for autozig_bevy"
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+quote = "1.0"
+proc-macro2 = "1.0"
+autozig-macro-utils = { path = "../autozig-macro-utils" }
+
+[dev-dependencies]
+trybuild = "1.0"

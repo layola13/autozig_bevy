@@ -1,0 +1,13 @@
+[package]
+name = "autozig-input"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../../autozig" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build" }
+
+[lib]
+crate-type = ["lib"]

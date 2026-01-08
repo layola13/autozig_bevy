@@ -1,8 +1,8 @@
 const std = @import("std");
+const hashmap = @import("hashmap.zig");
 
-// 引用hashmap.zig中定义的allocator
-extern var gpa_instance: std.heap.GeneralPurposeAllocator(.{});
-const g_allocator = gpa_instance.allocator();
+// 使用hashmap.zig中定义的allocator
+const g_allocator = hashmap.g_allocator;
 
 // 原子计数器
 pub const AtomicCounter = struct {
@@ -14,19 +14,19 @@ pub const AtomicCounter = struct {
         };
     }
 
-    pub fn load(self: *AtomicCounter, order: std.atomic.Ordering) u64 {
+    pub fn load(self: *AtomicCounter, comptime order: std.builtin.AtomicOrder) u64 {
         return self.value.load(order);
     }
 
-    pub fn store(self: *AtomicCounter, val: u64, order: std.atomic.Ordering) void {
+    pub fn store(self: *AtomicCounter, val: u64, comptime order: std.builtin.AtomicOrder) void {
         self.value.store(val, order);
     }
 
-    pub fn fetchAdd(self: *AtomicCounter, delta: u64, order: std.atomic.Ordering) u64 {
+    pub fn fetchAdd(self: *AtomicCounter, delta: u64, comptime order: std.builtin.AtomicOrder) u64 {
         return self.value.fetchAdd(delta, order);
     }
 
-    pub fn fetchSub(self: *AtomicCounter, delta: u64, order: std.atomic.Ordering) u64 {
+    pub fn fetchSub(self: *AtomicCounter, delta: u64, comptime order: std.builtin.AtomicOrder) u64 {
         return self.value.fetchSub(delta, order);
     }
 
@@ -42,8 +42,8 @@ pub const AtomicCounter = struct {
         self: *AtomicCounter,
         expected: u64,
         new: u64,
-        success_order: std.atomic.Ordering,
-        failure_order: std.atomic.Ordering,
+        comptime success_order: std.builtin.AtomicOrder,
+        comptime failure_order: std.builtin.AtomicOrder,
     ) ?u64 {
         return self.value.cmpxchgWeak(expected, new, success_order, failure_order);
     }
@@ -59,15 +59,15 @@ pub const AtomicBool = struct {
         };
     }
 
-    pub fn load(self: *AtomicBool, order: std.atomic.Ordering) bool {
+    pub fn load(self: *AtomicBool, comptime order: std.builtin.AtomicOrder) bool {
         return self.value.load(order);
     }
 
-    pub fn store(self: *AtomicBool, val: bool, order: std.atomic.Ordering) void {
+    pub fn store(self: *AtomicBool, val: bool, comptime order: std.builtin.AtomicOrder) void {
         self.value.store(val, order);
     }
 
-    pub fn swap(self: *AtomicBool, val: bool, order: std.atomic.Ordering) bool {
+    pub fn swap(self: *AtomicBool, val: bool, comptime order: std.builtin.AtomicOrder) bool {
         return self.value.swap(val, order);
     }
 };
@@ -312,32 +312,29 @@ test "SpinLock operations" {
     try std.testing.expect(!lock.isLocked());
 }
 
+// 测试OnceFlag - 使用全局变量避免闭包捕获问题
+var test_once_counter: u32 = 0;
+
 test "OnceFlag initialization" {
     var flag = OnceFlag.init();
-    var counter: u32 = 0;
+    test_once_counter = 0;
 
     try std.testing.expect(!flag.isInitialized());
-
-    const TestFunc = struct {
-        fn init(cnt: *u32) void {
-            cnt.* += 1;
-        }
-    };
 
     // 第一次调用应该执行
     flag.callOnce(struct {
         fn init() void {
-            counter += 1;
+            test_once_counter += 1;
         }
     }.init);
     try std.testing.expect(flag.isInitialized());
-    try std.testing.expectEqual(@as(u32, 1), counter);
+    try std.testing.expectEqual(@as(u32, 1), test_once_counter);
 
     // 第二次调用不应该执行
     flag.callOnce(struct {
         fn init() void {
-            counter += 1;
+            test_once_counter += 1;
         }
     }.init);
-    try std.testing.expectEqual(@as(u32, 1), counter);
+    try std.testing.expectEqual(@as(u32, 1), test_once_counter);
 }

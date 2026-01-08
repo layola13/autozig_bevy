@@ -1,8 +1,8 @@
 const std = @import("std");
+const hashmap = @import("hashmap.zig");
 
-// 引用hashmap.zig中定义的allocator
-extern var gpa_instance: std.heap.GeneralPurposeAllocator(.{});
-const g_allocator = gpa_instance.allocator();
+// 使用hashmap.zig中定义的allocator
+const g_allocator = hashmap.g_allocator;
 
 // 时间戳结构 (微秒精度)
 pub const Instant = extern struct {

@@ -7,10 +7,10 @@ description = "AutoZig utilities - HashMap, UUID, concurrency primitives, and ti
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-autozig = { path = "../autozig", version = "0.1.2" }
+autozig = { path = "../../autozig", version = "0.1.2" }
 
 [build-dependencies]
-autozig-build = { path = "../autozig/gen/build", version = "0.1.2" }
+autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
 
 [dev-dependencies]
 

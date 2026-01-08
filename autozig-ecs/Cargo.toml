@@ -5,10 +5,10 @@ edition = "2021"
 rust-version = "1.77"
 
 [dependencies]
-autozig = { path = "../autozig", version = "0.1.2" }
+autozig = { path = "../../autozig", version = "0.1.2" }
 
 [build-dependencies]
-autozig-build = { path = "../autozig/gen/build", version = "0.1.2" }
+autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
 
 [dev-dependencies]
 

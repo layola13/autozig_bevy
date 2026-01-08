@@ -115,8 +115,8 @@ impl Drop for HashMap {
 
 // HashMap是线程安全的（通过Zig的原子操作）
 // 但在WASM单线程环境下这是无操作的
-impl Send for HashMap {}
-impl Sync for HashMap {}
+unsafe impl Send for HashMap {}
+unsafe impl Sync for HashMap {}
 
 /// HashSet - 基于Zig实现的高性能哈希集合
 pub struct HashSet {
@@ -181,8 +181,8 @@ impl Drop for HashSet {
     }
 }
 
-impl Send for HashSet {}
-impl Sync for HashSet {}
+unsafe impl Send for HashSet {}
+unsafe impl Sync for HashSet {}
 
 #[cfg(test)]
 mod tests {

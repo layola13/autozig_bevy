@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-autozig = { path = "../autozig" }
-autozig-ecs = { path = "../autozig-ecs" }
+autozig = { path = "../../autozig" }
+autozig-ecs = { path = "../../autozig-ecs" }
 
 [build-dependencies]
-autozig-build = { path = "../autozig/gen/build" }
+autozig-build = { path = "../../autozig/gen/build" }
 
 [[example]]
 name = "basic"

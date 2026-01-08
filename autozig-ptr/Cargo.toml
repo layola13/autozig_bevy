@@ -1,0 +1,22 @@
+[package]
+name = "autozig-ptr"
+version = "0.1.0"
+edition = "2021"
+description = "Type-erased pointers with Zig implementation for safe low-level memory operations"
+license = "MIT OR Apache-2.0"
+keywords = ["ptr", "pointer", "no_std", "zig", "bevy"]
+
+[dependencies]
+autozig = { path = "../../autozig" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build" }
+
+[lib]
+crate-type = ["lib"]
+
+[dev-dependencies]
+
+[[example]]
+name = "basic_ptr"
+path = "examples/basic_ptr.rs"

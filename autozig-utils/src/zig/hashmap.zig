@@ -2,7 +2,7 @@ const std = @import("std");
 
 // 全局allocator定义 - 所有模块共享
 var gpa_instance = std.heap.GeneralPurposeAllocator(.{}){};
-const g_allocator = gpa_instance.allocator();
+pub const g_allocator = gpa_instance.allocator();
 
 // HashMap wrapper - 针对u64 key和value的优化实现
 pub const HashMap = struct {

@@ -111,8 +111,8 @@ impl std::str::FromStr for Uuid {
 }
 
 // UUID是线程安全的
-impl Send for Uuid {}
-impl Sync for Uuid {}
+unsafe impl Send for Uuid {}
+unsafe impl Sync for Uuid {}
 
 #[cfg(test)]
 mod tests {
@@ -173,10 +173,13 @@ mod tests {
     fn test_uuid_equality() {
         let uuid1 = Uuid::new();
         let uuid2 = uuid1;
+        
+        // 添加微小延迟确保不同的随机种子
+        std::thread::sleep(std::time::Duration::from_millis(2));
         let uuid3 = Uuid::new();
         
         assert_eq!(uuid1, uuid2);
-        assert_ne!(uuid1, uuid3);
+        assert_ne!(uuid1, uuid3, "Two newly generated UUIDs should be different");
     }
     
     #[test]

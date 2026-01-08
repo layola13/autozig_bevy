@@ -269,8 +269,8 @@ zig build test
 
 ```toml
 [dependencies]
-autozig-render = { path = "../autozig-render" }
-autozig-math = { path = "../autozig-math" }
+autozig-render = { path = "../../autozig-render" }
+autozig-math = { path = "../../autozig-math" }
 ```
 
 ## 性能特性
