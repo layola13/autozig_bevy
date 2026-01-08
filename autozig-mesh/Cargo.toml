@@ -1,11 +1,7 @@
 [package]
-name = "autozig-render"
+name = "autozig-mesh"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
-repository = "https://github.com/your-repo/autozig"
-description = "Bevy render system for WebGPU/WASM platforms"
-build = "build.rs"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
@@ -13,5 +9,7 @@ autozig = { path = "../../autozig", version = "0.1.2" }
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
 
+[dev-dependencies]
+
 [lib]
-crate-type = ["lib"]
+crate-type = ["lib", "staticlib"]

@@ -1,0 +1,18 @@
+[package]
+name = "autozig_json"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance JSON parsing with Zig SIMD backend - serde_json replacement"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+autozig = { path = "../../autozig" }
+autozig_json_macro = { path = "../autozig_json_macro" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build" }
+
+[features]
+default = ["std"]
+std = []
+alloc = []

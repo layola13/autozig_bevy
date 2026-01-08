@@ -1,4 +1,4 @@
-//! Build script for autozig-render
+//! Build script for autozig-hierarchy
 //! Scans src directory for include_zig! macros and compiles Zig code
 
 fn main() {

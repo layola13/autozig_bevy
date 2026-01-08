@@ -1,0 +1,21 @@
+[package]
+name = "autozig-hierarchy"
+version = "0.1.0"
+edition = "2021"
+authors = ["AutoZig Contributors"]
+description = "Hierarchy management for autozig-bevy (WebGPU/WASM optimized)"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+autozig = { path = "../../autozig" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build" }
+
+[dev-dependencies]
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []

@@ -1,10 +1,10 @@
 [package]
-name = "autozig-render"
+name = "autozig-light"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/your-repo/autozig"
-description = "Bevy render system for WebGPU/WASM platforms"
+description = "Bevy lighting system for WebGPU/WASM platforms"
 build = "build.rs"
 
 [dependencies]

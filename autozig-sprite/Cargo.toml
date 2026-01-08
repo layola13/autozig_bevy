@@ -1,0 +1,18 @@
+[package]
+name = "autozig-sprite"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../../autozig", version = "0.1.2" }
+autozig-color = { path = "../autozig-color", version = "0.1.0" }
+autozig-math = { path = "../autozig-math", version = "0.1.0" }
+autozig-transform = { path = "../autozig-transform", version = "0.1.0" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
+
+[dev-dependencies]
+
+[lib]
+crate-type = ["lib", "staticlib"]

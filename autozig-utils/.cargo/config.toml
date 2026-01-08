@@ -1,4 +1,10 @@
 [build]
-# Force use of system linker (gcc/clang) instead of rust-lld
-# This fixes "truncated or malformed archive" errors with Zig-generated archives
+# Default build configuration for native targets
+
+# For native targets, use system linker to fix Zig archive compatibility
+[target.'cfg(not(target_arch = "wasm32"))']
 rustflags = ["-C", "linker=gcc"]
+
+# For WASM target, use default settings (wasm-ld)
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

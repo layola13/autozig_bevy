@@ -1,0 +1,12 @@
+[package]
+name = "autozig_json_macro"
+version = "0.1.0"
+edition = "2021"
+description = "Proc-macro for autozig_json - ZERO dependencies"
+license = "MIT OR Apache-2.0"
+
+[lib]
+proc-macro = true
+
+# ZERO dependencies - only uses std proc_macro
+[dependencies]

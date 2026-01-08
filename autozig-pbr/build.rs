@@ -1,8 +1,9 @@
-//! Build script for autozig-render
+//! Build script for autozig-pbr
 //! Scans src directory for include_zig! macros and compiles Zig code
 
 fn main() {
     println!("cargo:rerun-if-changed=src/");
+    println!("cargo:rerun-if-changed=zig/");
     println!("cargo:rerun-if-changed=build.rs");
     
     // Use modular_buildzig mode (recommended, handles dependencies correctly)
