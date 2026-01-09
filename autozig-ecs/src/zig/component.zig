@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 // ComponentId - unique identifier for component types
 pub const ComponentId = u32;

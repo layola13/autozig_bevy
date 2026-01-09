@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 // 全局Resource注册表 - TypeID -> Pointer映射
 pub const ResourceRegistry = struct {

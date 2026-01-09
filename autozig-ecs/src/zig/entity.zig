@@ -36,6 +36,17 @@ export fn entity_from_bits(bits: u64) Entity {
     };
 }
 
-// 全局allocator定义（所有其他文件通过extern引用）
-pub var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-pub const g_allocator = gpa.allocator();
+// 全局allocator定义 - 在 FFI 环境下使用 c_allocator (映射到 malloc)
+// 这是 Rust + Zig 混合编译的黄金标准
+pub const g_allocator = std.heap.c_allocator;
+
+// 显式初始化函数 - Rust 必须在调用任何其他函数之前先调用此函数
+var is_initialized: bool = false;
+
+export fn autozig_init() void {
+    is_initialized = true;
+}
+
+export fn autozig_is_initialized() bool {
+    return is_initialized;
+}

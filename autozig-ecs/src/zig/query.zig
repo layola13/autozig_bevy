@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 // Query iterator for entities with specific components
 pub const QueryIter = struct {

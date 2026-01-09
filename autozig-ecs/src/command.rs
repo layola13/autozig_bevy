@@ -5,6 +5,8 @@ use std::marker::PhantomData;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::any::TypeId;
+use crate::bundle::Bundle;
+use crate::entity::Entity;
 
 #[repr(C)]
 pub struct CommandBufferOpaque {
@@ -105,6 +107,34 @@ impl<'w> Commands<'w> {
         }
     }
     
+    /// Spawn an entity with a bundle of components
+    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EntityCommands {
+        // 先写入 spawn 命令
+        command_buffer_write_spawn(self.buffer);
+        
+        // 获取 bundle 的所有组件
+        let components = bundle.get_components();
+        
+        // 为每个组件写入 insert 命令
+        for (component_id, data_ptr, data_size) in components.iter() {
+            command_buffer_write_insert(
+                self.buffer,
+                0, // entity_idx 会在 apply 时解析
+                *component_id,
+                *data_ptr,
+                *data_size,
+            );
+        }
+        
+        // 防止 bundle 被 drop
+        std::mem::forget(bundle);
+        
+        EntityCommands {
+            buffer: self.buffer,
+            _marker: PhantomData,
+        }
+    }
+    
     /// Despawn an entity
     pub fn entity(&mut self, entity_idx: u32) -> EntityCommands {
         EntityCommands {
@@ -134,10 +164,39 @@ impl<'w> EntityCommands<'w> {
         self
     }
     
+    /// Insert a bundle of components
+    pub fn insert_bundle<B: Bundle>(&mut self, bundle: B) -> &mut Self {
+        let components = bundle.get_components();
+        
+        for (component_id, data_ptr, data_size) in components.iter() {
+            command_buffer_write_insert(
+                self.buffer,
+                0, // entity_idx 会在 apply 时解析
+                *component_id,
+                *data_ptr,
+                *data_size,
+            );
+        }
+        
+        std::mem::forget(bundle);
+        self
+    }
+    
     /// Remove a component
     pub fn remove<C: 'static>(&mut self) -> &mut Self {
         let component_id = get_component_id::<C>();
         command_buffer_write_remove(self.buffer, 0, component_id);
+        self
+    }
+    
+    /// Remove a bundle of components
+    pub fn remove_bundle<B: Bundle>(&mut self) -> &mut Self {
+        let ids = B::component_ids();
+        
+        for component_id in ids.iter() {
+            command_buffer_write_remove(self.buffer, 0, *component_id);
+        }
+        
         self
     }
     

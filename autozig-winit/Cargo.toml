@@ -1,0 +1,15 @@
+[package]
+name = "autozig-winit"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+autozig = { path = "../../autozig" }
+autozig-window = { path = "../autozig-window" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build" }
+
+[lib]
+crate-type = ["lib"]

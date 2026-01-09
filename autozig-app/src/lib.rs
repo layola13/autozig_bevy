@@ -7,14 +7,104 @@
 //! - App: 应用生命周期管理
 //! - SubApp: 子应用系统
 //! - Plugin: 插件系统
+//! - PluginGroup: 插件组管理
 //! - Runner: 自定义运行器
 //! - AppExit: 退出状态管理
+//! - MainScheduleOrder: 调度标签系统
 
 #![forbid(unsafe_code)]
+
+pub mod plugin_group;
+pub mod default_plugins;
 
 use autozig::include_zig;
 use core::num::NonZeroU8;
 use core::ptr::NonNull;
+
+// Re-export plugin group types
+pub use plugin_group::{PluginGroup, PluginGroupBuilder, PluginGroupExt};
+pub use default_plugins::{DefaultPlugins, MinimalPlugins};
+
+/// Schedule labels defining execution order in the main loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum MainScheduleOrder {
+    /// Runs first in the schedule (before all startup schedules on first frame)
+    First = 0,
+    /// Runs before Startup (only on first frame)
+    PreStartup = 1,
+    /// Runs once when the app starts (only on first frame)
+    Startup = 2,
+    /// Runs after Startup (only on first frame)
+    PostStartup = 3,
+    /// Runs before Update (every frame after startup)
+    PreUpdate = 4,
+    /// Main update loop (every frame)
+    Update = 5,
+    /// Runs after Update (every frame)
+    PostUpdate = 6,
+    /// Runs last in the schedule (every frame)
+    Last = 7,
+}
+
+impl MainScheduleOrder {
+    /// Check if this is a startup-only schedule (runs once)
+    pub fn is_startup(&self) -> bool {
+        matches!(self,
+            MainScheduleOrder::PreStartup |
+            MainScheduleOrder::Startup |
+            MainScheduleOrder::PostStartup
+        )
+    }
+    
+    /// Get the schedule label as a string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MainScheduleOrder::First => "First",
+            MainScheduleOrder::PreStartup => "PreStartup",
+            MainScheduleOrder::Startup => "Startup",
+            MainScheduleOrder::PostStartup => "PostStartup",
+            MainScheduleOrder::PreUpdate => "PreUpdate",
+            MainScheduleOrder::Update => "Update",
+            MainScheduleOrder::PostUpdate => "PostUpdate",
+            MainScheduleOrder::Last => "Last",
+        }
+    }
+    
+    /// Get all schedule labels in execution order
+    pub fn all_schedules() -> [MainScheduleOrder; 8] {
+        [
+            MainScheduleOrder::First,
+            MainScheduleOrder::PreStartup,
+            MainScheduleOrder::Startup,
+            MainScheduleOrder::PostStartup,
+            MainScheduleOrder::PreUpdate,
+            MainScheduleOrder::Update,
+            MainScheduleOrder::PostUpdate,
+            MainScheduleOrder::Last,
+        ]
+    }
+}
+
+/// System function type
+pub type SystemFn = extern "C" fn();
+
+/// System set identifier
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SystemSet {
+    pub id: u64,
+}
+
+impl SystemSet {
+    pub fn new(id: u64) -> Self {
+        Self { id }
+    }
+}
+
+/// Resource trait marker
+pub trait Resource: 'static {}
+
+impl<T: 'static> Resource for T {}
 
 /// Opaque Zig App type
 #[repr(C)]
@@ -49,6 +139,13 @@ include_zig!("src/zig/app.zig", {
     fn app_get_sub_app(app: *mut ZigApp, name_ptr: *const u8, name_len: usize) -> *mut ZigSubApp;
     fn app_insert_resource(app: *mut ZigApp, type_id: u64, data_ptr: *const u8, data_len: usize);
     fn app_has_resource(app: *mut ZigApp, type_id: u64) -> bool;
+});
+
+include_zig!("src/zig/schedule.zig", {
+    fn schedule_add_system(app: *mut ZigApp, schedule: u8, system: SystemFn);
+    fn schedule_configure_set(app: *mut ZigApp, schedule: u8, set_id: u64);
+    fn schedule_run(app: *mut ZigApp, schedule: u8, is_first_run: bool);
+    fn schedule_init_resource(app: *mut ZigApp, type_id: u64);
 });
 
 include_zig!("src/zig/sub_app.zig", {
@@ -237,6 +334,66 @@ impl App {
         for plugin in plugins {
             self.add_plugin(plugin);
         }
+        self
+    }
+    
+    /// Add a system to a specific schedule
+    ///
+    /// # Examples
+    /// ```
+    /// # use autozig_app::{App, MainScheduleOrder};
+    /// let mut app = App::new();
+    /// app.add_systems(MainScheduleOrder::Update, my_system);
+    ///
+    /// extern "C" fn my_system() {
+    ///     // System logic here
+    /// }
+    /// ```
+    pub fn add_systems(&mut self, schedule: MainScheduleOrder, system: SystemFn) -> &mut Self {
+        schedule_add_system(self.inner.as_ptr(), schedule as u8, system);
+        self
+    }
+    
+    /// Configure a system set for a specific schedule
+    ///
+    /// # Examples
+    /// ```
+    /// # use autozig_app::{App, MainScheduleOrder, SystemSet};
+    /// let mut app = App::new();
+    /// let my_set = SystemSet::new(1);
+    /// app.configure_sets(MainScheduleOrder::Update, my_set);
+    /// ```
+    pub fn configure_sets(&mut self, schedule: MainScheduleOrder, set: SystemSet) -> &mut Self {
+        schedule_configure_set(self.inner.as_ptr(), schedule as u8, set.id);
+        self
+    }
+    
+    /// Initialize a resource with its default value if it doesn't exist
+    ///
+    /// # Examples
+    /// ```
+    /// # use autozig_app::App;
+    /// #[derive(Default)]
+    /// struct MyResource {
+    ///     value: i32,
+    /// }
+    ///
+    /// let mut app = App::new();
+    /// app.init_resource::<MyResource>();
+    /// ```
+    pub fn init_resource<R: Resource + Default>(&mut self) -> &mut Self {
+        let type_id = core::any::TypeId::of::<R>();
+        let type_id_u64 = type_id_to_u64(type_id);
+        
+        // Only initialize if resource doesn't exist
+        if !self.has_resource::<R>() {
+            let resource = R::default();
+            self.insert_resource(resource);
+        } else {
+            // Just register the type ID with the scheduler
+            schedule_init_resource(self.inner.as_ptr(), type_id_u64);
+        }
+        
         self
     }
 }

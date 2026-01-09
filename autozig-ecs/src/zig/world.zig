@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 //  Entity structure - 已在entity.zig中定义，合并时会自动可用
 // 不需要导入，因为autozig会将所有文件合并到一个generated_autozig.zig中

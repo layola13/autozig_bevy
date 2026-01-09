@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 // System function pointer type
 pub const SystemFn = *const fn (world_ptr: *anyopaque) callconv(.c) void;

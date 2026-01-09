@@ -1,4 +1,7 @@
 const std = @import("std");
+const common = @import("common.zig");
+const Entity = common.Entity;
+const g_allocator = common.g_allocator;
 
 // Rust 闭包的表示 (fat pointer)
 pub const RustClosure = struct {

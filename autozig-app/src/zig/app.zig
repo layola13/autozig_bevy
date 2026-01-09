@@ -1,5 +1,8 @@
 const std = @import("std");
 
+/// Forward declaration of ScheduleManager
+const ScheduleManager = @import("schedule.zig").ScheduleManager;
+
 /// Application state
 pub const ZigApp = struct {
     allocator: std.mem.Allocator,
@@ -10,6 +13,7 @@ pub const ZigApp = struct {
     resources: std.AutoHashMap(u64, ResourceEntry),
     exit_code: ?u8,
     plugin_state: PluginState,
+    schedule_manager: ?*ScheduleManager,
 
     const PluginState = enum {
         Adding,
@@ -41,6 +45,7 @@ pub const ZigApp = struct {
             .resources = std.AutoHashMap(u64, ResourceEntry).init(allocator),
             .exit_code = null,
             .plugin_state = .Adding,
+            .schedule_manager = null,
         };
 
         return app;
@@ -62,12 +67,18 @@ pub const ZigApp = struct {
             .resources = std.AutoHashMap(u64, ResourceEntry).init(allocator),
             .exit_code = null,
             .plugin_state = .Adding,
+            .schedule_manager = null,
         };
 
         return app;
     }
 
     pub fn destroy(self: *ZigApp) void {
+        // 0. 清理schedule_manager
+        if (self.schedule_manager) |manager| {
+            manager.destroy();
+        }
+
         // 1. 先清理plugins（它们不持有外部SubApp资源）
         for (self.plugins.items) |plugin| {
             plugin.destroy();
@@ -103,6 +114,11 @@ pub const ZigApp = struct {
     }
 
     pub fn update(self: *ZigApp) void {
+        // Run schedule manager if it exists
+        if (self.schedule_manager) |manager| {
+            manager.runAll();
+        }
+
         // Update main sub app
         if (self.main_sub_app) |sub_app| {
             sub_app.runDefaultSchedule();

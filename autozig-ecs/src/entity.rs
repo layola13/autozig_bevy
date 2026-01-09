@@ -17,7 +17,19 @@ include_zig!("src/zig/entity.zig", {
     fn entity_generation(entity: Entity) -> u32;
     fn entity_to_bits(entity: Entity) -> u64;
     fn entity_from_bits(bits: u64) -> Entity;
+    fn autozig_init();
+    fn autozig_is_initialized() -> bool;
 });
+
+/// 初始化 AutoZig 运行时 - 必须在使用任何其他功能之前调用
+pub fn init() {
+    autozig_init();
+}
+
+/// 检查 AutoZig 是否已初始化
+pub fn is_initialized() -> bool {
+    autozig_is_initialized()
+}
 
 impl Entity {
     pub const PLACEHOLDER: Self = Self { index: u32::MAX, generation: 0 };
@@ -40,6 +52,10 @@ impl Entity {
     
     pub fn from_bits(bits: u64) -> Self {
         entity_from_bits(bits)
+    }
+    
+    pub fn from_raw(index: u32) -> Self {
+        Self { index, generation: 0 }
     }
 }
 
