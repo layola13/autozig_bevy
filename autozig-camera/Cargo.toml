@@ -1,0 +1,17 @@
+[package]
+name = "autozig-camera"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/your-repo/autozig"
+description = "Bevy camera system for WebGPU/WASM platforms"
+build = "build.rs"
+
+[dependencies]
+autozig = { path = "../../autozig", version = "0.1.2" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
+
+[dev-dependencies]
+approx = "0.5"

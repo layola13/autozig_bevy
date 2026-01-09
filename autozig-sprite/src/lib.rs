@@ -134,7 +134,7 @@ include_zig!("zig/sprite_all.zig", {
     
     // Batch operations
     fn batch_new(texture_id: u32, z_layer: f32) -> SpriteBatch;
-    fn batch_sort_by_z(batches: *mut SpriteBatch, count: usize) void;
+    fn batch_sort_by_z(batches: *mut SpriteBatch, count: usize) -> ();
 });
 
 impl Default for Sprite {

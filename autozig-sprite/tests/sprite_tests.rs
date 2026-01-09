@@ -1,6 +1,6 @@
 use autozig_sprite::*;
 use autozig_color::Color;
-use glam::Vec2;
+use autozig_math::{Vec2, Vec3};
 
 #[test]
 fn test_sprite_default() {
@@ -324,7 +324,7 @@ fn test_sort_batches_single() {
 
 #[test]
 fn test_sprite_vertex_new() {
-    let position = glam::Vec3::new(1.0, 2.0, 3.0);
+    let position = Vec3::new(1.0, 2.0, 3.0);
     let uv = Vec2::new(0.5, 0.5);
     let color = Color::RED;
     
