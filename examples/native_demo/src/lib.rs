@@ -32,12 +32,12 @@ pub fn run_all_demos() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
         // Native 环境：实际运行所有演示
-        demo_app::run_demo();
-        demo_ecs::run_demo();
-        demo_math::run_demo();
-        demo_state::run_demo();
-        demo_time_task::run_demo();
-        demo_json::run_demo();
+        demo_app::run_app_demo();
+        demo_ecs::run_ecs_demo();
+        demo_math::run_math_demo();
+        demo_state::run_state_demo();
+        demo_time_task::run_time_task_demo();
+        demo_json::run_json_demo();
     }
     // WASM 环境：只返回成功状态
     1 // success
@@ -52,7 +52,7 @@ pub fn run_all_demos() -> u32 {
 pub fn demo_run_app() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_app::run_demo();
+        demo_app::run_app_demo();
     }
     1 // success
 }
@@ -66,7 +66,7 @@ pub fn demo_run_app() -> u32 {
 pub fn demo_run_ecs() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_ecs::run_demo();
+        demo_ecs::run_ecs_demo();
     }
     1 // success
 }
@@ -80,7 +80,7 @@ pub fn demo_run_ecs() -> u32 {
 pub fn demo_run_math() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_math::run_demo();
+        demo_math::run_math_demo();
     }
     1 // success
 }
@@ -118,7 +118,7 @@ pub fn demo_math_quat_identity() -> u32 {
 pub fn demo_run_state() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_state::run_demo();
+        demo_state::run_state_demo();
     }
     1 // success
 }
@@ -132,7 +132,7 @@ pub fn demo_run_state() -> u32 {
 pub fn demo_run_time_task() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_time_task::run_demo();
+        demo_time_task::run_time_task_demo();
     }
     1 // success
 }
@@ -170,7 +170,7 @@ pub fn demo_time_timer_repeating(duration_secs: f32) -> u32 {
 pub fn demo_run_json() -> u32 {
     #[cfg(not(target_family = "wasm"))]
     {
-        demo_json::run_demo();
+        demo_json::run_json_demo();
     }
     1 // success
 }

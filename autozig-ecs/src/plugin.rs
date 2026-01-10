@@ -26,7 +26,39 @@ include_zig!("src/zig/plugin.zig", {
 
 /// Bevy-compatible Plugin trait
 pub trait Plugin: Send + Sync {
+    /// Build the plugin - add systems, resources, etc.
     fn build(&self, app: &mut App);
+    
+    /// Get the name of this plugin
+    ///
+    /// Defaults to the type name
+    fn name(&self) -> &str {
+        core::any::type_name::<Self>()
+    }
+    
+    /// Check if the plugin is ready to be built
+    ///
+    /// This is called before `build`, and can be used to ensure dependencies are met
+    fn ready(&self, _app: &App) -> bool {
+        true
+    }
+    
+    /// Called after all plugins have been built
+    ///
+    /// This is useful for initialization that depends on other plugins
+    fn finish(&self, _app: &mut App) {}
+    
+    /// Called when the app is shutting down
+    ///
+    /// Use this for cleanup operations
+    fn cleanup(&self, _app: &mut App) {}
+    
+    /// Check if this plugin is unique
+    ///
+    /// If true, the plugin can only be added once. Defaults to true.
+    fn is_unique(&self) -> bool {
+        true
+    }
 }
 
 /// Application builder
