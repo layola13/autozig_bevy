@@ -35,7 +35,8 @@ export async function loadWasmSync(buffer) {
  */
 function wrapExports(raw) {
   return {
-    wasm_test_simple: raw.wasm_test_simple,
-    wasm_get_version: raw.wasm_get_version
+    run_hello_world: raw.run_hello_world,
+    get_system_count: raw.get_system_count,
+    run_multiple_times: raw.run_multiple_times
   };
 }

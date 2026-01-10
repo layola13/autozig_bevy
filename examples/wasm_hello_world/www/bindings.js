@@ -17,7 +17,16 @@ export async function loadWasm(path) {
  * @returns {Promise<AutoZigWasm>}
  */
 export async function loadWasmSync(buffer) {
-  const result = await WebAssembly.instantiate(buffer, {});
+  // 创建导入对象，提供 wasm-bindgen 导出的函数
+  const imports = {
+    // 空的 env 对象用于环境导入
+    env: {},
+    // wasm-bindgen 会导出这些函数到 "C" 命名空间
+    // 但在 WASM64 中，这些函数实际上已经在模块内部了
+    // 我们需要先实例化，然后让 Zig 函数引用它们
+  };
+
+  const result = await WebAssembly.instantiate(buffer, imports);
   const instance = result.instance;
   const raw = instance.exports;
 
@@ -35,7 +44,8 @@ export async function loadWasmSync(buffer) {
  */
 function wrapExports(raw) {
   return {
-    wasm_test_simple: raw.wasm_test_simple,
-    wasm_get_version: raw.wasm_get_version
+    run_hello_world: raw.run_hello_world,
+    get_system_count: raw.get_system_count,
+    run_multiple_times: raw.run_multiple_times
   };
 }

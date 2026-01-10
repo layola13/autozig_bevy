@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoZig-Bevy WASM Hello World</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 1.1em;
+        }
+        .loading { background: rgba(255, 193, 7, 0.3); }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .info-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding-bottom: 10px;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .info-box li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .console-note {
+            background: rgba(255, 152, 0, 0.2);
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 AutoZig-Bevy WASM Hello World</h1>
+        <div class="subtitle">使用 App 和 System 架构的完整示例</div>
+        
+        <div id="status" class="status loading">正在加载 WASM 模块...</div>
+        
+        <div class="console-note">
+            <strong>📢 重要提示：</strong> 请打开浏览器的开发者工具（F12）查看控制台输出。
+            所有的 Hello World 消息和系统执行日志都会显示在控制台中。
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button id="btnRunHelloWorld">🎯 运行 Hello World</button>
+            <button id="btnGetSystemCount">📊 获取系统数量</button>
+            <button id="btnRunMultipleTimes">🔁 运行 3 次迭代</button>
+        </div>
+        
+        <div class="info-box">
+            <h3>🎮 关于此 Demo</h3>
+            <ul>
+                <li><strong>框架：</strong>AutoZig-Bevy ECS（Zig + Rust 混合）</li>
+                <li><strong>架构：</strong>App + System 模式</li>
+                <li><strong>目标：</strong>WASM64 (Memory64)</li>
+                <li><strong>系统数量：</strong>5 个闭包系统</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>📋 系统列表</h3>
+            <ul>
+                <li><strong>System 1:</strong> 输出 Hello World 消息</li>
+                <li><strong>System 2:</strong> 显示使用的框架名称</li>
+                <li><strong>System 3:</strong> 执行计数器（演示状态管理）</li>
+                <li><strong>System 4:</strong> 模拟游戏状态更新</li>
+                <li><strong>System 5:</strong> 模拟渲染管线</li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h3>🔒 安全约束</h3>
+            <ul>
+                <li>✅ 所有 Zig 函数立即使用并返回</li>
+                <li>✅ 不保存 raw pointer 到 Rust struct</li>
+                <li>✅ 同步执行，无 spawn</li>
+                <li>✅ 避免跨 FFI 边界的复杂数据结构</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        import { loadWasm } from './bindings.js';
+
+        let wasmInstance = null;
+
+        async function initWasm() {
+            try {
+                console.log('🔄 开始加载 WASM 模块...');
+                const wasm = await loadWasm('./autozig_wasm_hello_world.wasm');
+                wasmInstance = wasm;
+                console.log('✅ WASM 模块加载成功！');
+                console.log('📦 AutoZig 导出的函数:', Object.keys(wasm.exports));
+                console.log('📦 所有 WASM 导出:', Object.keys(wasm.instance.exports));
+                
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').innerHTML = '✅ WASM 模块加载成功！<br>请点击按钮运行 Demo';
+                
+                // 绑定按钮事件
+                setupButtonHandlers();
+            } catch (e) {
+                console.error('❌ WASM 加载失败:', e);
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ WASM 加载失败: ' + e.message;
+            }
+        }
+
+        function setupButtonHandlers() {
+            document.getElementById('btnRunHelloWorld').addEventListener('click', function() {
+                if (!wasmInstance) {
+                    alert('WASM 模块尚未加载');
+                    return;
+                }
+                console.log('\n' + '='.repeat(50));
+                console.log('🎯 用户触发: 运行 Hello World');
+                console.log('='.repeat(50));
+                try {
+                    // 直接调用 wasm-bindgen 导出的函数
+                    if (wasmInstance.instance.exports.run_hello_world_ecs) {
+                        wasmInstance.instance.exports.run_hello_world_ecs();
+                    } else {
+                        console.warn('⚠️ run_hello_world_ecs 不存在，尝试 AutoZig 版本');
+                        wasmInstance.exports.run_hello_world();
+                    }
+                    document.getElementById('status').className = 'status success';
+                    document.getElementById('status').textContent = '✅ Hello World 执行成功！查看控制台输出';
+                } catch (e) {
+                    console.error('❌ 执行失败:', e);
+                    document.getElementById('status').className = 'status error';
+                    document.getElementById('status').textContent = '❌ 执行失败: ' + e.message;
+                }
+            });
+
+            document.getElementById('btnGetSystemCount').addEventListener('click', function() {
+                if (!wasmInstance) {
+                    alert('WASM 模块尚未加载');
+                    return;
+                }
+                try {
+                    // 优先使用 wasm-bindgen 版本
+                    let count;
+                    if (wasmInstance.instance.exports.get_system_count_ecs) {
+                        count = wasmInstance.instance.exports.get_system_count_ecs();
+                    } else {
+                        count = wasmInstance.exports.get_system_count();
+                    }
+                    console.log(`📊 系统计数: ${count}`);
+                    document.getElementById('status').className = 'status success';
+                    document.getElementById('status').textContent = `📊 测试应用包含 ${count} 个系统`;
+                } catch (e) {
+                    console.error('❌ 获取失败:', e);
+                    document.getElementById('status').className = 'status error';
+                    document.getElementById('status').textContent = '❌ 获取失败: ' + e.message;
+                }
+            });
+
+            document.getElementById('btnRunMultipleTimes').addEventListener('click', function() {
+                if (!wasmInstance) {
+                    alert('WASM 模块尚未加载');
+                    return;
+                }
+                console.log('\n' + '='.repeat(50));
+                console.log('🔁 用户触发: 运行多次迭代');
+                console.log('='.repeat(50));
+                try {
+                    // 优先使用 wasm-bindgen 版本
+                    if (wasmInstance.instance.exports.run_multiple_times_ecs) {
+                        wasmInstance.instance.exports.run_multiple_times_ecs(3);
+                    } else {
+                        wasmInstance.exports.run_multiple_times(3);
+                    }
+                    document.getElementById('status').className = 'status success';
+                    document.getElementById('status').textContent = '✅ 多次迭代执行成功！查看控制台输出';
+                } catch (e) {
+                    console.error('❌ 执行失败:', e);
+                    document.getElementById('status').className = 'status error';
+                    document.getElementById('status').textContent = '❌ 执行失败: ' + e.message;
+                }
+            });
+        }
+
+        // 启动
+        initWasm();
+    </script>
+</body>
+</html>

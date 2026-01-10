@@ -111,7 +111,7 @@
                 return;
             }
             try {
-                const version = wasm.exports.get_version();
+                const version = wasm.exports.wasm_get_version();
                 const output = `版本测试结果:
 ━━━━━━━━━━━━━━━━━━━━
 版本号: ${version}
@@ -130,7 +130,7 @@
                 return;
             }
             try {
-                const result = wasm.exports.test_simple();
+                const result = wasm.exports.wasm_test_simple();
                 const output = `简单函数测试:
 ━━━━━━━━━━━━━━━━━━━━
 返回值: ${result}

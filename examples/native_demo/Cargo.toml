@@ -1,0 +1,44 @@
+[package]
+name = "native_demo"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+
+# 支持 Native 和 WASM64 双目标
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "native_demo"
+path = "src/main.rs"
+
+[dependencies]
+# AutoZig core (for autozig_export macro)
+autozig = { path = "../../../autozig" }
+
+# AutoZig-Bevy crates only - no external dependencies
+autozig-app = { path = "../../autozig-app" }
+autozig-ecs = { path = "../../autozig-ecs" }
+autozig-math = { path = "../../autozig-math" }
+autozig-state = { path = "../../autozig-state" }
+autozig-time = { path = "../../autozig-time" }
+autozig-tasks = { path = "../../autozig-tasks" }
+autozig_json = { path = "../../autozig_json" }
+
+[build-dependencies]
+autozig-build = { path = "../../../autozig/gen/build" }
+anyhow = "1.0"
+
+[profile.release]
+opt-level = "z"     # 优化大小
+lto = false         # 禁用 LTO 以保留符号
+codegen-units = 1   # 单个代码生成单元
+
+# WebAssembly 64-bit 特定配置
+[profile.release.package."*"]
+opt-level = 3
+
+# 编译命令（wasm64是tier-3 target，需要build-std）：
+# Native: cargo build --release
+# WASM64: cargo +nightly build --target wasm64-unknown-unknown -Z build-std=std,panic_abort --release

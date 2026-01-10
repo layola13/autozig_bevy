@@ -2,8 +2,9 @@
 /* eslint-disable */
 
 export interface WasmExports {
-  wasm_test_simple(): number;
-  wasm_get_version(): number;
+  run_hello_world(): void;
+  get_system_count(): number;
+  run_multiple_times(times: number): void;
 }
 
 export interface AutoZigWasm {

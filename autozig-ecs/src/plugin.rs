@@ -1,7 +1,8 @@
 //! Plugin system - Bevy-compatible plugin architecture
 
 use autozig::include_zig;
-use crate::into_system::{ClosureRegistry, IntoSystem};
+use crate::into_system::{BoxedSystem, IntoSystem};
+use crate::world::World;
 
 #[repr(C)]
 pub struct PluginManagerOpaque {
@@ -31,16 +32,15 @@ pub trait Plugin: Send + Sync {
 /// Application builder
 pub struct App {
     plugin_manager: *mut PluginManagerOpaque,
-    closure_registry: ClosureRegistry,
+    systems: Vec<BoxedSystem>,
 }
 
 impl App {
     pub fn new() -> Self {
         let plugin_manager = plugin_manager_create();
-        let closure_registry = ClosureRegistry::new();
         Self { 
             plugin_manager,
-            closure_registry,
+            systems: Vec::new(),
         }
     }
     
@@ -61,7 +61,7 @@ impl App {
         F: IntoSystem<Params>,
     {
         let boxed = system.into_system();
-        self.closure_registry.register(boxed);
+        self.systems.push(boxed);
         self
     }
     
@@ -78,9 +78,13 @@ impl App {
     
     /// Run all closure systems (Bevy-style)
     pub fn run(&mut self) {
-        // For now, we need a World to run systems
-        // This will be improved when we integrate World into App
-        println!("Running {} closure systems", self.closure_registry.system_count());
+        // Create a temporary World for systems that need it
+        let mut world = World::new();
+        
+        // Execute all registered systems
+        for system in self.systems.iter_mut() {
+            (system.closure)(&mut world);
+        }
     }
     
     pub fn plugin_count(&self) -> usize {
@@ -89,7 +93,7 @@ impl App {
     
     /// Get the number of registered closure systems
     pub fn closure_system_count(&self) -> usize {
-        self.closure_registry.system_count()
+        self.systems.len()
     }
 }
 

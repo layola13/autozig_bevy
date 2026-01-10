@@ -1,25 +1,25 @@
-//! AutoZig WASM 3D Demo - 完全按照 wasm64bit 示例
+//! AutoZig WASM 3D Demo - 使用 #[autozig_export] 导出到 WASM64
 
-use autozig::include_zig;
-use wasm_bindgen::prelude::*;
+use autozig::{include_zig, autozig_export};
 
 // 使用 include_zig! 宏引入 Zig 实现
-// 使用 #[autozig(strategy = "dual")] 自动生成双重绑定
 include_zig!("src/demo.zig", {
     // 测试函数 - 返回 u32
-    #[autozig(strategy = "dual")]
     fn test_simple() -> u32;
     
     // 获取版本信息
-    #[autozig(strategy = "dual")]
     fn get_version() -> u32;
 });
 
-// Optional: panic hook for debugging in browser console
-#[wasm_bindgen(start)]
-pub fn init() {
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
+// 导出函数供 JavaScript 调用
+#[autozig_export]
+pub fn wasm_test_simple() -> u32 {
+    test_simple()
+}
+
+#[autozig_export]
+pub fn wasm_get_version() -> u32 {
+    get_version()
 }
 
 #[cfg(test)]
