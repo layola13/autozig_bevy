@@ -204,7 +204,7 @@ include_zig!("zig/text_all.zig", {
     // Text vertex functions
     fn text_vertex_new(position: *const [f32; 3], uv: Vec2, color: u32) -> TextVertex;
     fn glyph_instance_new(position: Vec2, size: Vec2, uv_rect: Rect, color: u32) -> GlyphInstance;
-    fn create_glyph_quad(instance: GlyphInstance) -> [TextVertex; 4];
+    fn create_glyph_quad(instance: GlyphInstance, out: *mut [TextVertex; 4]) -> ();
     
     // Color packing functions
     fn pack_color(color: Color) -> u32;
@@ -406,7 +406,9 @@ impl GlyphInstance {
     }
 
     pub fn create_quad(&self) -> [TextVertex; 4] {
-        create_glyph_quad(*self)
+        let mut out = [TextVertex { position: [0.0; 3], uv: [0.0; 2], color: 0 }; 4];
+        create_glyph_quad(*self, &mut out);
+        out
     }
 }
 

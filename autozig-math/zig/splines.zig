@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
 
 /// Hermite spline (cubic Hermite interpolation)
 pub const CubicHermite3d = extern struct {

@@ -1,4 +1,10 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
+const Vec3 = @import("vec3.zig").Vec3;
+const Dir2 = @import("dir2.zig").Dir2;
+const Dir3 = @import("dir3.zig").Dir3;
+const Plane2d = @import("primitives_2d.zig").Plane2d;
+const InfinitePlane3d = @import("primitives_3d.zig").InfinitePlane3d;
 
 pub const Ray2d = extern struct {
     origin: Vec2,

@@ -1,5 +1,28 @@
 const std = @import("std");
 
+/// WASM 兼容的全局分配器
+fn getGlobalAllocator() std.mem.Allocator {
+    const builtin = @import("builtin");
+    if (builtin.target.cpu.arch.isWasm()) {
+        // WASM 环境：使用固定大小的缓冲区分配器
+        const State = struct {
+            var buffer: [1024 * 1024 * 10]u8 = undefined; // 10MB 缓冲区
+            var fba = std.heap.FixedBufferAllocator.init(&buffer);
+            var initialized = false;
+        };
+
+        if (!State.initialized) {
+            State.fba = std.heap.FixedBufferAllocator.init(&State.buffer);
+            State.initialized = true;
+        }
+
+        return State.fba.allocator();
+    } else {
+        // 非 WASM 环境：使用标准 page_allocator
+        return std.heap.page_allocator;
+    }
+}
+
 // 导入 Diagnostic 定义（需要完整定义才能销毁）
 const diagnostic_mod = @import("diagnostic.zig");
 pub const Diagnostic = diagnostic_mod.Diagnostic;
@@ -61,15 +84,26 @@ pub const DiagnosticsStore = struct {
 
     /// 通过哈希获取诊断
     pub fn getByHash(self: *DiagnosticsStore, hash: u64) ?*Diagnostic {
-        std.debug.print("DEBUG Zig: getByHash called with hash={}, items.len={}\n", .{ hash, self.diagnostics.items.len });
+        // Debug logging only in non-WASM environments (POSIX calls unavailable in WASM)
+        const builtin = @import("builtin");
+        if (!builtin.cpu.arch.isWasm()) {
+            std.debug.print("DEBUG Zig: getByHash called with hash={}, items.len={}\n", .{ hash, self.diagnostics.items.len });
+        }
+
         for (self.diagnostics.items, 0..) |entry, i| {
-            std.debug.print("DEBUG Zig: checking entry[{}]: hash={}\n", .{ i, entry.hash });
+            if (!builtin.cpu.arch.isWasm()) {
+                std.debug.print("DEBUG Zig: checking entry[{}]: hash={}\n", .{ i, entry.hash });
+            }
             if (entry.hash == hash) {
-                std.debug.print("DEBUG Zig: found match at index {}\n", .{i});
+                if (!builtin.cpu.arch.isWasm()) {
+                    std.debug.print("DEBUG Zig: found match at index {}\n", .{i});
+                }
                 return entry.diagnostic;
             }
         }
-        std.debug.print("DEBUG Zig: no match found\n", .{});
+        if (!builtin.cpu.arch.isWasm()) {
+            std.debug.print("DEBUG Zig: no match found\n", .{});
+        }
         return null;
     }
 
@@ -114,7 +148,7 @@ pub const DiagnosticsStore = struct {
 
 // FFI exports
 export fn store_create() ?*DiagnosticsStore {
-    const allocator = std.heap.page_allocator;
+    const allocator = getGlobalAllocator();
     return DiagnosticsStore.create(allocator) catch null;
 }
 
@@ -144,14 +178,14 @@ export fn store_clear(store: *DiagnosticsStore) void {
 
 /// 迭代器FFI
 export fn store_iterator_create(store: *DiagnosticsStore) ?*DiagnosticsStore.IteratorContext {
-    const allocator = std.heap.page_allocator;
+    const allocator = getGlobalAllocator();
     const ctx = allocator.create(DiagnosticsStore.IteratorContext) catch return null;
     ctx.* = store.iterator();
     return ctx;
 }
 
 export fn store_iterator_destroy(ctx: *DiagnosticsStore.IteratorContext) void {
-    const allocator = std.heap.page_allocator;
+    const allocator = getGlobalAllocator();
     allocator.destroy(ctx);
 }
 

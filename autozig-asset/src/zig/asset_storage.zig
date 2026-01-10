@@ -161,7 +161,7 @@ pub const AssetStorage = struct {
 // ============================================================================
 
 export fn asset_storage_create(type_id: u64) ?*AssetStorage {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     const storage = allocator.create(AssetStorage) catch return null;
     storage.* = AssetStorage.init(allocator, type_id);
     return storage;

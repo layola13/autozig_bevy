@@ -336,16 +336,16 @@ export fn atlas_layout_new(tile_size: Vec2, columns: usize, rows: usize) Texture
     return TextureAtlasLayout.new(tile_size, columns, rows);
 }
 
-export fn atlas_calculate_uv(atlas: TextureAtlas, texture_size: Vec2) [4]f32 {
-    return atlas.calculateUV(texture_size);
+export fn atlas_calculate_uv(atlas: TextureAtlas, texture_size: Vec2, out: *[4]f32) void {
+    out.* = atlas.calculateUV(texture_size);
 }
 
-export fn sprite_create_quad(sprite: Sprite, size: Vec2, anchor_offset: Vec2) [4]SpriteVertex {
-    return createSpriteQuad(sprite, size, anchor_offset);
+export fn sprite_create_quad(sprite: Sprite, size: Vec2, anchor_offset: Vec2, out: *[4]SpriteVertex) void {
+    out.* = createSpriteQuad(sprite, size, anchor_offset);
 }
 
-export fn sprite_create_quad_with_uv(sprite: Sprite, size: Vec2, anchor_offset: Vec2, uv_rect: [4]f32) [4]SpriteVertex {
-    return createSpriteQuadWithUV(sprite, size, anchor_offset, uv_rect);
+export fn sprite_create_quad_with_uv(sprite: Sprite, size: Vec2, anchor_offset: Vec2, uv_rect: *const [4]f32, out: *[4]SpriteVertex) void {
+    out.* = createSpriteQuadWithUV(sprite, size, anchor_offset, uv_rect.*);
 }
 
 export fn pack_color(color: Color) u32 {

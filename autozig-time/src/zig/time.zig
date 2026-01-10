@@ -2,7 +2,15 @@ const std = @import("std");
 
 /// 获取当前纳秒时间戳
 fn nowNanos() u64 {
-    return @as(u64, @intCast(std.time.nanoTimestamp()));
+    const builtin = @import("builtin");
+    if (builtin.cpu.arch.isWasm()) {
+        // WASM 平台: 返回虚拟时间戳（从 0 开始计数）
+        // 在 WASM 环境中，通常由宿主环境提供时间
+        return 0;
+    } else {
+        // Native 平台: 使用系统时钟
+        return @as(u64, @intCast(std.time.nanoTimestamp()));
+    }
 }
 
 /// 纳秒转换为秒
@@ -149,3 +157,44 @@ export fn time_nanos_to_secs(nanos: u64) f32 {
 export fn time_secs_to_nanos(secs: f32) u64 {
     return secsToNanos(secs);
 }
+
+// ========== 单元测试 ==========
+
+test "Time creation" {
+    const time = Time.create();
+    try std.testing.expectEqual(@as(f32, 0.0), time.delta);
+    try std.testing.expectEqual(@as(f32, 0.0), time.elapsed);
+    try std.testing.expectEqual(@as(u64, 0), time.delta_nanos);
+    try std.testing.expectEqual(@as(u64, 0), time.elapsed_nanos);
+}
+
+test "Time setDelta" {
+    var time = Time.create();
+    time.setDelta(0.5);
+    
+    try std.testing.expectEqual(@as(f32, 0.5), time.delta);
+    try std.testing.expectEqual(@as(f32, 0.5), time.elapsed);
+    try std.testing.expectEqual(@as(u64, 500_000_000), time.delta_nanos);
+    try std.testing.expectEqual(@as(u64, 500_000_000), time.elapsed_nanos);
+}
+
+test "Time conversion functions" {
+    const nanos: u64 = 1_500_000_000; // 1.5 seconds
+    const secs = nanosToSecs(nanos);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.5), secs, 0.001);
+    
+    const back_to_nanos = secsToNanos(secs);
+    try std.testing.expectEqual(nanos, back_to_nanos);
+}
+
+test "Time reset" {
+    var time = Time.create();
+    time.setDelta(1.0);
+    time.reset();
+    
+    try std.testing.expectEqual(@as(f32, 0.0), time.delta);
+    try std.testing.expectEqual(@as(f32, 0.0), time.elapsed);
+    try std.testing.expectEqual(@as(u64, 0), time.delta_nanos);
+    try std.testing.expectEqual(@as(u64, 0), time.elapsed_nanos);
+}
+

@@ -1,4 +1,7 @@
 const std = @import("std");
+const Vec3A = @import("vec3a.zig").Vec3A;
+const Quat = @import("quat.zig").Quat;
+const Mat3 = @import("mat3.zig").Mat3;
 
 /// Mat3A - SIMD-aligned 3x3 matrix (columns are Vec3A)
 pub const Mat3A = extern struct {

@@ -1,4 +1,7 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
+const Vec4 = @import("vec4.zig").Vec4;
+const Quat = @import("quat.zig").Quat;
 
 pub const Mat4 = extern struct {
     cols: [4][4]f32,

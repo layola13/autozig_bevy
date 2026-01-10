@@ -97,3 +97,45 @@ export fn stopwatch_elapsed_secs(stopwatch: *const Stopwatch) f32 {
 export fn stopwatch_is_paused(stopwatch: *const Stopwatch) bool {
     return stopwatch.isPaused();
 }
+
+// ========== 单元测试 ==========
+
+test "Stopwatch creation" {
+    const sw = Stopwatch.new();
+    try std.testing.expectEqual(@as(u64, 0), sw.elapsed_nanos);
+    try std.testing.expectEqual(false, sw.paused);
+}
+
+test "Stopwatch tick" {
+    var sw = Stopwatch.new();
+    sw.tick(1_000_000_000); // 1 second
+    
+    try std.testing.expectEqual(@as(u64, 1_000_000_000), sw.elapsed());
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), sw.elapsedSecs(), 0.001);
+}
+
+test "Stopwatch pause and unpause" {
+    var sw = Stopwatch.new();
+    sw.tick(500_000_000); // 0.5 seconds
+    
+    sw.pause();
+    try std.testing.expect(sw.isPaused());
+    
+    sw.tick(500_000_000); // Should not increment
+    try std.testing.expectEqual(@as(u64, 500_000_000), sw.elapsed());
+    
+    sw.unpause();
+    try std.testing.expect(!sw.isPaused());
+    
+    sw.tick(500_000_000); // Should increment
+    try std.testing.expectEqual(@as(u64, 1_000_000_000), sw.elapsed());
+}
+
+test "Stopwatch reset" {
+    var sw = Stopwatch.new();
+    sw.tick(2_000_000_000); // 2 seconds
+    sw.reset();
+    
+    try std.testing.expectEqual(@as(u64, 0), sw.elapsed());
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), sw.elapsedSecs(), 0.001);
+}

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 /// Log level enumeration
 pub const LogLevel = enum(u8) {
@@ -35,7 +36,11 @@ var log_buffer: [4096]u8 = undefined;
 /// Get current timestamp in milliseconds
 export fn log_timestamp() i64 {
     // For WASM/cross-platform, return milliseconds since epoch
-    return @as(i64, @intCast(std.time.milliTimestamp()));
+    const timestamp = if (builtin.cpu.arch.isWasm())
+        0 // WASM: 使用固定值（WASM环境不支持 clockid_t）
+    else
+        std.time.milliTimestamp();
+    return @as(i64, @intCast(timestamp));
 }
 
 /// Check if log level is enabled
@@ -45,14 +50,14 @@ export fn log_enabled(level: LogLevel, min_level: LogLevel) bool {
 
 /// Format timestamp to string (HH:MM:SS.mmm)
 fn formatTimestamp(timestamp: i64, buf: []u8) ![]const u8 {
-    const millis = @mod(timestamp, 1000);
-    const seconds = @divFloor(timestamp, 1000);
-    const minutes = @divFloor(seconds, 60);
-    const hours = @divFloor(minutes, 60);
+    const millis = @abs(@mod(timestamp, 1000));
+    const seconds = @abs(@divFloor(timestamp, 1000));
+    const minutes = @abs(@divFloor(seconds, 60));
+    const hours = @abs(@divFloor(minutes, 60));
 
-    const s = @mod(seconds, 60);
-    const m = @mod(minutes, 60);
-    const h = @mod(hours, 24);
+    const s = @abs(@mod(seconds, 60));
+    const m = @abs(@mod(minutes, 60));
+    const h = @abs(@mod(hours, 24));
 
     return std.fmt.bufPrint(buf, "{d:0>2}:{d:0>2}:{d:0>2}.{d:0>3}", .{ h, m, s, millis });
 }
@@ -174,4 +179,73 @@ export fn log_shutdown() void {
 /// Set whether console functions are available
 export fn log_set_console_available(available: bool) void {
     console_available = available;
+}
+
+// 单元测试
+test "log timestamp wasm64 compatibility" {
+    const timestamp = log_timestamp();
+    
+    if (builtin.cpu.arch.isWasm()) {
+        // 在 WASM 环境下，时间戳应该返回 0
+        try std.testing.expectEqual(@as(i64, 0), timestamp);
+    } else {
+        // 在原生环境下，时间戳应该是正数（假设系统时间正确）
+        try std.testing.expect(timestamp >= 0);
+    }
+}
+
+test "log level enabled check" {
+    try std.testing.expect(log_enabled(.info, .info));
+    try std.testing.expect(log_enabled(.warn, .info));
+    try std.testing.expect(log_enabled(.err, .info));
+    try std.testing.expect(!log_enabled(.debug, .info));
+    try std.testing.expect(!log_enabled(.trace, .info));
+}
+
+test "log level ordering" {
+    try std.testing.expect(@intFromEnum(LogLevel.trace) < @intFromEnum(LogLevel.debug));
+    try std.testing.expect(@intFromEnum(LogLevel.debug) < @intFromEnum(LogLevel.info));
+    try std.testing.expect(@intFromEnum(LogLevel.info) < @intFromEnum(LogLevel.warn));
+    try std.testing.expect(@intFromEnum(LogLevel.warn) < @intFromEnum(LogLevel.err));
+}
+
+test "log level toString" {
+    try std.testing.expectEqualStrings("TRACE", LogLevel.trace.toString());
+    try std.testing.expectEqualStrings("DEBUG", LogLevel.debug.toString());
+    try std.testing.expectEqualStrings("INFO", LogLevel.info.toString());
+    try std.testing.expectEqualStrings("WARN", LogLevel.warn.toString());
+    try std.testing.expectEqualStrings("ERROR", LogLevel.err.toString());
+}
+
+test "formatTimestamp" {
+    var buf: [32]u8 = undefined;
+    
+    // 测试 0 毫秒
+    const ts1 = try formatTimestamp(0, &buf);
+    try std.testing.expectEqualStrings("00:00:00.000", ts1);
+    
+    // 测试 1 小时 2 分 3 秒 456 毫秒 = 3723456 毫秒
+    const ts2 = try formatTimestamp(3723456, &buf);
+    try std.testing.expectEqualStrings("01:02:03.456", ts2);
+}
+
+test "wasm64 compatibility full workflow" {
+    // 测试完整的日志工作流在 WASM64 下能正常工作
+    log_init();
+    log_set_console_available(false);
+    
+    const module = "test_module";
+    const message = "test message";
+    
+    // 这不应该在 WASM64 下引发 clockid_t 错误
+    log_write(.info, module.ptr, module.len, message.ptr, message.len);
+    log_write_formatted(.warn, message.ptr, message.len);
+    
+    const timestamp = log_timestamp();
+    
+    if (builtin.cpu.arch.isWasm()) {
+        try std.testing.expectEqual(@as(i64, 0), timestamp);
+    }
+    
+    log_shutdown();
 }

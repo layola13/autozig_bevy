@@ -242,3 +242,92 @@ export fn timer_set_duration(timer: *Timer, duration_secs: f32) void {
 export fn timer_times_finished(timer: *const Timer) u32 {
     return timer.timesFinishedThisTick();
 }
+
+// ========== 单元测试 ==========
+
+test "Timer creation" {
+    const timer = Timer.new(2.0, .Once);
+    try std.testing.expectEqual(@as(u64, 2_000_000_000), timer.duration_nanos);
+    try std.testing.expectEqual(TimerMode.Once, timer.mode);
+    try std.testing.expectEqual(false, timer.finished);
+}
+
+test "Timer Once mode" {
+    var timer = Timer.new(1.0, .Once);
+    
+    // Tick 0.5 seconds
+    timer.tick(500_000_000);
+    try std.testing.expect(!timer.isFinished());
+    try std.testing.expect(!timer.justFinished());
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), timer.percent(), 0.01);
+    
+    // Tick another 0.6 seconds (total 1.1 seconds, should finish)
+    timer.tick(600_000_000);
+    try std.testing.expect(timer.isFinished());
+    try std.testing.expect(timer.justFinished());
+    try std.testing.expectEqual(@as(u32, 1), timer.timesFinishedThisTick());
+    
+    // Should be paused after finishing
+    try std.testing.expect(timer.isPaused());
+}
+
+test "Timer Repeating mode" {
+    var timer = Timer.new(1.0, .Repeating);
+    
+    // Tick 2.5 seconds (should complete 2 times)
+    timer.tick(2_500_000_000);
+    try std.testing.expect(timer.isFinished());
+    try std.testing.expectEqual(@as(u32, 2), timer.timesFinishedThisTick());
+    
+    // Should have 0.5 seconds remaining
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), timer.elapsedSecs(), 0.01);
+}
+
+test "Timer pause and unpause" {
+    var timer = Timer.new(1.0, .Once);
+    
+    timer.tick(500_000_000); // 0.5 seconds
+    timer.pause();
+    
+    try std.testing.expect(timer.isPaused());
+    
+    timer.tick(1_000_000_000); // Should not increment
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), timer.elapsedSecs(), 0.01);
+    
+    timer.unpause();
+    timer.tick(600_000_000); // Should finish now
+    try std.testing.expect(timer.isFinished());
+}
+
+test "Timer reset" {
+    var timer = Timer.new(1.0, .Once);
+    timer.tick(2_000_000_000); // Finish it
+    
+    try std.testing.expect(timer.isFinished());
+    
+    timer.reset();
+    try std.testing.expect(!timer.isFinished());
+    try std.testing.expect(!timer.isPaused());
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), timer.elapsedSecs(), 0.001);
+}
+
+test "Timer percent calculations" {
+    var timer = Timer.new(2.0, .Once);
+    
+    timer.tick(500_000_000); // 0.5 / 2.0 = 25%
+    try std.testing.expectApproxEqAbs(@as(f32, 0.25), timer.percent(), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.75), timer.percentLeft(), 0.01);
+    
+    timer.tick(1_000_000_000); // 1.5 / 2.0 = 75%
+    try std.testing.expectApproxEqAbs(@as(f32, 0.75), timer.percent(), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.25), timer.percentLeft(), 0.01);
+}
+
+test "Timer set duration" {
+    var timer = Timer.new(1.0, .Once);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), timer.durationSecs(), 0.001);
+    
+    timer.setDuration(3.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), timer.durationSecs(), 0.001);
+    try std.testing.expectEqual(@as(u64, 3_000_000_000), timer.duration_nanos);
+}

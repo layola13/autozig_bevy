@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
 // Vec3 is available globally via autozig merge
 
 pub const CubicBezier3d = extern struct {

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoZig WASM 3D Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        #output {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .loading { background: rgba(255, 193, 7, 0.3); }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 AutoZig WASM 3D Demo</h1>
+        
+        <div id="status" class="status loading">正在加载 WASM 模块...</div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button onclick="testVersion()">测试版本</button>
+            <button onclick="testSimple()">测试简单函数</button>
+        </div>
+        
+        <div id="output">等待测试...</div>
+    </div>
+
+    <script type="module">
+        import { loadWasm } from './bindings.js';
+
+        let wasm = null;
+
+        async function initWasm() {
+            try {
+                console.log('开始加载 WASM...');
+                wasm = await loadWasm('./autozig_wasm_3d_demo.wasm');
+                console.log('WASM 加载成功！');
+                console.log('导出的函数:', Object.keys(wasm.exports));
+                
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').textContent = '✅ WASM 模块加载成功！';
+                
+                // 自动运行测试
+                testVersion();
+            } catch (e) {
+                console.error('WASM 加载失败:', e);
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ WASM 加载失败: ' + e.message;
+                document.getElementById('output').textContent = '错误详情:\n' + e.stack;
+            }
+        }
+
+        window.testVersion = function() {
+            if (!wasm) {
+                document.getElementById('output').textContent = '❌ WASM 未加载';
+                return;
+            }
+            try {
+                const version = wasm.exports.get_version();
+                const output = `版本测试结果:
+━━━━━━━━━━━━━━━━━━━━
+版本号: ${version}
+版本格式: v${Math.floor(version/100)}.${Math.floor((version%100)/10)}.${version%10}
+状态: ✅ 成功
+时间: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('output').textContent = output;
+            } catch (e) {
+                document.getElementById('output').textContent = '❌ 版本测试失败:\n' + e.message + '\n' + e.stack;
+            }
+        };
+
+        window.testSimple = function() {
+            if (!wasm) {
+                document.getElementById('output').textContent = '❌ WASM 未加载';
+                return;
+            }
+            try {
+                const result = wasm.exports.test_simple();
+                const output = `简单函数测试:
+━━━━━━━━━━━━━━━━━━━━
+返回值: ${result}
+预期值: 43 (42 + 1)
+状态: ${result === 43 ? '✅ 成功' : '❌ 失败'}
+时间: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('output').textContent = output;
+            } catch (e) {
+                document.getElementById('output').textContent = '❌ 简单函数测试失败:\n' + e.message + '\n' + e.stack;
+            }
+        };
+
+        // 启动
+        initWasm();
+    </script>
+</body>
+</html>

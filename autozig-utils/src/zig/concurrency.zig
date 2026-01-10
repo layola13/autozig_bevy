@@ -4,47 +4,47 @@ const hashmap = @import("hashmap.zig");
 // 使用hashmap.zig中定义的allocator
 const g_allocator = hashmap.g_allocator;
 
-// 原子计数器
+// 原子计数器 (WASM32 兼容：使用 u32 而非 u64)
 pub const AtomicCounter = struct {
-    value: std.atomic.Value(u64),
+    value: std.atomic.Value(u32),
 
-    pub fn init(initial: u64) AtomicCounter {
+    pub fn init(initial: u32) AtomicCounter {
         return AtomicCounter{
-            .value = std.atomic.Value(u64).init(initial),
+            .value = std.atomic.Value(u32).init(initial),
         };
     }
 
-    pub fn load(self: *AtomicCounter, comptime order: std.builtin.AtomicOrder) u64 {
+    pub fn load(self: *AtomicCounter, comptime order: std.builtin.AtomicOrder) u32 {
         return self.value.load(order);
     }
 
-    pub fn store(self: *AtomicCounter, val: u64, comptime order: std.builtin.AtomicOrder) void {
+    pub fn store(self: *AtomicCounter, val: u32, comptime order: std.builtin.AtomicOrder) void {
         self.value.store(val, order);
     }
 
-    pub fn fetchAdd(self: *AtomicCounter, delta: u64, comptime order: std.builtin.AtomicOrder) u64 {
+    pub fn fetchAdd(self: *AtomicCounter, delta: u32, comptime order: std.builtin.AtomicOrder) u32 {
         return self.value.fetchAdd(delta, order);
     }
 
-    pub fn fetchSub(self: *AtomicCounter, delta: u64, comptime order: std.builtin.AtomicOrder) u64 {
+    pub fn fetchSub(self: *AtomicCounter, delta: u32, comptime order: std.builtin.AtomicOrder) u32 {
         return self.value.fetchSub(delta, order);
     }
 
-    pub fn increment(self: *AtomicCounter) u64 {
+    pub fn increment(self: *AtomicCounter) u32 {
         return self.fetchAdd(1, .seq_cst);
     }
 
-    pub fn decrement(self: *AtomicCounter) u64 {
+    pub fn decrement(self: *AtomicCounter) u32 {
         return self.fetchSub(1, .seq_cst);
     }
 
     pub fn compareAndSwap(
         self: *AtomicCounter,
-        expected: u64,
-        new: u64,
+        expected: u32,
+        new: u32,
         comptime success_order: std.builtin.AtomicOrder,
         comptime failure_order: std.builtin.AtomicOrder,
-    ) ?u64 {
+    ) ?u32 {
         return self.value.cmpxchgWeak(expected, new, success_order, failure_order);
     }
 };
@@ -152,8 +152,8 @@ pub const OnceFlag = struct {
     }
 };
 
-// FFI导出 - AtomicCounter
-export fn atomic_counter_create(initial: u64) *AtomicCounter {
+// FFI导出 - AtomicCounter (WASM32: u32)
+export fn atomic_counter_create(initial: u32) *AtomicCounter {
     const counter = g_allocator.create(AtomicCounter) catch unreachable;
     counter.* = AtomicCounter.init(initial);
     return counter;
@@ -163,27 +163,27 @@ export fn atomic_counter_destroy(counter: *AtomicCounter) void {
     g_allocator.destroy(counter);
 }
 
-export fn atomic_counter_load(counter: *AtomicCounter) u64 {
+export fn atomic_counter_load(counter: *AtomicCounter) u32 {
     return counter.load(.seq_cst);
 }
 
-export fn atomic_counter_store(counter: *AtomicCounter, value: u64) void {
+export fn atomic_counter_store(counter: *AtomicCounter, value: u32) void {
     counter.store(value, .seq_cst);
 }
 
-export fn atomic_counter_increment(counter: *AtomicCounter) u64 {
+export fn atomic_counter_increment(counter: *AtomicCounter) u32 {
     return counter.increment();
 }
 
-export fn atomic_counter_decrement(counter: *AtomicCounter) u64 {
+export fn atomic_counter_decrement(counter: *AtomicCounter) u32 {
     return counter.decrement();
 }
 
-export fn atomic_counter_add(counter: *AtomicCounter, delta: u64) u64 {
+export fn atomic_counter_add(counter: *AtomicCounter, delta: u32) u32 {
     return counter.fetchAdd(delta, .seq_cst);
 }
 
-export fn atomic_counter_sub(counter: *AtomicCounter, delta: u64) u64 {
+export fn atomic_counter_sub(counter: *AtomicCounter, delta: u32) u32 {
     return counter.fetchSub(delta, .seq_cst);
 }
 
@@ -260,29 +260,29 @@ export fn once_flag_reset(flag: *OnceFlag) void {
 test "AtomicCounter basic operations" {
     var counter = AtomicCounter.init(0);
 
-    try std.testing.expectEqual(@as(u64, 0), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 0), counter.load(.seq_cst));
 
     counter.store(10, .seq_cst);
-    try std.testing.expectEqual(@as(u64, 10), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 10), counter.load(.seq_cst));
 
     const old = counter.increment();
-    try std.testing.expectEqual(@as(u64, 10), old);
-    try std.testing.expectEqual(@as(u64, 11), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 10), old);
+    try std.testing.expectEqual(@as(u32, 11), counter.load(.seq_cst));
 
     _ = counter.decrement();
-    try std.testing.expectEqual(@as(u64, 10), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 10), counter.load(.seq_cst));
 }
 
 test "AtomicCounter add/sub" {
     var counter = AtomicCounter.init(100);
 
     const old_add = counter.fetchAdd(50, .seq_cst);
-    try std.testing.expectEqual(@as(u64, 100), old_add);
-    try std.testing.expectEqual(@as(u64, 150), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 100), old_add);
+    try std.testing.expectEqual(@as(u32, 150), counter.load(.seq_cst));
 
     const old_sub = counter.fetchSub(30, .seq_cst);
-    try std.testing.expectEqual(@as(u64, 150), old_sub);
-    try std.testing.expectEqual(@as(u64, 120), counter.load(.seq_cst));
+    try std.testing.expectEqual(@as(u32, 150), old_sub);
+    try std.testing.expectEqual(@as(u32, 120), counter.load(.seq_cst));
 }
 
 test "AtomicBool operations" {

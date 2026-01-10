@@ -325,6 +325,9 @@ main() {
         "log"
         "image"
         "hierarchy"
+        "core-pipeline"
+        "shader"
+        "winit"
     )
     
     log_info "开始验证 ${#MODULES[@]} 个模块..."

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
 
 /// Vec3A - SIMD-aligned 3D vector (16-byte aligned, uses 4 floats internally)
 pub const Vec3A = extern struct {

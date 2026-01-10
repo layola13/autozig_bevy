@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
 // Vec2 is available globally via autozig merge
 
 pub const Rect = extern struct {

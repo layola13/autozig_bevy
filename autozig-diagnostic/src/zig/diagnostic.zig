@@ -1,5 +1,46 @@
 const std = @import("std");
 
+/// WASM 兼容的全局分配器
+fn getGlobalAllocator() std.mem.Allocator {
+    const builtin = @import("builtin");
+    if (builtin.target.cpu.arch.isWasm()) {
+        // WASM 环境：使用固定大小的缓冲区分配器
+        const State = struct {
+            var buffer: [1024 * 1024 * 10]u8 = undefined; // 10MB 缓冲区
+            var fba = std.heap.FixedBufferAllocator.init(&buffer);
+            var initialized = false;
+        };
+        
+        if (!State.initialized) {
+            State.fba = std.heap.FixedBufferAllocator.init(&State.buffer);
+            State.initialized = true;
+        }
+        
+        return State.fba.allocator();
+    } else {
+        // 非 WASM 环境：使用标准 page_allocator
+        return std.heap.page_allocator;
+    }
+}
+
+/// WASM兼容的时间戳获取
+fn getTimestamp() i64 {
+    // 在 WASM 环境下使用简单的计数器
+    // 注意：这不是真实的时间戳，仅用于相对时间测量
+    const builtin = @import("builtin");
+    if (builtin.target.cpu.arch.isWasm()) {
+        // WASM 环境：使用静态计数器
+        const State = struct {
+            var counter: i64 = 0;
+        };
+        State.counter += 1;
+        return State.counter;
+    } else {
+        // 非 WASM 环境：使用实际时间戳
+        return std.time.nanoTimestamp();
+    }
+}
+
 /// 测量值（内联定义，避免跨文件导入）
 pub const DiagnosticMeasurement = struct {
     value: f64,
@@ -64,7 +105,7 @@ pub const Diagnostic = struct {
 
         const measurement = DiagnosticMeasurement{
             .value = value,
-            .timestamp = @intCast(std.time.nanoTimestamp()),
+            .timestamp = @intCast(getTimestamp()),
         };
 
         // 添加到历史记录
@@ -131,7 +172,7 @@ pub const Diagnostic = struct {
 
 // FFI exports
 export fn diagnostic_create(path_ptr: [*]const u8, path_len: usize, path_hash: u64, max_history_length: usize, ema_smoothing_factor: f64, suffix_ptr: [*]const u8, suffix_len: usize) ?*Diagnostic {
-    const allocator = std.heap.page_allocator;
+    const allocator = getGlobalAllocator();
     const path = path_ptr[0..path_len];
     const suffix = suffix_ptr[0..suffix_len];
     return Diagnostic.create(allocator, path, path_hash, max_history_length, ema_smoothing_factor, suffix) catch null;

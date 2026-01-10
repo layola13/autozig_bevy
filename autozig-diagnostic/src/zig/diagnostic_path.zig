@@ -1,5 +1,28 @@
 const std = @import("std");
 
+/// WASM 兼容的全局分配器
+fn getGlobalAllocator() std.mem.Allocator {
+    const builtin = @import("builtin");
+    if (builtin.target.cpu.arch.isWasm()) {
+        // WASM 环境：使用固定大小的缓冲区分配器
+        const State = struct {
+            var buffer: [1024 * 1024 * 10]u8 = undefined; // 10MB 缓冲区
+            var fba = std.heap.FixedBufferAllocator.init(&buffer);
+            var initialized = false;
+        };
+        
+        if (!State.initialized) {
+            State.fba = std.heap.FixedBufferAllocator.init(&State.buffer);
+            State.initialized = true;
+        }
+        
+        return State.fba.allocator();
+    } else {
+        // 非 WASM 环境：使用标准 page_allocator
+        return std.heap.page_allocator;
+    }
+}
+
 /// FNV-1a hash constants
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
@@ -56,7 +79,7 @@ pub fn computeFnv1aHash(data: []const u8) u64 {
 
 // FFI exports
 export fn diagnostic_path_create(path_ptr: [*]const u8, path_len: usize) ?*DiagnosticPath {
-    const allocator = std.heap.page_allocator;
+    const allocator = getGlobalAllocator();
     const path = path_ptr[0..path_len];
     return DiagnosticPath.create(allocator, path) catch null;
 }

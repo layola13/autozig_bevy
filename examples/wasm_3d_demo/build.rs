@@ -1,17 +1,16 @@
-use autozig_build::ZigBuilder;
+fn main() -> anyhow::Result<()> {
+    // Check for WASM target
+    let target = std::env::var("TARGET").unwrap_or_default();
+    if !target.contains("wasm") {
+        println!(
+            "cargo:warning=Skipping compilation of autozig-wasm-3d-demo for non-WASM target: {}",
+            target
+        );
+        return Ok(());
+    }
 
-fn main() {
-    // 编译Zig代码到WASM目标
-    ZigBuilder::new()
-        .zig_file("src/scene.zig")
-        .zig_file("src/render.zig")
-        .zig_file("src/camera.zig")
-        .target("wasm32-freestanding")
-        .optimize("ReleaseFast")
-        .build();
-    
-    // 告诉Cargo重新编译如果Zig文件改变
-    println!("cargo:rerun-if-changed=src/scene.zig");
-    println!("cargo:rerun-if-changed=src/render.zig");
-    println!("cargo:rerun-if-changed=src/camera.zig");
+    // 强制使用 MODULAR_BUILDZIG 模式避免文件重复
+    std::env::set_var("AUTOZIG_MODE", "modular_buildzig");
+    autozig_build::build("src")?;
+    Ok(())
 }

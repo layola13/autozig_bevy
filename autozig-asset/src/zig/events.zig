@@ -1,8 +1,15 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const handle = @import("handle.zig");
 
 const HandleId = handle.HandleId;
 const AssetId = handle.AssetId;
+
+// Cross-platform allocator (WASM-compatible)
+const g_allocator = if (builtin.cpu.arch.isWasm())
+    std.heap.page_allocator // WASM: use page allocator (no libc)
+else
+    std.heap.c_allocator; // Native: use C allocator (best performance)
 
 // ============================================================================
 // Asset Event - 资产事件
@@ -25,8 +32,19 @@ pub const AssetEvent = extern struct {
         return .{
             .handle_id = handle_id,
             .event_type = event_type,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = getTimestamp(),
         };
+    }
+
+    /// 获取时间戳（WASM 兼容）
+    fn getTimestamp() i64 {
+        if (builtin.cpu.arch.isWasm()) {
+            // WASM 环境：返回0（无时钟支持）
+            return 0;
+        } else {
+            // 原生环境：使用系统时钟
+            return std.time.milliTimestamp();
+        }
     }
 
     pub fn created(handle_id: HandleId) AssetEvent {
@@ -208,7 +226,7 @@ export fn asset_event_removed(handle_id: HandleId) AssetEvent {
 }
 
 export fn event_queue_create() ?*EventQueue {
-    const allocator = std.heap.c_allocator;
+    const allocator = g_allocator;
     const queue = allocator.create(EventQueue) catch return null;
     queue.* = EventQueue.init(allocator);
     return queue;
@@ -234,7 +252,7 @@ export fn event_queue_clear(queue: *EventQueue) void {
 }
 
 export fn event_system_create() ?*EventSystem {
-    const allocator = std.heap.c_allocator;
+    const allocator = g_allocator;
     const system = allocator.create(EventSystem) catch return null;
     system.* = EventSystem.init(allocator);
     return system;

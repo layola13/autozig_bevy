@@ -1,4 +1,6 @@
 const std = @import("std");
+const IVec2 = @import("ivec2.zig").IVec2;
+const UVec2 = @import("uvec2.zig").UVec2;
 
 pub const IRect = extern struct {
     min: IVec2,

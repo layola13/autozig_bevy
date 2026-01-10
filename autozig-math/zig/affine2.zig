@@ -1,4 +1,6 @@
 const std = @import("std");
+const Mat2 = @import("mat2.zig").Mat2;
+const Vec2 = @import("vec2.zig").Vec2;
 
 pub const Affine2 = extern struct {
     matrix2: Mat2,

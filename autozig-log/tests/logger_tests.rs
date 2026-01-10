@@ -195,3 +195,59 @@ fn test_log_level_as_str() {
     assert_eq!(LogLevel::Warn.as_str(), "WARN");
     assert_eq!(LogLevel::Error.as_str(), "ERROR");
 }
+
+#[test]
+fn test_wasm64_compatibility() {
+    // Test that timestamp function works in WASM environment
+    // In WASM, it should return 0 (fallback value)
+    // In native, it should return actual timestamp
+    init();
+    set_min_level(LogLevel::Info);
+    set_console_available(false);
+    
+    // This should not panic even in WASM64
+    info!("WASM64 compatibility test");
+    debug!("Testing timestamp in WASM environment");
+    
+    // Test direct timestamp function
+    #[cfg(target_arch = "wasm64")]
+    {
+        // In WASM64, timestamp should be available and return a valid value
+        // Even if it's a fixed value (0), it shouldn't cause clockid_t errors
+        log(LogLevel::Info, "wasm_test", "WASM64 timestamp test");
+    }
+    
+    #[cfg(not(target_arch = "wasm64"))]
+    {
+        // In native environment, timestamp should return actual time
+        log(LogLevel::Info, "native_test", "Native timestamp test");
+    }
+    
+    shutdown();
+}
+
+#[test]
+fn test_wasm64_log_operations() {
+    // Comprehensive test for all log operations in WASM64
+    init();
+    set_min_level(LogLevel::Trace);
+    set_console_available(false);
+    
+    // Test all log levels
+    trace!("WASM64 trace test");
+    debug!("WASM64 debug test");
+    info!("WASM64 info test");
+    warn!("WASM64 warn test");
+    error!("WASM64 error test");
+    
+    // Test with formatting
+    let value = 42;
+    info!("WASM64 formatted: {}", value);
+    
+    // Test level checking
+    assert!(is_enabled(LogLevel::Trace));
+    assert!(is_enabled(LogLevel::Info));
+    assert!(is_enabled(LogLevel::Error));
+    
+    shutdown();
+}

@@ -1,4 +1,5 @@
 const std = @import("std");
+const CursorIcon = @import("cursor.zig").CursorIcon;
 
 // CursorIcon is defined in cursor.zig, we use u8 here for FFI compatibility
 // When merged by autozig, CursorIcon will be available from cursor.zig

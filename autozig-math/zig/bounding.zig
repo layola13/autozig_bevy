@@ -1,4 +1,6 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
+const Vec3 = @import("vec3.zig").Vec3;
 
 pub const Aabb2d = extern struct {
     min: Vec2,

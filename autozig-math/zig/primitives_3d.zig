@@ -1,4 +1,6 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
+const Dir3 = @import("dir3.zig").Dir3;
 
 pub const Cuboid = extern struct {
     half_size: Vec3,

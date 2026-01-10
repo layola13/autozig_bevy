@@ -1,4 +1,6 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
+const Rot2 = @import("rot2.zig").Rot2;
 
 pub const Isometry2d = extern struct {
     rotation: Rot2,

@@ -1,47 +1,34 @@
 [package]
 name = "autozig-wasm-3d-demo"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# Core autozig_bevy modules
-autozig-app = { path = "../../autozig-app" }
-autozig-ecs = { path = "../../autozig-ecs" }
-autozig-math = { path = "../../autozig-math" }
-autozig-render = { path = "../../autozig-render" }
-autozig-mesh = { path = "../../autozig-mesh" }
-autozig-light = { path = "../../autozig-light" }
-autozig-pbr = { path = "../../autozig-pbr" }
-autozig-camera = { path = "../../autozig-camera" }
-autozig-transform = { path = "../../autozig-transform" }
-autozig-window = { path = "../../autozig-window" }
-autozig-winit = { path = "../../autozig-winit" }
-autozig-time = { path = "../../autozig-time" }
-autozig-input = { path = "../../autozig-input" }
-autozig-asset = { path = "../../autozig-asset" }
-autozig-color = { path = "../../autozig-color" }
-autozig-image = { path = "../../autozig-image" }
-autozig-state = { path = "../../autozig-state" }
-autozig-utils = { path = "../../autozig-utils" }
-autozig-log = { path = "../../autozig-log" }
-autozig-hierarchy = { path = "../../autozig-hierarchy" }
-autozig-sprite = { path = "../../autozig-sprite" }
-autozig-text = { path = "../../autozig-text" }
-autozig-ui = { path = "../../autozig-ui" }
-autozig-shader = { path = "../../autozig-shader" }
-autozig-core-pipeline = { path = "../../autozig-core-pipeline" }
+# AutoZig core (for include_zig! macro)
+autozig = { path = "../../../autozig" }
 
+# WASM bindings
 wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["console", "Window"] }
+
+# Optional: Better panic messages in WASM
 console_error_panic_hook = { version = "0.1", optional = true }
-wasm-logger = "0.2"
+
+[build-dependencies]
+autozig-build = { path = "../../../autozig/gen/build" }
+anyhow = "1.0"
 
 [features]
 default = ["console_error_panic_hook"]
 
 [profile.release]
-opt-level = "z"     # 优化体积
-lto = true          # Link Time Optimization
+opt-level = "z"     # 优化大小
+lto = false         # 禁用 LTO 以保留符号（关键：防止内存访问越界）
 codegen-units = 1   # 单个代码生成单元
+
+# WebAssembly 配置 - 防止过度优化导致的内存访问问题
+[profile.release.package."*"]
+opt-level = 3

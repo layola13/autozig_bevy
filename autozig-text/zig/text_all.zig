@@ -638,8 +638,8 @@ export fn glyph_instance_new(position: Vec2, size: Vec2, uv_rect: Rect, color: u
     return GlyphInstance.new(position, size, uv_rect, color);
 }
 
-export fn create_glyph_quad(instance: GlyphInstance) [4]TextVertex {
-    return createGlyphQuad(instance);
+export fn create_glyph_quad(instance: GlyphInstance, out: *[4]TextVertex) void {
+    out.* = createGlyphQuad(instance);
 }
 
 // Color packing exports

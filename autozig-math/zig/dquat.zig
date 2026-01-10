@@ -1,4 +1,5 @@
 const std = @import("std");
+const DVec3 = @import("dvec3.zig").DVec3;
 
 pub const DQuat = extern struct {
     x: f64,

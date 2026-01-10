@@ -144,7 +144,7 @@ pub fn createTextLoader(allocator: std.mem.Allocator, type_id: u64) !AssetLoader
 }
 
 fn textLoadFn(data_ptr: [*]const u8, data_len: usize) callconv(.C) ?*anyopaque {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     const data = data_ptr[0..data_len];
 
     // 复制文本数据
@@ -157,7 +157,7 @@ fn textLoadFn(data_ptr: [*]const u8, data_len: usize) callconv(.C) ?*anyopaque {
 // ============================================================================
 
 export fn loader_registry_create() ?*LoaderRegistry {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     const registry = allocator.create(LoaderRegistry) catch return null;
     registry.* = LoaderRegistry.init(allocator);
     return registry;
@@ -215,7 +215,7 @@ export fn loader_registry_load_from_path(
 }
 
 export fn create_text_loader(type_id: u64) ?*AssetLoader {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     const loader = allocator.create(AssetLoader) catch return null;
     loader.* = createTextLoader(allocator, type_id) catch {
         allocator.destroy(loader);
@@ -225,7 +225,7 @@ export fn create_text_loader(type_id: u64) ?*AssetLoader {
 }
 
 export fn asset_loader_destroy(loader: *AssetLoader) void {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     loader.deinit(allocator);
     allocator.destroy(loader);
 }

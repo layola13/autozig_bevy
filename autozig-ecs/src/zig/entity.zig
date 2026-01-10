@@ -36,9 +36,15 @@ export fn entity_from_bits(bits: u64) Entity {
     };
 }
 
-// 全局allocator定义 - 在 FFI 环境下使用 c_allocator (映射到 malloc)
-// 这是 Rust + Zig 混合编译的黄金标准
-pub const g_allocator = std.heap.c_allocator;
+const builtin = @import("builtin");
+
+// 全局allocator定义 - 根据目标平台选择合适的 allocator
+// Native: c_allocator (映射到 malloc，性能最佳)
+// WASM: page_allocator (WASM 专用，无需 libc)
+pub const g_allocator = if (builtin.cpu.arch.isWasm())
+    std.heap.page_allocator
+else
+    std.heap.c_allocator;
 
 // 显式初始化函数 - Rust 必须在调用任何其他函数之前先调用此函数
 var is_initialized: bool = false;

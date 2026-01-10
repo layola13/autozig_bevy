@@ -157,7 +157,7 @@ impl<'a> TapeRef<'a> {
     }
 
     /// Iterate over object key-value pairs
-    pub fn iter_object(&self, node: Node) -> ObjectIter {
+    pub fn iter_object(&self, node: Node) -> ObjectIter<'_> {
         ObjectIter {
             tape: self,
             current_idx: node.child as usize,

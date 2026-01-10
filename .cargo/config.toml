@@ -1,0 +1,7 @@
+[target.wasm64-unknown-unknown]
+linker = "rust-lld"
+rustflags = ["-C", "linker=rust-lld"]
+
+[target.wasm32-unknown-unknown]
+linker = "rust-lld"
+rustflags = ["-C", "linker=rust-lld"]

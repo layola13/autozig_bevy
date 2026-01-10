@@ -892,12 +892,12 @@ export fn is_pressed(node: Node, mouse_pos: Vec2, mouse_pressed: bool) bool {
 }
 
 // Rendering
-export fn create_ui_quad(node: Node, color: u32, border_radius: BorderRadius) [4]UiVertex {
-    return createUiQuad(node, color, border_radius);
+export fn create_ui_quad(node: Node, color: u32, border_radius: BorderRadius, out: *[4]UiVertex) void {
+    out.* = createUiQuad(node, color, border_radius);
 }
 
-export fn create_ui_border(node: Node, border: UiRect, color: u32) [8]UiVertex {
-    return createUiBorder(node, border, color);
+export fn create_ui_border(node: Node, border: UiRect, color: u32, out: *[8]UiVertex) void {
+    out.* = createUiBorder(node, border, color);
 }
 
 export fn pack_color(color: Color) u32 {

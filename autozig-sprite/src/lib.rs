@@ -122,11 +122,11 @@ include_zig!("zig/sprite_all.zig", {
     // Texture atlas operations
     fn atlas_new(index: usize, layout: TextureAtlasLayout) -> TextureAtlas;
     fn atlas_layout_new(tile_size: Vec2, columns: usize, rows: usize) -> TextureAtlasLayout;
-    fn atlas_calculate_uv(atlas: TextureAtlas, texture_size: Vec2) -> [f32; 4];
+    fn atlas_calculate_uv(atlas: TextureAtlas, texture_size: Vec2, out: *mut [f32; 4]) -> ();
     
     // Sprite vertex generation
-    fn sprite_create_quad(sprite: Sprite, size: Vec2, anchor_offset: Vec2) -> [SpriteVertex; 4];
-    fn sprite_create_quad_with_uv(sprite: Sprite, size: Vec2, anchor_offset: Vec2, uv_rect: [f32; 4]) -> [SpriteVertex; 4];
+    fn sprite_create_quad(sprite: Sprite, size: Vec2, anchor_offset: Vec2, out: *mut [SpriteVertex; 4]) -> ();
+    fn sprite_create_quad_with_uv(sprite: Sprite, size: Vec2, anchor_offset: Vec2, uv_rect: *const [f32; 4], out: *mut [SpriteVertex; 4]) -> ();
     
     // Color packing for GPU
     fn pack_color(color: Color) -> u32;
@@ -202,7 +202,9 @@ impl TextureAtlas {
     }
 
     pub fn calculate_uv(&self, texture_size: Vec2) -> [f32; 4] {
-        atlas_calculate_uv(*self, texture_size)
+        let mut out = [0.0f32; 4];
+        atlas_calculate_uv(*self, texture_size, &mut out);
+        out
     }
 
     pub fn set_index(&mut self, index: usize) {

@@ -10,7 +10,11 @@ pub const Instant = extern struct {
 
     // 获取当前时间戳
     pub fn now() Instant {
-        const timestamp = std.time.microTimestamp();
+        const builtin = @import("builtin");
+        const timestamp = if (builtin.cpu.arch.isWasm())
+            0 // WASM: 返回虚拟时间戳
+        else
+            std.time.microTimestamp(); // Native: 使用系统时钟
         return Instant{ .micros = timestamp };
     }
 

@@ -9,7 +9,13 @@ pub const Uuid = extern struct {
         var uuid = Uuid{ .bytes = undefined };
 
         // 生成随机字节
-        var prng = std.Random.DefaultPrng.init(@as(u64, @intCast(std.time.milliTimestamp())));
+        const builtin = @import("builtin");
+        const seed = if (builtin.cpu.arch.isWasm())
+            0x12345678 // WASM: 使用固定种子
+        else
+            @as(u64, @intCast(std.time.milliTimestamp()));
+
+        var prng = std.Random.DefaultPrng.init(seed);
         const random = prng.random();
         random.bytes(&uuid.bytes);
 

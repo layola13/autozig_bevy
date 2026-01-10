@@ -15,4 +15,4 @@ autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
 [dev-dependencies]
 
 [lib]
-crate-type = ["lib", "staticlib"]
+crate-type = ["lib"]

@@ -1,4 +1,6 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const alloc = @import("allocator.zig");
 
 // ============================================================================
 // Handle 模块 - 资产句柄和ID管理
@@ -253,11 +255,22 @@ pub const AssetEvent = extern struct {
     event_type: AssetEventType,
     timestamp: i64,
 
+    /// 获取时间戳（WASM 兼容）
+    fn getTimestamp() i64 {
+        if (builtin.cpu.arch.isWasm()) {
+            // WASM 环境：返回0（无时钟支持）
+            return 0;
+        } else {
+            // 原生环境：使用系统时钟
+            return std.time.milliTimestamp();
+        }
+    }
+
     pub fn created(handle_id: HandleId) AssetEvent {
         return AssetEvent{
             .handle_id = handle_id,
             .event_type = .Created,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = getTimestamp(),
         };
     }
 
@@ -265,7 +278,7 @@ pub const AssetEvent = extern struct {
         return AssetEvent{
             .handle_id = handle_id,
             .event_type = .Modified,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = getTimestamp(),
         };
     }
 
@@ -273,7 +286,7 @@ pub const AssetEvent = extern struct {
         return AssetEvent{
             .handle_id = handle_id,
             .event_type = .Removed,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = getTimestamp(),
         };
     }
 };
@@ -594,7 +607,7 @@ export fn asset_path_eql(a: AssetPath, b: AssetPath) bool {
 
 // Storage FFI
 export fn asset_storage_create(type_id: u64) ?*anyopaque {
-    const allocator = std.heap.c_allocator;
+    const allocator = alloc.g_allocator;
     const storage = allocator.create(AssetStorage) catch return null;
     storage.* = AssetStorage.init(allocator, type_id);
     return @ptrCast(storage);
@@ -604,7 +617,7 @@ export fn asset_storage_destroy(storage: ?*anyopaque) void {
     if (storage) |s| {
         const stor: *AssetStorage = @ptrCast(@alignCast(s));
         stor.deinit();
-        std.heap.c_allocator.destroy(stor);
+        alloc.g_allocator.destroy(stor);
     }
 }
 
@@ -650,7 +663,7 @@ export fn asset_storage_set_load_state(storage: ?*anyopaque, handle_id: HandleId
 
 // AssetServer FFI
 export fn asset_server_create(root_ptr: [*]const u8, root_len: usize) ?*anyopaque {
-    const allocator = std.heap.c_allocator;
+    const allocator = alloc.g_allocator;
     const server = allocator.create(AssetServer) catch return null;
     server.* = AssetServer.init(allocator, root_ptr[0..root_len]) catch {
         allocator.destroy(server);
@@ -663,7 +676,7 @@ export fn asset_server_destroy(server: ?*anyopaque) void {
     if (server) |s| {
         const srv: *AssetServer = @ptrCast(@alignCast(s));
         srv.deinit();
-        std.heap.c_allocator.destroy(srv);
+        alloc.g_allocator.destroy(srv);
     }
 }
 
@@ -722,7 +735,7 @@ export fn asset_event_removed(handle_id: HandleId) AssetEvent {
 }
 
 export fn event_queue_create() ?*anyopaque {
-    const allocator = std.heap.c_allocator;
+    const allocator = alloc.g_allocator;
     const queue = allocator.create(EventQueue) catch return null;
     queue.* = EventQueue.init(allocator);
     return @ptrCast(queue);
@@ -732,7 +745,7 @@ export fn event_queue_destroy(queue: ?*anyopaque) void {
     if (queue) |q| {
         const qu: *EventQueue = @ptrCast(@alignCast(q));
         qu.deinit();
-        std.heap.c_allocator.destroy(qu);
+        alloc.g_allocator.destroy(qu);
     }
 }
 

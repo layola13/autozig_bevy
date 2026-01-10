@@ -236,7 +236,7 @@ pub const AssetServer = struct {
 // ============================================================================
 
 export fn asset_server_create(root_ptr: [*]const u8, root_len: usize) ?*AssetServer {
-    const allocator = std.heap.c_allocator;
+    const alloc = @import("allocator.zig"); const allocator = alloc.g_allocator;
     const root = root_ptr[0..root_len];
 
     const server = allocator.create(AssetServer) catch return null;

@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
 
 pub const Mat2 = extern struct {
     cols: [2][2]f32,

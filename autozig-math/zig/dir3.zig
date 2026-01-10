@@ -1,4 +1,6 @@
 const std = @import("std");
+const Vec3 = @import("vec3.zig").Vec3;
+const Quat = @import("quat.zig").Quat;
 
 pub const Dir3 = extern struct {
     vec: Vec3,

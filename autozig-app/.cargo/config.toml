@@ -1,0 +1,15 @@
+# wasm64 build configuration
+# wasm64-unknown-unknown is a Tier 3 target requiring nightly + build-std
+
+[build]
+target = "wasm64-unknown-unknown"
+rustflags = ["--cfg", "autozig_modular"]
+
+[unstable]
+build-std = ["std", "panic_abort"]
+
+[env]
+AUTOZIG_MODE = "modular"
+
+# To build manually:
+# cargo +nightly build -Z build-std=std,panic_abort --release

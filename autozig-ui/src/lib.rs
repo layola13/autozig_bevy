@@ -376,8 +376,8 @@ include_zig!("zig/ui_all.zig", {
     fn is_pressed(node: Node, mouse_pos: Vec2, mouse_pressed: bool) -> bool;
     
     // Rendering
-    fn create_ui_quad(node: Node, color: u32, border_radius: BorderRadius) -> [UiVertex; 4];
-    fn create_ui_border(node: Node, border: UiRect, color: u32) -> [UiVertex; 8];
+    fn create_ui_quad(node: Node, color: u32, border_radius: BorderRadius, out: *mut [UiVertex; 4]) -> ();
+    fn create_ui_border(node: Node, border: UiRect, color: u32, out: *mut [UiVertex; 8]) -> ();
     fn pack_color(color: Color) -> u32;
     fn unpack_color(packed: u32) -> Color;
     
@@ -685,12 +685,16 @@ impl UiBatch {
 
 /// Create a UI quad for a node with background color
 pub fn create_ui_quad_with_color(node: Node, color: Color, border_radius: BorderRadius) -> [UiVertex; 4] {
-    create_ui_quad(node, pack_color(color), border_radius)
+    let mut result = [UiVertex { position: [0.0; 3], uv: [0.0; 2], color: 0 }; 4];
+    create_ui_quad(node, pack_color(color), border_radius, &mut result);
+    result
 }
 
 /// Create a UI border for a node
 pub fn create_ui_border_with_color(node: Node, border: UiRect, color: Color) -> [UiVertex; 8] {
-    create_ui_border(node, border, pack_color(color))
+    let mut result = [UiVertex { position: [0.0; 3], uv: [0.0; 2], color: 0 }; 8];
+    create_ui_border(node, border, pack_color(color), &mut result);
+    result
 }
 
 /// Sort UI batches by Z-index

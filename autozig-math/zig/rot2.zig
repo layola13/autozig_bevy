@@ -1,4 +1,5 @@
 const std = @import("std");
+const Vec2 = @import("vec2.zig").Vec2;
 
 pub const Rot2 = extern struct {
     c: f32, // cosine

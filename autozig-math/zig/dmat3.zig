@@ -1,4 +1,6 @@
 const std = @import("std");
+const DVec3 = @import("dvec3.zig").DVec3;
+const DQuat = @import("dquat.zig").DQuat;
 
 pub const DMat3 = extern struct {
     cols: [3][3]f64,

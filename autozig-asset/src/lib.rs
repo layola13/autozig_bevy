@@ -8,6 +8,12 @@ use autozig::include_zig;
 use std::marker::PhantomData;
 use std::path::Path;
 
+// Include allocator helper for cross-platform memory management
+include_zig!("src/zig/allocator.zig", {
+    fn _allocator_init();
+});
+
+
 // ============================================================================
 // 核心类型定义
 // ============================================================================

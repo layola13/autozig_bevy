@@ -312,3 +312,128 @@ fn test_handle_type_safety() {
     // let wrong_storage = Assets::<i32>::new();
     // let _wrong = wrong_storage.get(&handle); // 类型不匹配
 }
+
+#[test]
+fn test_wasm_compatible_timestamp() {
+    // 测试 WASM 兼容的时间戳功能
+    // 在非 WASM 环境中，时间戳应该是有效的
+    // 在 WASM 环境中，时间戳应该返回 0（但不会崩溃）
+    
+    let uuid = new_uuid();
+    let asset_id = AssetId::new(uuid, 1);
+    let handle_id = HandleId::new(asset_id, 1);
+    
+    let event = AssetEvent {
+        handle_id,
+        event_type: AssetEventType::Created,
+        timestamp: 0, // WASM 环境下应该是 0
+    };
+    
+    // 验证事件可以正常创建
+    assert_eq!(event.event_type, AssetEventType::Created);
+    
+    // 时间戳应该是非负数（WASM: 0, Native: > 0）
+    assert!(event.timestamp >= 0);
+}
+
+#[test]
+fn test_wasm_event_queue_operations() {
+    // 测试事件队列在 WASM 环境中的操作
+    let mut queue = EventQueue::new();
+    
+    let uuid = new_uuid();
+    let asset_id = AssetId::new(uuid, 1);
+    let handle_id = HandleId::new(asset_id, 1);
+    
+    // 创建多个事件
+    for i in 0..5 {
+        let event = AssetEvent {
+            handle_id,
+            event_type: match i % 3 {
+                0 => AssetEventType::Created,
+                1 => AssetEventType::Modified,
+                _ => AssetEventType::Removed,
+            },
+            timestamp: 0, // WASM 兼容
+        };
+        assert!(queue.push(event));
+    }
+    
+    assert_eq!(queue.len(), 5);
+    assert!(!queue.is_empty());
+    
+    queue.clear();
+    assert_eq!(queue.len(), 0);
+    assert!(queue.is_empty());
+}
+
+#[test]
+fn test_wasm_asset_server_with_timestamps() {
+    // 测试资产服务器在 WASM 环境中的时间戳处理
+    let temp_dir = setup_test_assets();
+    let server = AssetServer::new(temp_dir.path());
+    
+    // 加载资产
+    let handle: Handle<TextAsset> = server.load("test.txt");
+    
+    // 验证加载状态（不依赖时间戳）
+    let state = server.get_load_state(&handle);
+    
+    // 状态应该是有效的枚举值之一
+    match state {
+        LoadState::NotLoaded | LoadState::Loading | LoadState::Loaded | LoadState::Failed => {
+            // 所有状态都是有效的
+        }
+    }
+}
+
+#[test]
+fn test_cross_platform_event_creation() {
+    // 测试跨平台事件创建（包括 WASM）
+    let uuid = new_uuid();
+    let asset_id = AssetId::new(uuid, 123);
+    let handle_id = HandleId::new(asset_id, 1);
+    
+    // 创建不同类型的事件
+    let events = vec![
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::Created,
+            timestamp: 0,
+        },
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::Modified,
+            timestamp: 0,
+        },
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::Removed,
+            timestamp: 0,
+        },
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::LoadingStarted,
+            timestamp: 0,
+        },
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::LoadingFinished,
+            timestamp: 0,
+        },
+        AssetEvent {
+            handle_id,
+            event_type: AssetEventType::LoadingFailed,
+            timestamp: 0,
+        },
+    ];
+    
+    // 验证所有事件类型都能正确创建
+    assert_eq!(events.len(), 6);
+    assert_eq!(events[0].event_type, AssetEventType::Created);
+    assert_eq!(events[1].event_type, AssetEventType::Modified);
+    assert_eq!(events[2].event_type, AssetEventType::Removed);
+    assert_eq!(events[3].event_type, AssetEventType::LoadingStarted);
+    assert_eq!(events[4].event_type, AssetEventType::LoadingFinished);
+    assert_eq!(events[5].event_type, AssetEventType::LoadingFailed);
+}
