@@ -230,3 +230,8 @@ export fn table_get_column_ptr(table_ptr: *Table, component_id: u32, row: usize)
     const column = table_ptr.getColumn(component_id) orelse return null;
     return column.getPtr(row);
 }
+
+export fn table_get_entity(table_ptr: *const Table, row: usize) Entity {
+    if (row >= table_ptr.entity_list.items.len) return Entity{ .index = 0, .generation = 0 };
+    return Entity{ .index = table_ptr.entity_list.items[row], .generation = 0 };
+}

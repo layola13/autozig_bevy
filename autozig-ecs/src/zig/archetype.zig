@@ -13,6 +13,7 @@ pub const ComponentStorageType = enum(u8) {
 /// 每个Archetype维护两种存储类型的组件
 pub const Archetype = struct {
     id: u32,
+    table_id: u32,
     table_components: std.ArrayList(u32), // 存储在Table中的组件ID列表
     sparse_set_components: std.ArrayList(u32), // 存储在SparseSet中的组件ID列表
     entities: std.ArrayList(u32), // 属于此Archetype的所有entity ID
@@ -22,6 +23,7 @@ pub const Archetype = struct {
     pub fn init(allocator: std.mem.Allocator, id: u32) Archetype {
         return Archetype{
             .id = id,
+            .table_id = id,
             .table_components = std.ArrayList(u32){},
             .sparse_set_components = std.ArrayList(u32){},
             .entities = std.ArrayList(u32){},

@@ -3,83 +3,78 @@ const common = @import("common.zig");
 const Entity = common.Entity;
 const g_allocator = common.g_allocator;
 
-//  Entity structure - 已在entity.zig中定义，合并时会自动可用
-// 不需要导入，因为autozig会将所有文件合并到一个generated_autozig.zig中
+const Archetype = @import("archetype.zig").Archetype;
+const Table = @import("table.zig").Table;
 
-// World structure - manages entities
+pub const EntityMeta = struct {
+    generation: u32,
+    is_alive: bool,
+    archetype_id: u32,
+    row: u32,
+};
+
 pub const World = struct {
-    allocator: std.mem.Allocator,
-    next_entity_index: u32,
+    archetypes: std.ArrayList(Archetype),
+    tables: std.ArrayList(Table),
     entities: std.ArrayList(EntityMeta),
     free_list: std.ArrayList(u32),
-    
-    const EntityMeta = struct {
-        generation: u32,
-        is_alive: bool,
-    };
-    
-    pub fn init(alloc: std.mem.Allocator) !*World {
-        const world = try alloc.create(World);
-        world.* = World{
-            .allocator = alloc,
-            .next_entity_index = 0,
+    next_entity_index: u32,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) !*World {
+        const self = try allocator.create(World);
+        self.* = World{
+            .archetypes = std.ArrayList(Archetype){},
+            .tables = std.ArrayList(Table){},
             .entities = std.ArrayList(EntityMeta){},
             .free_list = std.ArrayList(u32){},
+            .next_entity_index = 0,
+            .allocator = allocator,
         };
-        return world;
+
+        const empty_arch = Archetype.init(allocator, 0);
+        try self.archetypes.append(allocator, empty_arch);
+
+        const empty_table = Table.init(allocator);
+        try self.tables.append(allocator, empty_table);
+
+        return self;
     }
-    
+
     pub fn deinit(self: *World) void {
+        for (self.archetypes.items) |*arch| arch.deinit();
+        self.archetypes.deinit(self.allocator);
+        for (self.tables.items) |*table| table.deinit();
+        self.tables.deinit(self.allocator);
         self.entities.deinit(self.allocator);
         self.free_list.deinit(self.allocator);
         self.allocator.destroy(self);
     }
-    
+
     pub fn spawnEmpty(self: *World) !Entity {
-        const index: u32 = if (self.free_list.items.len > 0) blk: {
-            const idx = self.free_list.pop().?; // pop() returns ?u32 in Zig 0.12
+        var idx: u32 = 0;
+        var generation: u32 = 0;
+
+        if (self.free_list.items.len > 0) {
+            idx = self.free_list.pop().?;
             const meta = &self.entities.items[idx];
             meta.is_alive = true;
-            break :blk idx;
-        } else blk: {
-            const idx = self.next_entity_index;
+            generation = meta.generation;
+        } else {
+            idx = self.next_entity_index;
             self.next_entity_index += 1;
-            try self.entities.append(self.allocator, EntityMeta{
+            try self.entities.append(self.allocator, .{
                 .generation = 0,
                 .is_alive = true,
+                .archetype_id = 0,
+                .row = 0,
             });
-            break :blk idx;
-        };
-        
-        const generation = self.entities.items[index].generation;
-        return Entity{
-            .index = index,
-            .generation = generation,
-        };
-    }
-    
-    pub fn despawn(self: *World, entity: Entity) bool {
-        if (entity.index >= self.entities.items.len) return false;
-        
-        const meta = &self.entities.items[entity.index];
-        if (!meta.is_alive or meta.generation != entity.generation) {
-            return false;
+            generation = 0;
         }
-        
-        meta.is_alive = false;
-        meta.generation +%= 1;
-        self.free_list.append(self.allocator, entity.index) catch return false;
-        return true;
+
+        return Entity{ .index = idx, .generation = generation };
     }
-    
-    pub fn entityCount(self: *const World) u32 {
-        var count: u32 = 0;
-        for (self.entities.items) |meta| {
-            if (meta.is_alive) count += 1;
-        }
-        return count;
-    }
-    
+
     pub fn contains(self: *const World, entity: Entity) bool {
         if (entity.index >= self.entities.items.len) return false;
         const meta = self.entities.items[entity.index];
@@ -87,28 +82,34 @@ pub const World = struct {
     }
 };
 
-// 全局allocator在entity.zig中定义，合并后直接可用
-
 export fn world_create() ?*World {
     return World.init(g_allocator) catch null;
 }
 
-export fn world_destroy(world_ptr: *World) void {
-    world_ptr.deinit();
+export fn world_destroy(world: *World) void {
+    world.deinit();
 }
 
-export fn world_spawn_empty(world_ptr: *World) Entity {
-    return world_ptr.spawnEmpty() catch Entity{ .index = 0xFFFFFFFF, .generation = 0 };
+export fn world_get_table_for_archetype(world: *World, archetype_id: u32) ?*Table {
+    if (archetype_id >= world.archetypes.items.len) return null;
+    const arch = &world.archetypes.items[archetype_id];
+    const table_id = arch.table_id;
+    if (table_id >= world.tables.items.len) return null;
+    return &world.tables.items[table_id];
 }
 
-export fn world_despawn(world_ptr: *World, entity: Entity) bool {
-    return world_ptr.despawn(entity);
+export fn world_spawn_empty(world: *World) Entity {
+    return world.spawnEmpty() catch Entity{ .index = 0xFFFFFFFF, .generation = 0 };
 }
 
-export fn world_entity_count(world_ptr: *const World) u32 {
-    return world_ptr.entityCount();
+export fn world_contains_entity(world: *const World, entity: Entity) bool {
+    return world.contains(entity);
 }
 
-export fn world_contains_entity(world_ptr: *const World, entity: Entity) bool {
-    return world_ptr.contains(entity);
+export fn world_remove_components(world: *World, entity: Entity, ids_ptr: [*]const u32, count: usize) bool {
+    _ = world;
+    _ = entity;
+    _ = ids_ptr;
+    _ = count;
+    return true;
 }

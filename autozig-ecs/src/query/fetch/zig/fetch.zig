@@ -1,4 +1,6 @@
 const std = @import("std");
+const Table = @import("../../../zig/table.zig").Table;
+
 const Entity = extern struct {
     id: u32,
     ver: u32,
@@ -62,4 +64,14 @@ export fn fetch_get_at(fetch: ?*FetchCore, index: usize) ?[*]const u8 {
         return ptr.get_at(index);
     }
     return null;
+}
+
+export fn fetch_set_table(fetch: ?*FetchCore, table: ?*Table, component_id: u32) void {
+    if (fetch) |f_ptr| {
+        if (table) |t_ptr| {
+            if (t_ptr.getColumn(component_id)) |col| {
+                f_ptr.configure(col.data.items.ptr, col.item_size, col.item_size);
+            }
+        }
+    }
 }

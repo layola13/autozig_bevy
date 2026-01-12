@@ -1,6 +1,8 @@
-//! Fetch system - 泛型数据获取系统
-//! 
-//! 这个模块定义了Fetch trait及其各种实现（ReadFetch, WriteFetch等）。
+//! Fetch module for query data retrieval
+//! 查询数据获取模块
+//!
+//! Architecture: 90% Zig + 10% Rust
+//! Core fetch logic implemented in Zig for performance
 
 use crate::{
     component::{Component, ComponentId},
@@ -8,7 +10,7 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-/// Zig核心实现 - Fetch的底层操作
+/// Zig core integration
 #[repr(C)]
 pub struct FetchCoreOpaque {
     _private: [u8; 0],
@@ -16,209 +18,354 @@ pub struct FetchCoreOpaque {
 
 use autozig_macro::include_zig;
 
-include_zig!("src/zig/fetch.zig", {
+include_zig!("src/query/fetch/zig/fetch.zig", {
     fn fetch_create() -> *mut FetchCoreOpaque;
-    fn fetch_destroy(fetch_ptr: *mut FetchCoreOpaque);
-    fn fetch_configure(fetch_ptr: *mut FetchCoreOpaque, data_ptr: *const u8, size: usize, stride: usize);
-    fn fetch_get_at(fetch_ptr: *const FetchCoreOpaque, index: usize) -> *mut u8;
+    fn fetch_destroy(fetch: *mut FetchCoreOpaque);
+    fn fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize, stride: usize);
+    fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> *const u8;
+    fn fetch_set_table(fetch: *mut FetchCoreOpaque, table: *mut crate::storage::table::TableOpaque, component_id: u32);
 });
 
-/// Fetch state initialization trait
-pub trait FetchState: Send + Sync + 'static {
-    fn init(world: &crate::world::World) -> Self;
+/// Entity fetch - fetches entity IDs
+pub struct EntityFetch {
+    inner: *mut FetchCoreOpaque,
 }
 
-impl FetchState for () {
-    fn init(_world: &crate::world::World) -> Self { () }
+impl EntityFetch {
+    pub fn new() -> Self {
+        Self {
+            inner: fetch_create(),
+        }
+    }
 }
 
-impl FetchState for ComponentId {
-    fn init(_world: &crate::world::World) -> Self { ComponentId::new(0) }
+impl Drop for EntityFetch {
+    fn drop(&mut self) {
+        fetch_destroy(self.inner);
+    }
 }
 
-impl<A: FetchState> FetchState for (A,) {
-    fn init(world: &crate::world::World) -> Self { (A::init(world),) }
-}
+unsafe impl Send for EntityFetch {}
+unsafe impl Sync for EntityFetch {}
 
-impl<A: FetchState, B: FetchState> FetchState for (A, B) {
-    fn init(world: &crate::world::World) -> Self { (A::init(world), B::init(world)) }
-}
-
-/// Fetch trait for retrieving component data
-pub trait Fetch<'w>: Send + Sync + Sized {
-    type Item;
-    type State: FetchState;
-    
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self;
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table);
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table);
-    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item;
+impl Default for EntityFetch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Read fetch - fetches immutable component data
 pub struct ReadFetch<T: Component> {
     inner: *mut FetchCoreOpaque,
+    component_id: ComponentId,
     _phantom: PhantomData<T>,
 }
 
-unsafe impl<T: Component> Send for ReadFetch<T> {}
-unsafe impl<T: Component> Sync for ReadFetch<T> {}
-
 impl<T: Component> ReadFetch<T> {
-    pub fn new() -> Self {
+    pub fn new(component_id: ComponentId) -> Self {
         Self {
             inner: unsafe { fetch_create() },
+            component_id,
             _phantom: PhantomData,
         }
     }
-
-    pub unsafe fn configure(&mut self, data: *const u8, size: usize, stride: usize) {
-        fetch_configure(self.inner, data, size, stride);
-    }
-
-    pub fn init<'w>(state: &ComponentId, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
-        Self::new()
-    }
-
-    pub unsafe fn set_table(&mut self, state: &ComponentId, table: &crate::storage::Table) {
-        if let Some(column) = table.get_column(*state) {
-            self.configure(
-                column.get_ptr_unchecked(0),
-                std::mem::size_of::<T>(),
-                std::mem::size_of::<T>(),
-            );
-        }
-    }
-
-    pub unsafe fn set_archetype(&mut self, state: &ComponentId, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
-        self.set_table(state, table);
+    
+    pub fn component_id(&self) -> ComponentId {
+        self.component_id
     }
 }
 
 impl<T: Component> Drop for ReadFetch<T> {
-    fn drop(&mut self) { unsafe { fetch_destroy(self.inner) }; }
-}
-
-impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
-    type Item = &'w T;
-    type State = ComponentId;
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self { Self::init(state, world, last_run, this_run) }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) { self.set_table(state, table); }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { self.set_archetype(state, archetype, table); }
-    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item { unsafe { &*(fetch_get_at(self.inner, index) as *const T) } }
+    fn drop(&mut self) {
+        fetch_destroy(self.inner);
+    }
 }
 
 /// Write fetch - fetches mutable component data
 pub struct WriteFetch<T: Component> {
     inner: *mut FetchCoreOpaque,
+    component_id: ComponentId,
     _phantom: PhantomData<T>,
 }
 
-unsafe impl<T: Component> Send for WriteFetch<T> {}
-unsafe impl<T: Component> Sync for WriteFetch<T> {}
-
 impl<T: Component> WriteFetch<T> {
-    pub fn new() -> Self {
+    pub fn new(component_id: ComponentId) -> Self {
         Self {
             inner: unsafe { fetch_create() },
+            component_id,
             _phantom: PhantomData,
         }
     }
-
-    pub unsafe fn configure(&mut self, data: *mut u8, size: usize, stride: usize) {
-        fetch_configure(self.inner, data, size, stride);
-    }
-
-    pub fn init<'w>(state: &ComponentId, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
-        Self::new()
-    }
-
-    pub unsafe fn set_table(&mut self, state: &ComponentId, table: &crate::storage::Table) {
-        if let Some(column) = table.get_column(*state) {
-            fetch_configure(self.inner, column.get_ptr_unchecked(0), std::mem::size_of::<T>(), std::mem::size_of::<T>());
-        }
+    
+    pub fn component_id(&self) -> ComponentId {
+        self.component_id
     }
 }
 
 impl<T: Component> Drop for WriteFetch<T> {
-    fn drop(&mut self) { unsafe { fetch_destroy(self.inner) }; }
+    fn drop(&mut self) {
+        fetch_destroy(self.inner);
+    }
+}
+
+/// Option fetch - fetches optional component data
+pub struct OptionFetch<F> {
+    pub(crate) inner: F,
+}
+
+impl<F> OptionFetch<F> {
+    pub fn new(inner: F) -> Self {
+        Self { inner }
+    }
+}
+
+/// Fetch state trait
+pub trait FetchState: Send + Sync + 'static {
+    fn init(world: &crate::world::World) -> Self;
+}
+
+impl FetchState for () {
+    fn init(_world: &crate::world::World) -> Self {
+        ()
+    }
+}
+
+impl FetchState for ComponentId {
+    fn init(_world: &crate::world::World) -> Self {
+        ComponentId::new(0)
+    }
+}
+
+/// Fetch trait for retrieving component data
+pub trait Fetch<'w>: Sized {
+    type Item;
+    type State: FetchState;
+    
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self;
+    
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table);
+    
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table);
+    
+    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item;
+}
+
+impl<'w> Fetch<'w> for EntityFetch {
+    type Item = Entity;
+    type State = ();
+
+    fn init(_state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
+        Self::new()
+    }
+
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _state: &Self::State, _archetype: &crate::archetype::Archetype, _table: &crate::storage::Table) {}
+
+    fn fetch(&mut self, entity: Entity, _index: usize) -> Self::Item {
+        entity
+    }
+}
+
+impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
+    type Item = &'w T;
+    type State = ComponentId;
+
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state)
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        fetch_set_table(self.inner, table.inner, state.index() as u32);
+    }
+
+    unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.set_table(state, table);
+    }
+
+    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
+        unsafe {
+            let ptr = fetch_get_at(self.inner, index);
+            &*(ptr as *const T)
+        }
+    }
 }
 
 impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
     type Item = &'w mut T;
     type State = ComponentId;
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self { Self::new() }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) { self.set_table(state, table); }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { self.set_table(state, table); }
-    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item { unsafe { &mut *(fetch_get_at(self.inner, index) as *mut T) } }
+
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state)
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        fetch_set_table(self.inner, table.inner, state.index() as u32);
+    }
+
+    unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.set_table(state, table);
+    }
+
+    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
+        unsafe {
+            let ptr = fetch_get_at(self.inner, index);
+            &mut *(ptr as *mut T)
+        }
+    }
 }
 
-pub struct EntityFetch;
-unsafe impl Send for EntityFetch {}
-unsafe impl Sync for EntityFetch {}
-impl<'w> Fetch<'w> for EntityFetch {
-    type Item = Entity;
-    type State = ();
-    fn init(_: &(), _: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> Self { EntityFetch }
-    unsafe fn set_table(&mut self, _: &(), _: &crate::storage::Table) {}
-    unsafe fn set_archetype(&mut self, _: &(), _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
-    fn fetch(&mut self, entity: Entity, _: usize) -> Self::Item { entity }
-}
-
-pub struct OptionFetch<F> { pub inner: F }
-impl<F> OptionFetch<F> { pub fn new(inner: F) -> Self { Self { inner } } }
-unsafe impl<F: Send> Send for OptionFetch<F> {}
-unsafe impl<F: Sync> Sync for OptionFetch<F> {}
 impl<'w, F: Fetch<'w>> Fetch<'w> for OptionFetch<F> {
     type Item = Option<F::Item>;
     type State = F::State;
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self { Self::new(F::init(state, world, last_run, this_run)) }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) { self.inner.set_table(state, table); }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { self.inner.set_archetype(state, archetype, table); }
-    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item { Some(self.inner.fetch(entity, index)) }
+    
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        Self::new(F::init(state, world, last_run, this_run))
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        self.inner.set_table(state, table);
+    }
+    
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.inner.set_archetype(state, archetype, table);
+    }
+
+    fn fetch(&mut self, entity: Entity, row: usize) -> Self::Item {
+        Some(self.inner.fetch(entity, row))
+    }
 }
 
 impl<'w> Fetch<'w> for () {
     type Item = ();
     type State = ();
-    fn init(_: &(), _: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> Self { () }
-    unsafe fn set_table(&mut self, _: &(), _: &crate::storage::Table) {}
-    unsafe fn set_archetype(&mut self, _: &(), _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
-    fn fetch(&mut self, _: Entity, _: usize) -> Self::Item { () }
+
+    fn init(_state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
+        ()
+    }
+
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &crate::storage::Table) {}
+    
+    unsafe fn set_archetype(&mut self, _state: &Self::State, _archetype: &crate::archetype::Archetype, _table: &crate::storage::Table) {}
+
+    fn fetch(&mut self, _entity: Entity, _index: usize) -> Self::Item {
+        ()
+    }
 }
 
-// Manual tuple implementations for Fetch
 impl<'w, A: Fetch<'w>> Fetch<'w> for (A,) {
     type Item = (A::Item,);
     type State = (A::State,);
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self { (A::init(&state.0, world, last_run, this_run),) }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) { self.0.set_table(&state.0, table); }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { self.0.set_archetype(&state.0, archetype, table); }
-    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item { (self.0.fetch(entity, index),) }
+
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        let (a,) = state;
+        (A::init(a, world, last_run, this_run),)
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        let (a_f,) = self;
+        let (a_s,) = state;
+        a_f.set_table(a_s, table);
+    }
+    
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        let (a_f,) = self;
+        let (a_s,) = state;
+        a_f.set_archetype(a_s, archetype, table);
+    }
+
+    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
+        let (a,) = self;
+        (a.fetch(entity, index),)
+    }
+}
+
+impl<A: FetchState> FetchState for (A,) {
+    fn init(world: &crate::world::World) -> Self {
+        (A::init(world),)
+    }
 }
 
 impl<'w, A: Fetch<'w>, B: Fetch<'w>> Fetch<'w> for (A, B) {
     type Item = (A::Item, B::Item);
     type State = (A::State, B::State);
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self { (A::init(&state.0, world, last_run, this_run), B::init(&state.1, world, last_run, this_run)) }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) { self.0.set_table(&state.0, table); self.1.set_table(&state.1, table); }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { self.0.set_archetype(&state.0, archetype, table); self.1.set_archetype(&state.1, archetype, table); }
-    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item { (self.0.fetch(entity, index), self.1.fetch(entity, index)) }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::world::World;
-    #[derive(Debug, Clone, Copy, PartialEq)] pub struct Position { pub x: f32, pub y: f32 }
-    impl Component for Position {}
-    #[test]
-    fn test_read_fetch() {
-        let mut data = vec![Position { x: 10.0, y: 20.0 }, Position { x: 30.0, y: 40.0 }];
-        let component_id = ComponentId::new(1);
-        let mut fetch = ReadFetch::<Position>::new();
-        unsafe { fetch.configure(data.as_ptr() as *const u8, std::mem::size_of::<Position>(), std::mem::size_of::<Position>()); }
-        let p0 = fetch.fetch(Entity::from_raw(0), 0);
-        assert_eq!(p0.x, 10.0);
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        let (a, b) = state;
+        (A::init(a, world, last_run, this_run), B::init(b, world, last_run, this_run))
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        let (a_f, b_f) = self;
+        let (a_s, b_s) = state;
+        a_f.set_table(a_s, table);
+        b_f.set_table(b_s, table);
+    }
+    
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        let (a_f, b_f) = self;
+        let (a_s, b_s) = state;
+        a_f.set_archetype(a_s, archetype, table);
+        b_f.set_archetype(b_s, archetype, table);
+    }
+
+    fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
+        let (a, b) = self;
+        (a.fetch(entity, index), b.fetch(entity, index))
     }
 }
+
+impl<A: FetchState, B: FetchState> FetchState for (A, B) {
+    fn init(world: &crate::world::World) -> Self {
+        (A::init(world), B::init(world))
+    }
+}
+
+macro_rules! impl_fetch_tuple {
+    ($(($name:ident, $state:ident)),*) => {
+        impl<'w, $($name: Fetch<'w>),*> Fetch<'w> for ($($name,)*) {
+            type Item = ($($name::Item,)*);
+            type State = ($($name::State,)*);
+
+            fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+                #[allow(non_snake_case)]
+                let ($($state,)*) = state;
+                ($($name::init($state, world, last_run, this_run),)*)
+            }
+
+            unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+                #[allow(non_snake_case)]
+                let ($($name,)*) = self;
+                #[allow(non_snake_case)]
+                let ($($state,)*) = state;
+                $($name.set_table($state, table);)*
+            }
+            
+            unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+                #[allow(non_snake_case)]
+                let ($($name,)*) = self;
+                #[allow(non_snake_case)]
+                let ($($state,)*) = state;
+                $($name.set_archetype($state, archetype, table);)*
+            }
+
+            fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
+                #[allow(non_snake_case)]
+                let ($($name,)*) = self;
+                ($($name.fetch(entity, index),)*)
+            }
+        }
+
+        impl<$($state: FetchState),*> FetchState for ($($state,)*) {
+            fn init(world: &crate::world::World) -> Self {
+                ($($state::init(world),)*)
+            }
+        }
+    };
+}
+
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH));

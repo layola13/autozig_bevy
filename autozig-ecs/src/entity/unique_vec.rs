@@ -255,7 +255,7 @@ impl UniqueEntityVec {
     }
 
     /// Removes duplicate entities using a key extraction function
-    pub fn dedup_by_key<F, K>(&mut self, mut key: F)
+    pub fn dedup_by_key<F, K>(&mut self, key: F)
     where
         F: FnMut(&mut Entity) -> K,
         K: PartialEq,

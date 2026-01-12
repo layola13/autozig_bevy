@@ -75,13 +75,27 @@ include_zig!("src/zig/world.zig", {
     fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool;
     fn world_entity_count(world_ptr: *const WorldOpaque) -> u32;
     fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) -> bool;
+    fn world_input_components(world_ptr: *mut WorldOpaque, entity: Entity, ids_ptr: *const u32, sizes_ptr: *const usize, data_ptrs: *const *const u8, count: usize) -> bool;
+    fn world_get_table_for_archetype(world_ptr: *mut WorldOpaque, archetype_id: u32) -> *mut crate::storage::table::TableOpaque;
     fn world_clear_entities(world_ptr: *mut WorldOpaque);
 });
 
-// Opaque pointer到Zig World结构
+// Opaque pointer to Zig World structure
 #[repr(C)]
 pub struct WorldOpaque {
     _private: u8,
+}
+
+// Manual binding until autozig macros support complex pointer args better if needed
+unsafe extern "C" {
+    fn world_insert_components(
+        world: *mut WorldOpaque, 
+        entity: Entity, 
+        ids_ptr: *const u32, 
+        sizes_ptr: *const usize, 
+        data_ptrs: *const *const u8, 
+        count: usize
+    ) -> bool;
 }
 
 /// Stores and exposes operations on entities, components, resources, and their metadata.
@@ -89,7 +103,7 @@ pub struct WorldOpaque {
 /// 这是ECS的核心容器，管理所有实体、组件和资源。
 /// 使用90% Zig + 10% Rust架构实现高性能。
 pub struct World {
-    inner: *mut WorldOpaque,
+    pub(crate) inner: *mut WorldOpaque,
     id: WorldId,
     pub(crate) entities: Entities,
     pub(crate) allocator: EntityAllocator,
@@ -200,7 +214,7 @@ impl World {
     /// Prepares a ComponentsQueuedRegistrator for the world
     #[inline]
     pub fn components_queue(&self) -> ComponentsQueuedRegistrator {
-        unsafe { ComponentsQueuedRegistrator::new() }
+        ComponentsQueuedRegistrator::new()
     }
     
     /// Prepares a ComponentsRegistrator for the world
@@ -421,14 +435,39 @@ impl World {
     
     /// Internal method to insert raw component data - used by EntityWorldMut to avoid recursion
     pub(crate) fn insert_bundle_components_internal(&mut self, entity: Entity, components: Vec<(crate::component::ComponentId, *const u8, usize)>) {
-        // TODO: Implement actual storage insertion (archetype moves, table writes)
-        // This is where the core ECS logic happens.
-        // For now, we just acknowledge the data exists.
+        let count = components.len();
+        let mut ids = Vec::with_capacity(count);
+        let mut data_ptrs = Vec::with_capacity(count);
+        let mut sizes = Vec::with_capacity(count);
+
+        for (id, ptr, size) in components {
+            ids.push(id.index()); 
+            data_ptrs.push(ptr);
+            sizes.push(size);
+        }
+
+        let ids_u32: Vec<u32> = ids.iter().map(|&id| id as u32).collect();
+
+        unsafe {
+            world_insert_components(
+                self.inner,
+                entity,
+                ids_u32.as_ptr(),
+                sizes.as_ptr(),
+                data_ptrs.as_ptr(),
+                count,
+            );
+        }
     }
 
     /// Internal method to remove component types - used by EntityWorldMut to avoid recursion
     pub(crate) fn remove_bundle_components_internal(&mut self, entity: Entity, component_ids: Vec<crate::component::ComponentId>) {
         // TODO: Implement actual storage removal (archetype moves, table writes)
+        // Similar to insert, pass IDS to Zig, Zig finds target archetype (current - ids), moves entity.
+        // For now, this is a stub.
+        if !component_ids.is_empty() {
+             eprintln!("Warning: remove_bundle_components_internal is not fully implemented in Zig backend yet.");
+        }
     }
 
     /// Removes a bundle of components from an entity

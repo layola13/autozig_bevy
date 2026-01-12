@@ -57,7 +57,7 @@ impl ComponentCloneBehavior {
 /// It will panic if set as handler for any other component.
 pub unsafe fn component_clone_via_clone<C: Clone + Component>(
     source: Ptr<'_>,
-    mut destination: OwningPtr<'_>,
+    destination: OwningPtr<'_>,
 ) {
     // SAFETY: source points to a valid C instance
     let component = unsafe { source.deref::<C>() };

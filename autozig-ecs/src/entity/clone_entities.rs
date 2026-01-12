@@ -182,13 +182,13 @@ impl EntityCloneBuilder {
     }
 
     /// Allows a component type (for OptIn)
-    pub fn allow<T: 'static>(mut self) -> Self {
+    pub fn allow<T: 'static>(self) -> Self {
         // Simplified: would use TypeId in real implementation
         self
     }
 
     /// Denies a component type (for OptOut)
-    pub fn deny<T: 'static>(mut self) -> Self {
+    pub fn deny<T: 'static>(self) -> Self {
         // Simplified: would use TypeId in real implementation
         self
     }

@@ -10,7 +10,7 @@ use crate::{
 /// Core trait for types that can be used in queries
 pub trait WorldQuery: Send + Sync {
     type Item<'w>;
-    type Fetch<'w>: Fetch<'w, Item = Self::Item<'w>>;
+    type Fetch<'w>: Fetch<'w, Item = Self::Item<'w>, State = Self::State>;
     type State: Send + Sync + 'static;
     type ReadOnly: ReadOnlyWorldQuery;
 

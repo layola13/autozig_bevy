@@ -1,9 +1,8 @@
 const std = @import("std");
 const common = @import("common.zig");
+const World = @import("world.zig").World;
 const Entity = common.Entity;
 const g_allocator = common.g_allocator;
-
-const Archetype = @import("archetype.zig").Archetype;
 
 // Query iterator for entities with specific components
 pub const QueryIter = struct {
@@ -23,26 +22,38 @@ pub const QueryIter = struct {
 // Query state - manages iteration over entities
 pub const QueryState = struct {
     allocator: std.mem.Allocator,
-    matched_entities: std.ArrayList(u32),
-    required_components: std.ArrayList(u32),
-    excluded_components: std.ArrayList(u32),
+    matched_entities: std.ArrayListUnmanaged(u32),
+    matched_archetypes: std.ArrayListUnmanaged(u32),
+    required_components: std.ArrayListUnmanaged(u32),
+    excluded_components: std.ArrayListUnmanaged(u32),
 
     pub fn init(allocator: std.mem.Allocator) !*QueryState {
         const state = try allocator.create(QueryState);
         state.* = QueryState{
             .allocator = allocator,
-            .matched_entities = std.ArrayList(u32){},
-            .required_components = std.ArrayList(u32){},
-            .excluded_components = std.ArrayList(u32){},
+            .matched_entities = .{},
+            .matched_archetypes = .{},
+            .required_components = .{},
+            .excluded_components = .{},
         };
         return state;
     }
 
     pub fn deinit(self: *QueryState) void {
         self.matched_entities.deinit(self.allocator);
+        self.matched_archetypes.deinit(self.allocator);
         self.required_components.deinit(self.allocator);
         self.excluded_components.deinit(self.allocator);
         self.allocator.destroy(self);
+    }
+
+    pub fn updateArchetypes(self: *QueryState, world: *World) !void {
+        self.matched_archetypes.clearRetainingCapacity();
+        for (world.archetypes.items) |arch| {
+            if (self.matchesComponents(arch.table_components.items)) {
+                try self.matched_archetypes.append(self.allocator, arch.id);
+            }
+        }
     }
 
     pub fn addEntity(self: *QueryState, entity_idx: u32) !void {
@@ -65,6 +76,7 @@ pub const QueryState = struct {
 
     pub fn clear(self: *QueryState) void {
         self.matched_entities.clearRetainingCapacity();
+        self.matched_archetypes.clearRetainingCapacity();
     }
 
     pub fn getIter(self: *const QueryState) QueryIter {
@@ -106,8 +118,6 @@ pub const QueryState = struct {
         return true;
     }
 };
-
-// 全局allocator在entity.zig中定义，合并后直接可用
 
 // Exported C API
 export fn query_state_create() ?*QueryState {
@@ -154,9 +164,14 @@ export fn query_state_matched_entity_count(state: *const QueryState) u32 {
     return @intCast(state.matched_entities.items.len);
 }
 
-export fn query_state_update_archetypes(state: *QueryState) void {
-    // Placeholder: In real implementation this would iterate World archetypes
-    _ = state;
+export fn query_state_update_archetypes(state: *QueryState, world: *World) void {
+    state.updateArchetypes(world) catch {};
+}
+
+export fn query_state_get_matched_archetypes(state: *const QueryState, count_ptr: *usize) ?[*]const u32 {
+    count_ptr.* = state.matched_archetypes.items.len;
+    if (count_ptr.* == 0) return null;
+    return state.matched_archetypes.items.ptr;
 }
 
 export fn query_state_matches_component_list(state: *const QueryState, components_ptr: [*]const u32, len: usize) bool {

@@ -158,10 +158,10 @@ pub mod prelude {
     // pub use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponentReader};
     
     // ==================== Plugin System ====================
-    pub use crate::plugin::Plugin;
+    pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};
     // TODO: Uncomment when implemented:
-    // pub use crate::plugin::{PluginGroup, PluginGroupBuilder, App, SubApp, AppLabel,
-    //     CorePlugin, TimePlugin, DefaultPlugins, CleanupPlugin};
+    // pub use crate::plugin::{PluginGroup, PluginGroupBuilder, SubApp, AppLabel,
+    //     CleanupPlugin};
 }
 
 // Re-export commonly used types at crate level
