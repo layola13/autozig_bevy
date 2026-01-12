@@ -78,15 +78,29 @@ pub const QueryState = struct {
         return self.matched_entities.items.len;
     }
 
-    pub fn matchesArchetype(self: *const QueryState, archetype: *const Archetype) bool {
+    pub fn matchesComponents(self: *const QueryState, components: []const u32) bool {
         // Check exclusions first
         for (self.excluded_components.items) |id| {
-            if (archetype.hasComponent(id)) return false;
+            var found = false;
+            for (components) |c_id| {
+                if (c_id == id) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) return false;
         }
 
         // Check requirements
         for (self.required_components.items) |id| {
-            if (!archetype.hasComponent(id)) return false;
+            var found = false;
+            for (components) |c_id| {
+                if (c_id == id) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
         }
 
         return true;
@@ -145,8 +159,7 @@ export fn query_state_update_archetypes(state: *QueryState) void {
     _ = state;
 }
 
-export fn query_state_matches_archetype(state: *const QueryState, archetype_ptr: *const anyopaque) bool {
-    if (archetype_ptr == @as(*const anyopaque, @ptrFromInt(0))) return false;
-    const archetype = @as(*const Archetype, @ptrCast(@alignCast(archetype_ptr)));
-    return state.matchesArchetype(archetype);
+export fn query_state_matches_component_list(state: *const QueryState, components_ptr: [*]const u32, len: usize) bool {
+    const components = components_ptr[0..len];
+    return state.matchesComponents(components);
 }
