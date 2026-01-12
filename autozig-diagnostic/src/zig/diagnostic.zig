@@ -10,12 +10,12 @@ fn getGlobalAllocator() std.mem.Allocator {
             var fba = std.heap.FixedBufferAllocator.init(&buffer);
             var initialized = false;
         };
-        
+
         if (!State.initialized) {
             State.fba = std.heap.FixedBufferAllocator.init(&State.buffer);
             State.initialized = true;
         }
-        
+
         return State.fba.allocator();
     } else {
         // 非 WASM 环境：使用标准 page_allocator
@@ -37,7 +37,7 @@ fn getTimestamp() i64 {
         return State.counter;
     } else {
         // 非 WASM 环境：使用实际时间戳
-        return std.time.nanoTimestamp();
+        return @intCast(std.time.nanoTimestamp());
     }
 }
 

@@ -1,12 +1,20 @@
 const std = @import("std");
 
+// Forward declaration of builtin - will be imported later in the file
+// This avoids duplicate import since builtin is already imported at line 602
+const builtin = @import("builtin");
+
 // ============================================================================
-// WASM-Only Allocator - WASM专用内存分配器
+// Platform-specific Allocator - 平台特定内存分配器
 // ============================================================================
-// For WASM64 freestanding target, we MUST use wasm_allocator only
-// This avoids any dependency on libc (malloc/free) which is unavailable
+// For WASM targets, use wasm_allocator (no libc dependency)
+// For native targets, use c_allocator (requires libc)
 fn getDefaultAllocator() std.mem.Allocator {
-    return std.heap.wasm_allocator;
+    if (builtin.cpu.arch.isWasm()) {
+        return std.heap.wasm_allocator;
+    } else {
+        return std.heap.c_allocator;
+    }
 }
 
 // ============================================================================
@@ -599,7 +607,7 @@ export fn sampler_descriptor_with_filter(desc: SamplerDescriptor, filter: Filter
 // ============================================================================
 // Tests - Only compile for native targets, not WASM
 // ============================================================================
-const builtin = @import("builtin");
+// builtin is already imported at the top of the file
 
 // Tests require std.testing.allocator which uses c_allocator
 // Skip all tests for WASM targets to avoid libc dependency

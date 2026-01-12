@@ -5,3 +5,7 @@ rustflags = ["-C", "linker=rust-lld"]
 [target.wasm32-unknown-unknown]
 linker = "rust-lld"
 rustflags = ["-C", "linker=rust-lld"]
+
+# 共享 autozig 的 target 目录
+[build]
+target-dir = "../autozig/target"

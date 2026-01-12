@@ -1,10 +1,8 @@
 //! Change Detection - 变更检测系统
-//! 
+//!
 //! 基于Tick的变更检测，实现Changed<T>, Added<T>, Removed<T>查询过滤器
 
-#![forbid(unsafe_code)]
-
-use autozig::include_zig;
+use autozig_macro::include_zig;
 use crate::component::Component;
 use crate::entity::Entity;
 use crate::query::QueryFilter;
@@ -464,5 +462,234 @@ mod tests {
     #[test]
     fn test_added_filter_creation() {
         let _filter: Added<TestComponent> = Added::default();
+    }
+}
+// ============================================================================
+// Change Detection Advanced Types - 变更检测高级类型
+// ============================================================================
+
+/// MutUntyped - 类型擦除的可变引用（带变更检测）
+pub struct MutUntyped<'a> {
+    ticks: &'a mut ComponentTicks,
+    current_tick: Tick,
+}
+
+impl<'a> MutUntyped<'a> {
+    pub fn new(ticks: &'a mut ComponentTicks, current_tick: Tick) -> Self {
+        Self {
+            ticks,
+            current_tick,
+        }
+    }
+    
+    pub fn set_changed(&mut self) {
+        self.ticks.set_changed(self.current_tick);
+    }
+}
+
+/// Ref<'a, T> - 不可变引用包装器（带变更检测信息）
+pub struct Ref<'a, T> {
+    value: &'a T,
+    ticks: &'a ComponentTicks,
+    last_run: Tick,
+    this_run: Tick,
+}
+
+impl<'a, T> Ref<'a, T> {
+    pub fn new(value: &'a T, ticks: &'a ComponentTicks, last_run: Tick, this_run: Tick) -> Self {
+        Self {
+            value,
+            ticks,
+            last_run,
+            this_run,
+        }
+    }
+    
+    pub fn is_added(&self) -> bool {
+        self.ticks.is_added(self.last_run, self.this_run)
+    }
+    
+    pub fn is_changed(&self) -> bool {
+        self.ticks.is_changed(self.last_run, self.this_run)
+    }
+    
+    pub fn last_changed(&self) -> Tick {
+        Tick(self.ticks.zig_ticks.changed.value)
+    }
+}
+
+impl<'a, T> std::ops::Deref for Ref<'a, T> {
+    type Target = T;
+    
+    fn deref(&self) -> &Self::Target {
+        self.value
+    }
+}
+
+/// TickCells - Tick的Cell包装器
+pub struct TickCells {
+    added: std::cell::Cell<Tick>,
+    changed: std::cell::Cell<Tick>,
+}
+
+impl TickCells {
+    pub fn new(tick: Tick) -> Self {
+        Self {
+            added: std::cell::Cell::new(tick),
+            changed: std::cell::Cell::new(tick),
+        }
+    }
+    
+    pub fn added(&self) -> Tick {
+        self.added.get()
+    }
+    
+    pub fn changed(&self) -> Tick {
+        self.changed.get()
+    }
+    
+    pub fn set_changed(&self, tick: Tick) {
+        self.changed.set(tick);
+    }
+    
+    pub fn set_added(&self, tick: Tick) {
+        self.added.set(tick);
+    }
+}
+
+/// LastTick - 上次运行的tick
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LastTick(pub Tick);
+
+impl LastTick {
+    pub fn new(tick: Tick) -> Self {
+        Self(tick)
+    }
+    
+    pub fn get(&self) -> Tick {
+        self.0
+    }
+}
+
+// ============================================================================
+// DetectChanges Traits - 变更检测trait完善
+// ============================================================================
+
+/// DetectChanges - 变更检测trait（不可变）
+pub trait DetectChanges {
+    fn is_added(&self) -> bool;
+    fn is_changed(&self) -> bool;
+    fn last_changed(&self) -> Tick;
+}
+
+/// DetectChangesMut - 变更检测trait（可变）
+pub trait DetectChangesMut: DetectChanges {
+    fn set_changed(&mut self);
+    fn set_last_changed(&mut self, tick: Tick);
+    fn bypass_change_detection(&mut self) -> &mut Self;
+}
+
+// 为Ref实现DetectChanges
+impl<'a, T> DetectChanges for Ref<'a, T> {
+    fn is_added(&self) -> bool {
+        self.is_added()
+    }
+    
+    fn is_changed(&self) -> bool {
+        self.is_changed()
+    }
+    
+    fn last_changed(&self) -> Tick {
+        self.last_changed()
+    }
+}
+
+/// Mut<'a, T> - 可变引用包装器（带变更检测）
+pub struct Mut<'a, T> {
+    value: &'a mut T,
+    ticks: &'a mut ComponentTicks,
+    current_tick: Tick,
+    last_run: Tick,
+    this_run: Tick,
+}
+
+impl<'a, T> Mut<'a, T> {
+    pub fn new(
+        value: &'a mut T,
+        ticks: &'a mut ComponentTicks,
+        current_tick: Tick,
+        last_run: Tick,
+        this_run: Tick,
+    ) -> Self {
+        Self {
+            value,
+            ticks,
+            current_tick,
+            last_run,
+            this_run,
+        }
+    }
+    
+    pub fn reborrow(&mut self) -> Mut<'_, T> {
+        Mut {
+            value: &mut *self.value,
+            ticks: &mut *self.ticks,
+            current_tick: self.current_tick,
+            last_run: self.last_run,
+            this_run: self.this_run,
+        }
+    }
+    
+    pub fn map_unchanged<U>(self, f: impl FnOnce(&mut T) -> &mut U) -> Mut<'a, U> {
+        Mut {
+            value: f(self.value),
+            ticks: self.ticks,
+            current_tick: self.current_tick,
+            last_run: self.last_run,
+            this_run: self.this_run,
+        }
+    }
+}
+
+impl<'a, T> DetectChanges for Mut<'a, T> {
+    fn is_added(&self) -> bool {
+        self.ticks.is_added(self.last_run, self.this_run)
+    }
+    
+    fn is_changed(&self) -> bool {
+        self.ticks.is_changed(self.last_run, self.this_run)
+    }
+    
+    fn last_changed(&self) -> Tick {
+        Tick(self.ticks.zig_ticks.changed.value)
+    }
+}
+
+impl<'a, T> DetectChangesMut for Mut<'a, T> {
+    fn set_changed(&mut self) {
+        self.ticks.set_changed(self.current_tick);
+    }
+    
+    fn set_last_changed(&mut self, tick: Tick) {
+        self.ticks.set_changed(tick);
+    }
+    
+    fn bypass_change_detection(&mut self) -> &mut Self {
+        self
+    }
+}
+
+impl<'a, T> std::ops::Deref for Mut<'a, T> {
+    type Target = T;
+    
+    fn deref(&self) -> &Self::Target {
+        self.value
+    }
+}
+
+impl<'a, T> std::ops::DerefMut for Mut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.set_changed();
+        self.value
     }
 }

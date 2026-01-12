@@ -1,6 +1,6 @@
 //! Command system - Bevy-compatible deferred command execution
 
-use autozig::include_zig;
+use autozig_macro::include_zig;
 use std::marker::PhantomData;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -98,6 +98,23 @@ pub struct Commands<'w> {
 }
 
 impl<'w> Commands<'w> {
+    /// Creates a new Commands instance from entities storage
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the entities storage remains valid
+    pub unsafe fn new_from_entities(
+        _allocator: &crate::entity::EntityAllocator,
+        _entities: &crate::entity::Entities,
+    ) -> Self {
+        // 创建一个新的命令缓冲区
+        let buffer = command_buffer_create();
+        Self {
+            buffer,
+            _marker: PhantomData,
+        }
+    }
+    
     /// Spawn a new entity (returns placeholder)
     pub fn spawn_empty(&mut self) -> EntityCommands {
         command_buffer_write_spawn(self.buffer);

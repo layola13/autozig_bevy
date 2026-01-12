@@ -1,468 +1,836 @@
-//! AutoZig Shadow Reflect - 轻量级反射系统
-//!
-//! 核心理念：
-//! - Rust只负责"报户口"（生成静态Schema描述符）
-//! - Zig负责"查户口"（通过指针偏移访问内存）
-//! - 90% Zig核心 + 10% Rust包装层
-//! - 所有反射类型必须 #[repr(C)]
-
-#![no_std]
-
-extern crate alloc;
-
-use alloc::string::String;
-use core::any::TypeId;
-use core::ptr::NonNull;
-
-// 使用autozig的include_zig!宏导入Zig FFI函数
 use autozig::include_zig;
+use std::any::{Any, TypeId};
+use std::fmt;
 
-include_zig!("src/zig/type_info.zig", {
-    fn type_info_create(type_name: *const u8, type_name_len: usize, type_id: u64, kind: TypeInfoKind) -> *mut TypeInfo;
-    fn type_info_destroy(info: *mut TypeInfo);
-    fn type_info_get_name(info: *const TypeInfo) -> *const u8;
-    fn type_info_get_name_len(info: *const TypeInfo) -> usize;
-    fn type_info_get_type_id(info: *const TypeInfo) -> u64;
-    fn type_info_get_kind(info: *const TypeInfo) -> TypeInfoKind;
-    fn type_info_add_field(info: *mut TypeInfo, field_name: *const u8, field_name_len: usize, field_type_name: *const u8, field_type_name_len: usize, field_offset: usize) -> bool;
-    fn type_info_get_field_count(info: *const TypeInfo) -> usize;
-    fn type_info_get_field_name(info: *const TypeInfo, index: usize) -> *const u8;
-    fn type_info_get_field_name_len(info: *const TypeInfo, index: usize) -> usize;
-});
+// ============================================================================
+// Core Reflection Types - 基础反射类型 (10个)
+// ============================================================================
 
-include_zig!("src/zig/type_registry.zig", {
-    fn type_registry_create() -> *mut TypeRegistry;
-    fn type_registry_destroy(registry: *mut TypeRegistry);
-    fn type_registry_register(registry: *mut TypeRegistry, type_id: u64, type_name: *const u8, type_name_len: usize) -> bool;
-    fn type_registry_get_type_name(registry: *const TypeRegistry, type_id: u64) -> *const u8;
-    fn type_registry_get_type_name_len(registry: *const TypeRegistry, type_id: u64) -> usize;
-    fn type_registry_contains(registry: *const TypeRegistry, type_id: u64) -> bool;
-    fn type_registry_len(registry: *const TypeRegistry) -> usize;
-});
-
-include_zig!("src/zig/struct_trait.zig", {
-    fn struct_data_create(field_count: usize) -> *mut StructData;
-    fn struct_data_destroy(data: *mut StructData);
-    fn struct_data_field_count(data: *const StructData) -> usize;
-    fn struct_data_get_field_name(data: *const StructData, index: usize) -> *const u8;
-    fn struct_data_get_field_name_len(data: *const StructData, index: usize) -> usize;
-});
-
-/// Type info kind - 与Zig的TypeInfoKind保持一致
-#[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TypeInfoKind {
-    Struct = 0,
-    TupleStruct = 1,
-    Tuple = 2,
-    List = 3,
-    Array = 4,
-    Map = 5,
-    Enum = 6,
-    Value = 7,
+/// Type information for reflected types
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeInfo {
+    Array(ArrayInfo),
+    List(ListInfo),
+    Map(MapInfo),
+    Set(SetInfo),
+    Struct(StructInfo),
+    Tuple(TupleInfo),
+    TupleStruct(TupleStructInfo),
+    Enum(EnumInfo),
+    Opaque(OpaqueInfo),
+    Remote(RemoteInfo),
 }
 
-/// Zig侧的TypeInfo不透明指针
+/// Type path information for reflecting type names
 #[repr(C)]
-pub struct TypeInfo {
-    _opaque: [u8; 0],
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypePath {
+    path: *const u8,
+    len: usize,
 }
 
-/// Zig侧的TypeRegistry不透明指针
+/// Registration of a type in the type registry
 #[repr(C)]
+pub struct TypeRegistration {
+    type_id: TypeId,
+    type_info: *const TypeInfo,
+    type_path: TypePath,
+}
+
+/// Global type registry for reflected types
 pub struct TypeRegistry {
-    _opaque: [u8; 0],
+    registrations: std::collections::HashMap<TypeId, TypeRegistration>,
 }
 
-/// Zig侧的StructData不透明指针
+/// Thread-safe reference to TypeRegistry
+pub struct TypeRegistryArc {
+    inner: std::sync::Arc<std::sync::RwLock<TypeRegistry>>,
+}
+
+/// Reference to a reflected value
+#[derive(Debug)]
+pub enum ReflectRef<'a> {
+    Struct(&'a dyn Struct),
+    TupleStruct(&'a dyn TupleStruct),
+    Tuple(&'a dyn Tuple),
+    List(&'a dyn List),
+    Array(&'a dyn Array),
+    Map(&'a dyn Map),
+    Set(&'a dyn Set),
+    Enum(&'a dyn Enum),
+    Opaque(&'a dyn PartialReflect),
+}
+
+/// Mutable reference to a reflected value
+#[derive(Debug)]
+pub enum ReflectMut<'a> {
+    Struct(&'a mut dyn Struct),
+    TupleStruct(&'a mut dyn TupleStruct),
+    Tuple(&'a mut dyn Tuple),
+    List(&'a mut dyn List),
+    Array(&'a mut dyn Array),
+    Map(&'a mut dyn Map),
+    Set(&'a mut dyn Set),
+    Enum(&'a mut dyn Enum),
+    Opaque(&'a mut dyn PartialReflect),
+}
+
+/// Owned reflected value
+#[derive(Debug)]
+pub enum ReflectOwned {
+    Struct(Box<dyn Struct>),
+    TupleStruct(Box<dyn TupleStruct>),
+    Tuple(Box<dyn Tuple>),
+    List(Box<dyn List>),
+    Array(Box<dyn Array>),
+    Map(Box<dyn Map>),
+    Set(Box<dyn Set>),
+    Enum(Box<dyn Enum>),
+    Opaque(Box<dyn PartialReflect>),
+}
+
+/// Kind of reflected type
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ReflectKind {
+    Struct,
+    TupleStruct,
+    Tuple,
+    List,
+    Array,
+    Map,
+    Set,
+    Enum,
+    Opaque,
+}
+
+// ============================================================================
+// Type Information Structures - 类型信息 (11个)
+// ============================================================================
+
+/// Array type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArrayInfo {
+    pub item_type_path: TypePath,
+    pub item_type_id: TypeId,
+    pub capacity: usize,
+}
+
+/// Enum type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+    pub variants: Vec<VariantInfo>,
+}
+
+/// List type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListInfo {
+    pub item_type_path: TypePath,
+    pub item_type_id: TypeId,
+}
+
+/// Map type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct MapInfo {
+    pub key_type_path: TypePath,
+    pub key_type_id: TypeId,
+    pub value_type_path: TypePath,
+    pub value_type_id: TypeId,
+}
+
+/// Opaque type information (no introspection)
+#[derive(Debug, Clone, PartialEq)]
+pub struct OpaqueInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+/// Set type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetInfo {
+    pub item_type_path: TypePath,
+    pub item_type_id: TypeId,
+}
+
+/// Struct type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+    pub fields: Vec<NamedField>,
+}
+
+/// Tuple type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+    pub fields: Vec<UnnamedField>,
+}
+
+/// Tuple struct type information
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleStructInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+    pub fields: Vec<UnnamedField>,
+}
+
+/// Value information (for enum variants)
+#[derive(Debug, Clone, PartialEq)]
+pub struct ValueInfo {
+    pub name: String,
+}
+
+/// Variant information for enums
+#[derive(Debug, Clone, PartialEq)]
+pub enum VariantInfo {
+    Struct(StructVariantInfo),
+    Tuple(TupleVariantInfo),
+    Unit(UnitVariantInfo),
+}
+
+// ============================================================================
+// Field and Variant Types - 字段和变体 (6个)
+// ============================================================================
+
+/// Named field in a struct
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamedField {
+    pub name: String,
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+/// Unnamed field in a tuple
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnnamedField {
+    pub index: usize,
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+/// Enum variant info wrapper
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumVariantInfo {
+    pub name: String,
+    pub variant: VariantInfo,
+}
+
+/// Struct variant in an enum
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructVariantInfo {
+    pub name: String,
+    pub fields: Vec<NamedField>,
+}
+
+/// Tuple variant in an enum
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleVariantInfo {
+    pub name: String,
+    pub fields: Vec<UnnamedField>,
+}
+
+/// Unit variant in an enum
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnitVariantInfo {
+    pub name: String,
+}
+
+/// Variant type discriminant
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VariantType {
+    Struct,
+    Tuple,
+    Unit,
+}
+
+// ============================================================================
+// Path Access Types - 路径访问 (5个)
+// ============================================================================
+
+/// Parsed path for accessing nested fields
+pub struct ParsedPath {
+    segments: Vec<PathSegment>,
+}
+
+/// Segment of a reflection path
+enum PathSegment {
+    Field(String),
+    Index(usize),
+    Key(Box<dyn PartialReflect>),
+}
+
+/// Trait for path-based reflection access
+pub trait ReflectPath {
+    fn path<'r, 'p>(&'r self, path: &'p str) -> Result<&'r dyn PartialReflect, ReflectPathError>;
+    fn path_mut<'r, 'p>(&'r mut self, path: &'p str) -> Result<&'r mut dyn PartialReflect, ReflectPathError>;
+}
+
+/// Error accessing a reflection path
+#[derive(Debug, Clone, PartialEq)]
+pub enum AccessError {
+    MissingField(String),
+    IndexOutOfBounds { index: usize, len: usize },
+    MissingKey(String),
+    TypeMismatch,
+}
+
+/// Offset-based access helper
 #[repr(C)]
-pub struct StructData {
-    _opaque: [u8; 0],
+pub struct OffsetAccess {
+    offset: usize,
+    type_id: TypeId,
 }
 
-/// Rust侧的TypeInfo包装器
-pub struct TypeInfoHandle {
-    ptr: NonNull<TypeInfo>,
+/// Error during path parsing or traversal
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReflectPathError {
+    ParseError(String),
+    AccessError(AccessError),
 }
 
-impl TypeInfoHandle {
-    /// 创建新的TypeInfo
-    pub fn new(type_name: &str, type_id: u64, kind: TypeInfoKind) -> Option<Self> {
-        let ptr = core::ptr::NonNull::new(
-            type_info_create(
-                type_name.as_ptr(),
-                type_name.len(),
-                type_id,
-                kind,
-            )
-        )?;
-        
-        Some(Self { ptr })
-    }
+// ============================================================================
+// Utility Types - 工具类型 (9个)
+// ============================================================================
 
-    /// 添加字段
-    pub fn add_field(&mut self, field_name: &str, field_type_name: &str, field_offset: usize) -> bool {
-        type_info_add_field(
-            self.ptr.as_ptr(),
-            field_name.as_ptr(),
-            field_name.len(),
-            field_type_name.as_ptr(),
-            field_type_name.len(),
-            field_offset,
-        )
-    }
-
-    /// 获取类型名
-    pub fn type_name(&self) -> String {
-        let ptr = type_info_get_name(self.ptr.as_ptr());
-        let len = type_info_get_name_len(self.ptr.as_ptr());
-        
-        if len == 0 {
-            return String::new();
-        }
-        
-        let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-        String::from_utf8_lossy(slice).into_owned()
-    }
-
-    /// 获取类型ID
-    pub fn type_id(&self) -> u64 {
-        type_info_get_type_id(self.ptr.as_ptr())
-    }
-
-    /// 获取类型kind
-    pub fn kind(&self) -> TypeInfoKind {
-        type_info_get_kind(self.ptr.as_ptr())
-    }
-
-    /// 获取字段数量
-    pub fn field_count(&self) -> usize {
-        type_info_get_field_count(self.ptr.as_ptr())
-    }
-
-    /// 获取字段名
-    pub fn field_name(&self, index: usize) -> String {
-        let ptr = type_info_get_field_name(self.ptr.as_ptr(), index);
-        let len = type_info_get_field_name_len(self.ptr.as_ptr(), index);
-        
-        if len == 0 {
-            return String::new();
-        }
-        
-        let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-        String::from_utf8_lossy(slice).into_owned()
-    }
+/// Error applying a reflected value
+#[derive(Debug, Clone, PartialEq)]
+pub enum ApplyError {
+    TypeMismatch {
+        expected: TypeId,
+        found: TypeId,
+    },
+    MismatchedKinds {
+        expected: ReflectKind,
+        found: ReflectKind,
+    },
 }
 
-impl Drop for TypeInfoHandle {
-    fn drop(&mut self) {
-        type_info_destroy(self.ptr.as_ptr());
-    }
+/// Error converting from a reflected value
+#[derive(Debug, Clone, PartialEq)]
+pub enum FromReflectError {
+    TypeMismatch,
+    MissingField(String),
+    InvalidVariant(String),
 }
 
-/// Rust侧的TypeRegistry包装器
-pub struct TypeRegistryHandle {
-    ptr: NonNull<TypeRegistry>,
+/// Trait for getting type registration
+pub trait GetTypeRegistration {
+    fn get_type_registration() -> TypeRegistration;
 }
 
-impl TypeRegistryHandle {
-    /// 创建新的TypeRegistry
-    pub fn new() -> Option<Self> {
-        let ptr = core::ptr::NonNull::new(type_registry_create())?;
-        Some(Self { ptr })
-    }
+/// Error registering a type
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegistrationError {
+    AlreadyRegistered(TypeId),
+    MissingTypeInfo(TypeId),
+}
 
-    /// 注册类型
-    pub fn register(&mut self, type_id: u64, type_name: &str) -> bool {
-        type_registry_register(
-            self.ptr.as_ptr(),
-            type_id,
-            type_name.as_ptr(),
-            type_name.len(),
-        )
-    }
+/// Trait for deserializing reflected types
+pub trait ReflectDeserialize {
+    fn deserialize(data: &[u8]) -> Result<Box<dyn PartialReflect>, Box<dyn std::error::Error>>;
+}
 
-    /// 获取类型名
-    pub fn get_type_name(&self, type_id: u64) -> Option<String> {
-        if !self.contains(type_id) {
-            return None;
-        }
-        
-        let ptr = type_registry_get_type_name(self.ptr.as_ptr(), type_id);
-        let len = type_registry_get_type_name_len(self.ptr.as_ptr(), type_id);
-        
-        if len == 0 {
-            return None;
-        }
-        
-        let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-        Some(String::from_utf8_lossy(slice).into_owned())
-    }
+/// Trait for creating reflected values from raw pointers
+pub trait ReflectFromPtr {
+    unsafe fn as_reflect_ptr<'a>(ptr: *const ()) -> &'a dyn Reflect;
+    unsafe fn as_reflect_ptr_mut<'a>(ptr: *mut ()) -> &'a mut dyn Reflect;
+}
 
-    /// 检查类型是否已注册
-    pub fn contains(&self, type_id: u64) -> bool {
-        type_registry_contains(self.ptr.as_ptr(), type_id)
-    }
+/// Trait for FromReflect functionality
+pub trait ReflectFromReflect {
+    fn from_reflect(reflect: &dyn PartialReflect) -> Option<Box<dyn Reflect>>;
+}
 
-    /// 获取注册的类型数量
-    pub fn len(&self) -> usize {
-        type_registry_len(self.ptr.as_ptr())
-    }
+/// Trait for serializing reflected types
+pub trait ReflectSerialize {
+    fn serialize(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
+}
 
-    /// 检查是否为空
-    pub fn is_empty(&self) -> bool {
+// ============================================================================
+// Function Reflection Types - 函数反射 (6个)
+// ============================================================================
+
+/// Dynamic function that can be called with reflected arguments
+pub struct DynamicFunction {
+    name: String,
+    info: FunctionInfo,
+    func: Box<dyn Fn(&[Box<dyn PartialReflect>]) -> FunctionResult>,
+}
+
+/// Information about a function signature
+#[derive(Debug, Clone)]
+pub struct FunctionInfo {
+    pub name: String,
+    pub signature: SignatureInfo,
+}
+
+/// Error when function overloading fails
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionOverloadError {
+    ArgumentCountMismatch { expected: usize, found: usize },
+    ArgumentTypeMismatch { index: usize, expected: TypeId, found: TypeId },
+}
+
+/// Result of a function call
+pub type FunctionResult = Result<Box<dyn PartialReflect>, Box<dyn std::error::Error>>;
+
+/// Information about function return value
+#[derive(Debug, Clone)]
+pub struct ReturnInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+/// Information about function signature
+#[derive(Debug, Clone)]
+pub struct SignatureInfo {
+    pub params: Vec<ParamInfo>,
+    pub return_info: Option<ReturnInfo>,
+}
+
+/// Parameter information
+#[derive(Debug, Clone)]
+pub struct ParamInfo {
+    pub name: String,
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+// ============================================================================
+// Remote Type Support - 远程类型 (2个)
+// ============================================================================
+
+/// Trait for remote type wrappers
+pub trait ReflectRemote {
+    fn into_remote(self) -> Box<dyn PartialReflect>;
+    fn as_remote(&self) -> &dyn PartialReflect;
+    fn as_remote_mut(&mut self) -> &mut dyn PartialReflect;
+}
+
+/// Information about remote types
+#[derive(Debug, Clone, PartialEq)]
+pub struct RemoteInfo {
+    pub type_path: TypePath,
+    pub type_id: TypeId,
+}
+
+// ============================================================================
+// Dynamic Types - 动态类型 (11个)
+// ============================================================================
+
+/// Dynamic array that can hold reflected values
+pub struct DynamicArray {
+    represented_type: Option<TypePath>,
+    values: Vec<Box<dyn PartialReflect>>,
+}
+
+/// Dynamic enum that can represent any enum variant
+pub struct DynamicEnum {
+    represented_type: Option<TypePath>,
+    variant_name: String,
+    variant: DynamicVariant,
+}
+
+/// Dynamic list that can hold reflected values
+pub struct DynamicList {
+    represented_type: Option<TypePath>,
+    values: Vec<Box<dyn PartialReflect>>,
+}
+
+/// Dynamic map that can hold reflected key-value pairs
+pub struct DynamicMap {
+    represented_type: Option<TypePath>,
+    values: std::collections::HashMap<usize, (Box<dyn PartialReflect>, Box<dyn PartialReflect>)>,
+}
+
+/// Dynamic set that can hold reflected values
+pub struct DynamicSet {
+    represented_type: Option<TypePath>,
+    values: Vec<Box<dyn PartialReflect>>,
+}
+
+/// Dynamic struct that can hold named fields
+pub struct DynamicStruct {
+    represented_type: Option<TypePath>,
+    fields: std::collections::HashMap<String, Box<dyn PartialReflect>>,
+}
+
+/// Dynamic tuple that can hold unnamed fields
+pub struct DynamicTuple {
+    represented_type: Option<TypePath>,
+    fields: Vec<Box<dyn PartialReflect>>,
+}
+
+/// Dynamic tuple struct
+pub struct DynamicTupleStruct {
+    represented_type: Option<TypePath>,
+    fields: Vec<Box<dyn PartialReflect>>,
+}
+
+/// Dynamic enum variant
+pub enum DynamicVariant {
+    Unit,
+    Tuple(DynamicTuple),
+    Struct(DynamicStruct),
+}
+
+/// Dynamic struct variant for enums
+pub struct DynamicStructVariant {
+    name: String,
+    fields: std::collections::HashMap<String, Box<dyn PartialReflect>>,
+}
+
+/// Dynamic tuple variant for enums
+pub struct DynamicTupleVariant {
+    name: String,
+    fields: Vec<Box<dyn PartialReflect>>,
+}
+
+// ============================================================================
+// Core Traits - 核心trait (36个)
+// ============================================================================
+
+/// Main reflection trait
+pub trait Reflect: PartialReflect + Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+    fn as_reflect(&self) -> &dyn Reflect;
+    fn as_reflect_mut(&mut self) -> &mut dyn Reflect;
+    fn clone_value(&self) -> Box<dyn Reflect>;
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>>;
+}
+
+/// Partial reflection trait (base trait for all reflected types)
+pub trait PartialReflect: fmt::Debug + Send + Sync {
+    fn get_represented_type_info(&self) -> Option<&'static TypeInfo>;
+    fn into_partial_reflect(self: Box<Self>) -> Box<dyn PartialReflect>;
+    fn as_partial_reflect(&self) -> &dyn PartialReflect;
+    fn as_partial_reflect_mut(&mut self) -> &mut dyn PartialReflect;
+    fn try_into_reflect(self: Box<Self>) -> Result<Box<dyn Reflect>, Box<dyn PartialReflect>>;
+    fn try_as_reflect(&self) -> Option<&dyn Reflect>;
+    fn try_as_reflect_mut(&mut self) -> Option<&mut dyn Reflect>;
+    fn try_apply(&mut self, value: &dyn PartialReflect) -> Result<(), ApplyError>;
+    fn reflect_kind(&self) -> ReflectKind;
+    fn reflect_ref(&self) -> ReflectRef;
+    fn reflect_mut(&mut self) -> ReflectMut;
+    fn reflect_owned(self: Box<Self>) -> ReflectOwned;
+    fn clone_value(&self) -> Box<dyn PartialReflect>;
+}
+
+/// Trait for creating types from reflection
+pub trait FromReflect: Reflect {
+    fn from_reflect(reflect: &dyn PartialReflect) -> Option<Self> where Self: Sized;
+}
+
+/// Trait for types that can provide type information
+pub trait Typed: Reflect {
+    fn type_info() -> &'static TypeInfo;
+}
+
+/// Array iterator
+pub struct ArrayIter<'a> {
+    array: &'a dyn Array,
+    index: usize,
+}
+
+/// List iterator  
+pub struct ListIter<'a> {
+    list: &'a dyn List,
+    index: usize,
+}
+
+/// Map iterator
+pub struct MapIter<'a> {
+    keys: Vec<&'a dyn PartialReflect>,
+    map: &'a dyn Map,
+    index: usize,
+}
+
+/// Tuple iterator
+pub struct TupleIter<'a> {
+    tuple: &'a dyn Tuple,
+    index: usize,
+}
+
+/// Struct iterator
+pub struct StructIter<'a> {
+    fields: Vec<&'a str>,
+    strukt: &'a dyn Struct,
+    index: usize,
+}
+
+/// Array trait for reflected arrays
+pub trait Array: PartialReflect {
+    fn get(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn get_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    fn iter(&self) -> ArrayIter;
+    fn drain(self: Box<Self>) -> Vec<Box<dyn PartialReflect>>;
 }
 
-impl Drop for TypeRegistryHandle {
-    fn drop(&mut self) {
-        type_registry_destroy(self.ptr.as_ptr());
+/// List trait for reflected lists
+pub trait List: PartialReflect {
+    fn get(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn get_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn insert(&mut self, index: usize, value: Box<dyn PartialReflect>);
+    fn remove(&mut self, index: usize) -> Box<dyn PartialReflect>;
+    fn push(&mut self, value: Box<dyn PartialReflect>);
+    fn pop(&mut self) -> Option<Box<dyn PartialReflect>>;
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    fn iter(&self) -> ListIter;
+    fn drain(self: Box<Self>) -> Vec<Box<dyn PartialReflect>>;
+}
+
+/// Map trait for reflected maps
+pub trait Map: PartialReflect {
+    fn get(&self, key: &dyn PartialReflect) -> Option<&dyn PartialReflect>;
+    fn get_mut(&mut self, key: &dyn PartialReflect) -> Option<&mut dyn PartialReflect>;
+    fn get_at(&self, index: usize) -> Option<(&dyn PartialReflect, &dyn PartialReflect)>;
+    fn get_at_mut(&mut self, index: usize) -> Option<(&dyn PartialReflect, &mut dyn PartialReflect)>;
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    fn iter(&self) -> MapIter;
+    fn drain(self: Box<Self>) -> Vec<(Box<dyn PartialReflect>, Box<dyn PartialReflect>)>;
+    fn clone_dynamic(&self) -> DynamicMap;
+    fn insert_boxed(&mut self, key: Box<dyn PartialReflect>, value: Box<dyn PartialReflect>) -> Option<Box<dyn PartialReflect>>;
+    fn remove(&mut self, key: &dyn PartialReflect) -> Option<Box<dyn PartialReflect>>;
+}
+
+/// Set trait for reflected sets
+pub trait Set: PartialReflect {
+    fn get(&self, value: &dyn PartialReflect) -> Option<&dyn PartialReflect>;
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    fn iter(&self) -> SetIter;
+    fn drain(self: Box<Self>) -> Vec<Box<dyn PartialReflect>>;
+    fn clone_dynamic(&self) -> DynamicSet;
+    fn insert_boxed(&mut self, value: Box<dyn PartialReflect>) -> bool;
+    fn remove(&mut self, value: &dyn PartialReflect) -> bool;
+    fn contains(&self, value: &dyn PartialReflect) -> bool;
+}
+
+/// Set iterator
+pub struct SetIter<'a> {
+    set: &'a dyn Set,
+    index: usize,
+}
+
+/// Enum trait for reflected enums
+pub trait Enum: PartialReflect {
+    fn field(&self, name: &str) -> Option<&dyn PartialReflect>;
+    fn field_mut(&mut self, name: &str) -> Option<&mut dyn PartialReflect>;
+    fn field_at(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn field_at_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn index_of(&self, name: &str) -> Option<usize>;
+    fn name_at(&self, index: usize) -> Option<&str>;
+    fn iter_fields(&self) -> FieldIter;
+    fn field_len(&self) -> usize;
+    fn variant_name(&self) -> &str;
+    fn variant_type(&self) -> VariantType;
+    fn clone_dynamic(&self) -> DynamicEnum;
+}
+
+/// Field iterator for enums
+pub struct FieldIter<'a> {
+    enm: &'a dyn Enum,
+    index: usize,
+}
+
+/// Struct trait for reflected structs
+pub trait Struct: PartialReflect {
+    fn field(&self, name: &str) -> Option<&dyn PartialReflect>;
+    fn field_mut(&mut self, name: &str) -> Option<&mut dyn PartialReflect>;
+    fn field_at(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn field_at_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn name_at(&self, index: usize) -> Option<&str>;
+    fn field_len(&self) -> usize;
+    fn iter_fields(&self) -> StructIter;
+    fn clone_dynamic(&self) -> DynamicStruct;
+}
+
+/// Tuple trait for reflected tuples
+pub trait Tuple: PartialReflect {
+    fn field(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn field_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn field_len(&self) -> usize;
+    fn iter_fields(&self) -> TupleIter;
+    fn clone_dynamic(&self) -> DynamicTuple;
+}
+
+/// TupleStruct trait for reflected tuple structs
+pub trait TupleStruct: PartialReflect {
+    fn field(&self, index: usize) -> Option<&dyn PartialReflect>;
+    fn field_mut(&mut self, index: usize) -> Option<&mut dyn PartialReflect>;
+    fn field_len(&self) -> usize;
+    fn iter_fields(&self) -> TupleIter;
+    fn clone_dynamic(&self) -> DynamicTupleStruct;
+}
+
+/// Function trait for callable reflection
+pub trait Function: Send + Sync {
+    fn name(&self) -> &str;
+    fn call(&self, args: &[Box<dyn PartialReflect>]) -> FunctionResult;
+    fn clone_dynamic(&self) -> DynamicFunction;
+}
+
+/// Trait for converting into functions
+pub trait IntoFunction<Marker> {
+    fn into_function(self) -> DynamicFunction;
+}
+
+/// Trait for converting into mutable functions
+pub trait IntoFunctionMut<Marker> {
+    fn into_function(self) -> DynamicFunction;
+}
+
+/// Trait for return value conversion
+pub trait IntoReturn {
+    fn into_return(self) -> Box<dyn PartialReflect>;
+}
+
+/// Trait for dynamic typed values
+pub trait DynamicTyped {
+    fn represented_type(&self) -> Option<&TypePath>;
+    fn set_represented_type(&mut self, represented_type: Option<TypePath>);
+}
+
+/// Trait for dynamic type paths
+pub trait DynamicTypePath {
+    fn reflect_type_path(&self) -> &str;
+    fn reflect_short_type_path(&self) -> &str;
+}
+
+// ============================================================================
+// Iterator Implementations
+// ============================================================================
+
+impl<'a> Iterator for ArrayIter<'a> {
+    type Item = &'a dyn PartialReflect;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.array.get(self.index)?;
+        self.index += 1;
+        Some(item)
     }
 }
 
-impl Default for TypeRegistryHandle {
-    fn default() -> Self {
-        Self::new().expect("Failed to create TypeRegistry")
+impl<'a> Iterator for ListIter<'a> {
+    type Item = &'a dyn PartialReflect;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.list.get(self.index)?;
+        self.index += 1;
+        Some(item)
     }
 }
 
-/// Rust侧的StructData包装器
-pub struct StructDataHandle {
-    ptr: NonNull<StructData>,
+impl<'a> Iterator for TupleIter<'a> {
+    type Item = &'a dyn PartialReflect;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.tuple.field(self.index)?;
+        self.index += 1;
+        Some(item)
+    }
 }
 
-impl StructDataHandle {
-    /// 创建新的StructData
-    pub fn new(field_count: usize) -> Option<Self> {
-        let ptr = core::ptr::NonNull::new(struct_data_create(field_count))?;
-        Some(Self { ptr })
-    }
+// ============================================================================
+// Error Implementations
+// ============================================================================
 
-    /// 获取字段数量
-    pub fn field_count(&self) -> usize {
-        struct_data_field_count(self.ptr.as_ptr())
-    }
+impl std::error::Error for AccessError {}
+impl std::error::Error for ApplyError {}
+impl std::error::Error for FromReflectError {}
+impl std::error::Error for ReflectPathError {}
+impl std::error::Error for RegistrationError {}
+impl std::error::Error for FunctionOverloadError {}
 
-    /// 获取字段名
-    pub fn get_field_name(&self, index: usize) -> String {
-        let ptr = struct_data_get_field_name(self.ptr.as_ptr(), index);
-        let len = struct_data_get_field_name_len(self.ptr.as_ptr(), index);
-        
-        if len == 0 {
-            return String::new();
+impl fmt::Display for AccessError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AccessError::MissingField(name) => write!(f, "Missing field: {}", name),
+            AccessError::IndexOutOfBounds { index, len } => write!(f, "Index {} out of bounds (len: {})", index, len),
+            AccessError::MissingKey(key) => write!(f, "Missing key: {}", key),
+            AccessError::TypeMismatch => write!(f, "Type mismatch"),
         }
-        
-        let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-        String::from_utf8_lossy(slice).into_owned()
     }
 }
 
-impl Drop for StructDataHandle {
-    fn drop(&mut self) {
-        struct_data_destroy(self.ptr.as_ptr());
-    }
-}
-
-/// Reflect trait - 核心反射接口
-pub trait Reflect where Self: 'static {
-    /// 获取类型名
-    fn type_name(&self) -> &'static str;
-    
-    /// 获取类型ID
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
-}
-
-/// 字段描述符
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct FieldDescriptor {
-    pub name: &'static str,
-    pub type_name: &'static str,
-    pub offset: usize,
-}
-
-/// Struct trait - 结构体反射接口
-pub trait Struct: Reflect {
-    /// 获取字段数量
-    fn field_count(&self) -> usize;
-    
-    /// 获取字段名
-    fn field_name(&self, index: usize) -> Option<&'static str>;
-    
-    /// 获取所有字段描述符
-    fn field_descriptors(&self) -> &'static [FieldDescriptor];
-}
-
-/// 计算字段偏移量的宏
-#[macro_export]
-macro_rules! offset_of {
-    ($type:ty, $field:ident) => {{
-        let dummy = core::mem::MaybeUninit::<$type>::uninit();
-        let dummy_ptr = dummy.as_ptr();
-        let field_ptr = unsafe { core::ptr::addr_of!((*dummy_ptr).$field) };
-        (field_ptr as usize) - (dummy_ptr as usize)
-    }};
-}
-
-/// 实现Reflect的派生宏辅助函数
-#[doc(hidden)]
-pub fn type_id_to_u64(type_id: TypeId) -> u64 {
-    // 使用hash将TypeId转换为u64
-    use core::hash::{Hash, Hasher};
-    
-    // 简单的FNV-1a hasher
-    struct SimpleHasher(u64);
-    impl Hasher for SimpleHasher {
-        fn finish(&self) -> u64 { self.0 }
-        fn write(&mut self, bytes: &[u8]) {
-            for &byte in bytes {
-                self.0 ^= byte as u64;
-                self.0 = self.0.wrapping_mul(0x100000001b3);
+impl fmt::Display for ApplyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApplyError::TypeMismatch { expected, found } => {
+                write!(f, "Type mismatch: expected {:?}, found {:?}", expected, found)
+            }
+            ApplyError::MismatchedKinds { expected, found } => {
+                write!(f, "Mismatched kinds: expected {:?}, found {:?}", expected, found)
             }
         }
     }
-    
-    let mut hasher = SimpleHasher(0xcbf29ce484222325);
-    type_id.hash(&mut hasher);
-    hasher.finish()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_type_info_creation() {
-        let info = TypeInfoHandle::new("TestStruct", 12345, TypeInfoKind::Struct);
-        assert!(info.is_some());
-        
-        let info = info.unwrap();
-        assert_eq!(info.type_name(), "TestStruct");
-        assert_eq!(info.type_id(), 12345);
-        assert_eq!(info.kind(), TypeInfoKind::Struct);
-    }
-
-    #[test]
-    fn test_type_info_fields() {
-        let mut info = TypeInfoHandle::new("Point", 54321, TypeInfoKind::Struct).unwrap();
-        
-        assert!(info.add_field("x", "f32", 0));
-        assert!(info.add_field("y", "f32", 4));
-        
-        assert_eq!(info.field_count(), 2);
-        assert_eq!(info.field_name(0), "x");
-        assert_eq!(info.field_name(1), "y");
-    }
-
-    #[test]
-    fn test_type_registry_creation() {
-        let registry = TypeRegistryHandle::new();
-        assert!(registry.is_some());
-        
-        let registry = registry.unwrap();
-        assert_eq!(registry.len(), 0);
-        assert!(registry.is_empty());
-    }
-
-    #[test]
-    fn test_type_registry_register() {
-        let mut registry = TypeRegistryHandle::new().unwrap();
-        
-        assert!(registry.register(1, "i32"));
-        assert!(registry.register(2, "f64"));
-        
-        assert_eq!(registry.len(), 2);
-        assert!(registry.contains(1));
-        assert!(registry.contains(2));
-        assert!(!registry.contains(3));
-    }
-
-    #[test]
-    fn test_type_registry_get_name() {
-        let mut registry = TypeRegistryHandle::new().unwrap();
-        
-        registry.register(42, "TestType");
-        
-        let name = registry.get_type_name(42);
-        assert!(name.is_some());
-        assert_eq!(name.unwrap(), "TestType");
-        
-        let none = registry.get_type_name(999);
-        assert!(none.is_none());
-    }
-
-    #[test]
-    fn test_offset_macro() {
-        #[repr(C)]
-        struct Position {
-            x: f32,
-            y: f32,
+impl fmt::Display for FromReflectError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FromReflectError::TypeMismatch => write!(f, "Type mismatch"),
+            FromReflectError::MissingField(name) => write!(f, "Missing field: {}", name),
+            FromReflectError::InvalidVariant(name) => write!(f, "Invalid variant: {}", name),
         }
-        
-        let x_offset = offset_of!(Position, x);
-        let y_offset = offset_of!(Position, y);
-        
-        assert_eq!(x_offset, 0);
-        assert_eq!(y_offset, 4);
-    }
-
-    #[test]
-    fn test_position_reflect() {
-        #[repr(C)]
-        struct Position {
-            x: f32,
-            y: f32,
-        }
-        
-        impl Reflect for Position {
-            fn type_name(&self) -> &'static str {
-                "Position"
-            }
-        }
-        
-        impl Struct for Position {
-            fn field_count(&self) -> usize {
-                2
-            }
-            
-            fn field_name(&self, index: usize) -> Option<&'static str> {
-                match index {
-                    0 => Some("x"),
-                    1 => Some("y"),
-                    _ => None,
-                }
-            }
-            
-            fn field_descriptors(&self) -> &'static [FieldDescriptor] {
-                static DESCRIPTORS: &[FieldDescriptor] = &[
-                    FieldDescriptor {
-                        name: "x",
-                        type_name: "f32",
-                        offset: 0,
-                    },
-                    FieldDescriptor {
-                        name: "y",
-                        type_name: "f32",
-                        offset: 4,
-                    },
-                ];
-                DESCRIPTORS
-            }
-        }
-        
-        let pos = Position { x: 1.0, y: 2.0 };
-        assert_eq!(pos.type_name(), "Position");
-        assert_eq!(pos.field_count(), 2);
-        assert_eq!(pos.field_name(0), Some("x"));
-        assert_eq!(pos.field_name(1), Some("y"));
-        
-        let descriptors = pos.field_descriptors();
-        assert_eq!(descriptors.len(), 2);
-        assert_eq!(descriptors[0].name, "x");
-        assert_eq!(descriptors[0].type_name, "f32");
-        assert_eq!(descriptors[0].offset, 0);
     }
 }
+
+impl fmt::Display for ReflectPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReflectPathError::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            ReflectPathError::AccessError(err) => write!(f, "Access error: {}", err),
+        }
+    }
+}
+
+impl fmt::Display for RegistrationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RegistrationError::AlreadyRegistered(type_id) => write!(f, "Type already registered: {:?}", type_id),
+            RegistrationError::MissingTypeInfo(type_id) => write!(f, "Missing type info: {:?}", type_id),
+        }
+    }
+}
+
+impl fmt::Display for FunctionOverloadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FunctionOverloadError::ArgumentCountMismatch { expected, found } => {
+                write!(f, "Argument count mismatch: expected {}, found {}", expected, found)
+            }
+            FunctionOverloadError::ArgumentTypeMismatch { index, expected, found } => {
+                write!(f, "Argument type mismatch at index {}: expected {:?}, found {:?}", index, expected, found)
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Include Zig FFI Bindings (Placeholder for now)
+// ============================================================================
+
+// Note: Zig implementations will be added in separate files
+// include_zig!("zig/reflect_all.zig", {
+//     // FFI functions will be defined here
+// });

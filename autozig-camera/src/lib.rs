@@ -68,6 +68,413 @@ pub struct Plane {
 }
 
 // ============================================================================
+// NEW API TYPES - STRUCTS (38个)
+// ============================================================================
+
+/// Axis-Aligned Bounding Box
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Aabb {
+    pub center: [f32; 3],
+    pub half_extents: [f32; 3],
+}
+
+/// Camera 3D depth texture usage configuration
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Camera3dDepthTextureUsage {
+    pub enabled: bool,
+}
+
+/// Camera main texture usages
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CameraMainTextureUsages {
+    pub usage_flags: u32,
+}
+
+/// Camera plugin configuration
+#[derive(Debug, Clone)]
+pub struct CameraPlugin;
+
+/// Camera projection plugin
+#[derive(Debug, Clone)]
+pub struct CameraProjectionPlugin<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+/// Camera update system labels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CameraUpdateSystems;
+
+/// Cascaded shadow frustums
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CascadesFrusta {
+    pub frusta: Vec<Frustum>,
+}
+
+/// Cascaded shadow visible entities
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CascadesVisibleEntities {
+    pub entities: Vec<Vec<u64>>,
+}
+
+/// Clear color for camera background
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ClearColor {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+}
+
+/// Computed camera values (cached calculations)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ComputedCameraValues {
+    pub projection_matrix: [f32; 16],
+    pub target_info: Option<RenderTargetInfo>,
+}
+
+/// Cube map face identifier
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CubeMapFace {
+    PositiveX = 0,
+    NegativeX = 1,
+    PositiveY = 2,
+    NegativeY = 3,
+    PositiveZ = 4,
+    NegativeZ = 5,
+}
+
+/// Cube map frustums for each face
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CubemapFrusta {
+    pub frusta: [Frustum; 6],
+}
+
+/// Cube map visible entities per face
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CubemapVisibleEntities {
+    pub entities: [Vec<u64>; 6],
+}
+
+/// Custom projection matrix
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CustomProjection {
+    pub matrix: [f32; 16],
+}
+
+/// Camera exposure settings
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Exposure {
+    pub ev100: f32,
+}
+
+/// Half-space (plane) for frustum culling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HalfSpace {
+    pub normal: [f32; 3],
+    pub distance: f32,
+}
+
+/// Image render target configuration
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ImageRenderTarget {
+    pub image_handle: u64,
+}
+
+/// Inherited visibility from parent
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InheritedVisibility {
+    pub visible: bool,
+}
+
+/// Main pass resolution override
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MainPassResolutionOverride {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Manual texture view handle
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ManualTextureViewHandle {
+    pub handle: u64,
+}
+
+/// Marker: No automatic AABB calculation
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoAutoAabb;
+
+/// Marker: No CPU culling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoCpuCulling;
+
+/// Marker: No frustum culling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoFrustumCulling;
+
+/// Physical camera parameters
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PhysicalCameraParameters {
+    pub aperture_f_stops: f32,
+    pub shutter_speed_s: f32,
+    pub sensitivity_iso: f32,
+}
+
+/// Render layers bit mask
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RenderLayers {
+    pub bits: u32,
+}
+
+/// Render target information
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RenderTargetInfo {
+    pub physical_size: [u32; 2],
+    pub scale_factor: f32,
+}
+
+/// Bounding sphere
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sphere {
+    pub center: [f32; 3],
+    pub radius: f32,
+}
+
+/// Sub-camera view (for split-screen, etc.)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SubCameraView {
+    pub viewport: Viewport,
+    pub projection_matrix: [f32; 16],
+}
+
+/// View visibility (per-camera visibility)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ViewVisibility {
+    pub visible: bool,
+}
+
+/// Viewport configuration
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Viewport {
+    pub physical_position: [u32; 2],
+    pub physical_size: [u32; 2],
+    pub depth: [f32; 2],
+}
+
+/// Visibility classification
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisibilityClass {
+    Visible = 0,
+    Hidden = 1,
+    Inherited = 2,
+}
+
+/// Visibility plugin
+#[derive(Debug, Clone)]
+pub struct VisibilityPlugin;
+
+/// Visibility range for LOD
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VisibilityRange {
+    pub start_margin: f32,
+    pub end_margin: f32,
+}
+
+/// Visibility range plugin
+#[derive(Debug, Clone)]
+pub struct VisibilityRangePlugin;
+
+/// List of visible entities
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct VisibleEntities {
+    pub entities: Vec<u64>,
+}
+
+/// Visible entity ranges for LOD
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct VisibleEntityRanges {
+    pub ranges: Vec<(u64, f32)>,
+}
+
+/// Visible mesh entities
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct VisibleMeshEntities {
+    pub entities: Vec<u64>,
+}
+
+// ============================================================================
+// NEW API TYPES - ENUMS (13个)
+// ============================================================================
+
+/// Camera 3D depth load operation
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Camera3dDepthLoadOp {
+    Clear = 0,
+    Load = 1,
+}
+
+/// Camera output mode
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CameraOutputMode {
+    Write = 0,
+    Skip = 1,
+}
+
+/// Clear color configuration
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClearColorConfig {
+    Default,
+    Custom([f32; 4]),
+    None,
+}
+
+/// Cubemap layout format
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CubemapLayout {
+    Vertical = 0,
+    Horizontal = 1,
+    Cross = 2,
+}
+
+/// MSAA writeback mode
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MsaaWriteback {
+    Enabled = 0,
+    Disabled = 1,
+}
+
+/// Normalized render target
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NormalizedRenderTarget {
+    Window,
+    Image(u64),
+    TextureView(u64),
+}
+
+/// Projection type
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Projection {
+    Perspective(PerspectiveProjection),
+    Orthographic(OrthographicProjection),
+}
+
+/// Render target
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RenderTarget {
+    Window,
+    Image(u64),
+    TextureView(u64),
+}
+
+/// Scaling mode for orthographic projections
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ScalingMode {
+    None = 0,
+    WindowSize = 1,
+    AutoMin = 2,
+    AutoMax = 3,
+    FixedVertical(f32) = 4,
+    FixedHorizontal(f32) = 5,
+}
+
+/// Screen space transmission quality
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScreenSpaceTransmissionQuality {
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Ultra = 3,
+}
+
+/// Viewport conversion error
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewportConversionError {
+    OutOfBounds,
+    InvalidSize,
+}
+
+/// Entity visibility state
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    Inherited = 0,
+    Hidden = 1,
+    Visible = 2,
+}
+
+/// Visibility system labels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VisibilitySystems {
+    CalculateBounds,
+    UpdateFrusta,
+    CheckVisibility,
+    VisibilityPropagate,
+}
+
+// ============================================================================
+// NEW API TYPES - TRAITS (4个)
+// ============================================================================
+
+/// Camera projection trait
+pub trait CameraProjection {
+    fn get_projection_matrix(&self) -> [f32; 16];
+    fn update(&mut self, width: f32, height: f32);
+    fn far(&self) -> f32;
+    fn near(&self) -> f32;
+}
+
+/// Dynamic camera projection trait (trait object compatible)
+pub trait DynCameraProjection: CameraProjection + Send + Sync {}
+
+/// Mesh AABB trait
+pub trait MeshAabb {
+    fn compute_aabb(&self) -> Option<Aabb>;
+}
+
+/// Set view visibility trait
+pub trait SetViewVisibility {
+    fn set_visibility(&mut self, visible: bool);
+}
+
+// ============================================================================
 // Projection Functions
 // ============================================================================
 
@@ -120,6 +527,55 @@ include_zig!("src/zig/frustum.zig", {
     fn frustum_test_aabb_inside(frustum: *const Frustum, min: *const [f32; 3], max: *const [f32; 3]) -> bool;
     fn frustum_distance_to_aabb(frustum: *const Frustum, min: *const [f32; 3], max: *const [f32; 3]) -> f32;
 });
+
+// ============================================================================
+// Trait Implementations
+// ============================================================================
+
+impl CameraProjection for PerspectiveProjection {
+    fn get_projection_matrix(&self) -> [f32; 16] {
+        self.compute_matrix()
+    }
+
+    fn update(&mut self, width: f32, height: f32) {
+        self.aspect_ratio = width / height;
+    }
+
+    fn far(&self) -> f32 {
+        self.far
+    }
+
+    fn near(&self) -> f32 {
+        self.near
+    }
+}
+
+impl CameraProjection for OrthographicProjection {
+    fn get_projection_matrix(&self) -> [f32; 16] {
+        self.compute_matrix()
+    }
+
+    fn update(&mut self, width: f32, height: f32) {
+        self.update_size(width, height);
+    }
+
+    fn far(&self) -> f32 {
+        self.far
+    }
+
+    fn near(&self) -> f32 {
+        self.near
+    }
+}
+
+impl DynCameraProjection for PerspectiveProjection {}
+impl DynCameraProjection for OrthographicProjection {}
+
+impl SetViewVisibility for ViewVisibility {
+    fn set_visibility(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+}
 
 // ============================================================================
 // PerspectiveProjection Implementation
@@ -438,6 +894,74 @@ impl Frustum {
     /// Calculate distance to AABB
     pub fn distance_to_aabb(&self, min: [f32; 3], max: [f32; 3]) -> f32 {
         frustum_distance_to_aabb(self, &min, &max)
+    }
+}
+
+// ============================================================================
+// Aabb Implementation
+// ============================================================================
+
+impl Aabb {
+    pub fn new(center: [f32; 3], half_extents: [f32; 3]) -> Self {
+        Self { center, half_extents }
+    }
+
+    pub fn from_min_max(min: [f32; 3], max: [f32; 3]) -> Self {
+        let center = [
+            (min[0] + max[0]) * 0.5,
+            (min[1] + max[1]) * 0.5,
+            (min[2] + max[2]) * 0.5,
+        ];
+        let half_extents = [
+            (max[0] - min[0]) * 0.5,
+            (max[1] - min[1]) * 0.5,
+            (max[2] - min[2]) * 0.5,
+        ];
+        Self { center, half_extents }
+    }
+
+    pub fn min(&self) -> [f32; 3] {
+        [
+            self.center[0] - self.half_extents[0],
+            self.center[1] - self.half_extents[1],
+            self.center[2] - self.half_extents[2],
+        ]
+    }
+
+    pub fn max(&self) -> [f32; 3] {
+        [
+            self.center[0] + self.half_extents[0],
+            self.center[1] + self.half_extents[1],
+            self.center[2] + self.half_extents[2],
+        ]
+    }
+}
+
+impl Default for Aabb {
+    fn default() -> Self {
+        Self {
+            center: [0.0; 3],
+            half_extents: [0.5; 3],
+        }
+    }
+}
+
+// ============================================================================
+// Sphere Implementation
+// ============================================================================
+
+impl Sphere {
+    pub fn new(center: [f32; 3], radius: f32) -> Self {
+        Self { center, radius }
+    }
+}
+
+impl Default for Sphere {
+    fn default() -> Self {
+        Self {
+            center: [0.0; 3],
+            radius: 0.5,
+        }
     }
 }
 

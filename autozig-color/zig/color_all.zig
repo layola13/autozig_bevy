@@ -1,104 +1,114 @@
 const std = @import("std");
 
 // ============================================================================
-// Color type
+// Srgba - Standard RGB with Alpha
 // ============================================================================
-pub const Color = extern struct {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+pub const Srgba = extern struct {
+    red: f32,
+    green: f32,
+    blue: f32,
+    alpha: f32,
 
-    pub fn rgb(r: f32, g: f32, b: f32) Color {
-        return .{ .r = r, .g = g, .b = b, .a = 1.0 };
+    pub fn new(red: f32, green: f32, blue: f32, alpha: f32) Srgba {
+        return .{ .red = red, .green = green, .blue = blue, .alpha = alpha };
     }
 
-    pub fn rgba(r: f32, g: f32, b: f32, a: f32) Color {
-        return .{ .r = r, .g = g, .b = b, .a = a };
+    pub fn rgb(red: f32, green: f32, blue: f32) Srgba {
+        return new(red, green, blue, 1.0);
     }
 
-    pub fn hex(hex_str: []const u8) !Color {
-        if (hex_str.len < 6) return error.InvalidHexString;
-
-        const start: usize = if (hex_str[0] == '#') 1 else 0;
-
-        if (hex_str.len - start < 6) return error.InvalidHexString;
-
-        const r = try parseHexByte(hex_str[start .. start + 2]);
-        const g = try parseHexByte(hex_str[start + 2 .. start + 4]);
-        const b = try parseHexByte(hex_str[start + 4 .. start + 6]);
-
-        const a: f32 = if (hex_str.len - start >= 8)
-            @as(f32, @floatFromInt(try parseHexByte(hex_str[start + 6 .. start + 8]))) / 255.0
-        else
-            1.0;
-
-        return Color{
-            .r = @as(f32, @floatFromInt(r)) / 255.0,
-            .g = @as(f32, @floatFromInt(g)) / 255.0,
-            .b = @as(f32, @floatFromInt(b)) / 255.0,
-            .a = a,
+    pub fn toLinear(self: Srgba) LinearRgba {
+        return LinearRgba{
+            .red = srgbToLinear(self.red),
+            .green = srgbToLinear(self.green),
+            .blue = srgbToLinear(self.blue),
+            .alpha = self.alpha,
         };
     }
 
-    fn parseHexByte(hex_bytes: []const u8) !u8 {
-        if (hex_bytes.len != 2) return error.InvalidHexByte;
-
-        const high = try parseHexDigit(hex_bytes[0]);
-        const low = try parseHexDigit(hex_bytes[1]);
-
-        return (high << 4) | low;
-    }
-
-    fn parseHexDigit(c: u8) !u8 {
-        return switch (c) {
-            '0'...'9' => c - '0',
-            'a'...'f' => c - 'a' + 10,
-            'A'...'F' => c - 'A' + 10,
-            else => error.InvalidHexDigit,
-        };
-    }
-
-    pub fn withAlpha(self: Color, alpha: f32) Color {
-        return Color{
-            .r = self.r,
-            .g = self.g,
-            .b = self.b,
-            .a = alpha,
-        };
-    }
-
-    pub fn lerp(self: Color, other: Color, t: f32) Color {
-        return Color{
-            .r = self.r + (other.r - self.r) * t,
-            .g = self.g + (other.g - self.g) * t,
-            .b = self.b + (other.b - self.b) * t,
-            .a = self.a + (other.a - self.a) * t,
-        };
-    }
-
-    pub fn mix(self: Color, other: Color, weight: f32) Color {
-        return self.lerp(other, weight);
+    fn srgbToLinear(value: f32) f32 {
+        if (value <= 0.04045) {
+            return value / 12.92;
+        } else {
+            return std.math.pow(f32, (value + 0.055) / 1.055, 2.4);
+        }
     }
 };
 
 // ============================================================================
-// Hsla type
+// LinearRgba - Linear RGB with Alpha
 // ============================================================================
-pub const Hsla = extern struct {
-    h: f32, // [0.0, 360.0]
-    s: f32, // [0.0, 1.0]
-    l: f32, // [0.0, 1.0]
-    a: f32,
+pub const LinearRgba = extern struct {
+    red: f32,
+    green: f32,
+    blue: f32,
+    alpha: f32,
 
-    pub fn init(h: f32, s: f32, l: f32, a: f32) Hsla {
-        return .{ .h = h, .s = s, .l = l, .a = a };
+    pub fn init(r: f32, g: f32, b: f32, a: f32) LinearRgba {
+        return .{ .red = r, .green = g, .blue = b, .alpha = a };
     }
 
-    pub fn toRgba(self: Hsla) Color {
-        const h = @mod(self.h, 360.0) / 60.0;
-        const s = std.math.clamp(self.s, 0.0, 1.0);
-        const l = std.math.clamp(self.l, 0.0, 1.0);
+    pub fn fromRgba(color: Srgba) LinearRgba {
+        return LinearRgba{
+            .red = srgbToLinear(color.red),
+            .green = srgbToLinear(color.green),
+            .blue = srgbToLinear(color.blue),
+            .alpha = color.alpha,
+        };
+    }
+
+    pub fn toRgba(self: LinearRgba) Srgba {
+        return Srgba{
+            .red = linearToSrgb(self.red),
+            .green = linearToSrgb(self.green),
+            .blue = linearToSrgb(self.blue),
+            .alpha = self.alpha,
+        };
+    }
+
+    fn srgbToLinear(value: f32) f32 {
+        if (value <= 0.04045) {
+            return value / 12.92;
+        } else {
+            return std.math.pow(f32, (value + 0.055) / 1.055, 2.4);
+        }
+    }
+
+    fn linearToSrgb(value: f32) f32 {
+        if (value <= 0.0031308) {
+            return value * 12.92;
+        } else {
+            return 1.055 * std.math.pow(f32, value, 1.0 / 2.4) - 0.055;
+        }
+    }
+
+    pub fn lerp(self: LinearRgba, other: LinearRgba, t: f32) LinearRgba {
+        return LinearRgba{
+            .red = self.red + (other.red - self.red) * t,
+            .green = self.green + (other.green - self.green) * t,
+            .blue = self.blue + (other.blue - self.blue) * t,
+            .alpha = self.alpha + (other.alpha - self.alpha) * t,
+        };
+    }
+};
+
+// ============================================================================
+// Hsla - HSL with Alpha
+// ============================================================================
+pub const Hsla = extern struct {
+    hue: f32,
+    saturation: f32,
+    lightness: f32,
+    alpha: f32,
+
+    pub fn init(h: f32, s: f32, l: f32, a: f32) Hsla {
+        return .{ .hue = h, .saturation = s, .lightness = l, .alpha = a };
+    }
+
+    pub fn toSrgba(self: Hsla) Srgba {
+        const h = @mod(self.hue, 360.0) / 60.0;
+        const s = std.math.clamp(self.saturation, 0.0, 1.0);
+        const l = std.math.clamp(self.lightness, 0.0, 1.0);
 
         const c = (1.0 - @abs(2.0 * l - 1.0)) * s;
         const x = c * (1.0 - @abs(@mod(h, 2.0) - 1.0));
@@ -134,18 +144,18 @@ pub const Hsla = extern struct {
             b = x;
         }
 
-        return Color{
-            .r = r + m,
-            .g = g + m,
-            .b = b + m,
-            .a = self.a,
+        return Srgba{
+            .red = r + m,
+            .green = g + m,
+            .blue = b + m,
+            .alpha = self.alpha,
         };
     }
 
-    pub fn fromRgba(color: Color) Hsla {
-        const r = color.r;
-        const g = color.g;
-        const b = color.b;
+    pub fn fromSrgba(color: Srgba) Hsla {
+        const r = color.red;
+        const g = color.green;
+        const b = color.blue;
 
         const max_val = @max(@max(r, g), b);
         const min_val = @min(@min(r, g), b);
@@ -155,10 +165,10 @@ pub const Hsla = extern struct {
 
         if (delta == 0.0) {
             return Hsla{
-                .h = 0.0,
-                .s = 0.0,
-                .l = l,
-                .a = color.a,
+                .hue = 0.0,
+                .saturation = 0.0,
+                .lightness = l,
+                .alpha = color.alpha,
             };
         }
 
@@ -179,31 +189,31 @@ pub const Hsla = extern struct {
         if (h < 0.0) h += 360.0;
 
         return Hsla{
-            .h = h,
-            .s = s,
-            .l = l,
-            .a = color.a,
+            .hue = h,
+            .saturation = s,
+            .lightness = l,
+            .alpha = color.alpha,
         };
     }
 };
 
 // ============================================================================
-// Hsva type
+// Hsva - HSV with Alpha
 // ============================================================================
 pub const Hsva = extern struct {
-    h: f32, // [0.0, 360.0]
-    s: f32, // [0.0, 1.0]
-    v: f32, // [0.0, 1.0]
-    a: f32,
+    hue: f32,
+    saturation: f32,
+    value: f32,
+    alpha: f32,
 
     pub fn init(h: f32, s: f32, v: f32, a: f32) Hsva {
-        return .{ .h = h, .s = s, .v = v, .a = a };
+        return .{ .hue = h, .saturation = s, .value = v, .alpha = a };
     }
 
-    pub fn toRgba(self: Hsva) Color {
-        const h = @mod(self.h, 360.0) / 60.0;
-        const s = std.math.clamp(self.s, 0.0, 1.0);
-        const v = std.math.clamp(self.v, 0.0, 1.0);
+    pub fn toSrgba(self: Hsva) Srgba {
+        const h = @mod(self.hue, 360.0) / 60.0;
+        const s = std.math.clamp(self.saturation, 0.0, 1.0);
+        const v = std.math.clamp(self.value, 0.0, 1.0);
 
         const c = v * s;
         const x = c * (1.0 - @abs(@mod(h, 2.0) - 1.0));
@@ -239,18 +249,18 @@ pub const Hsva = extern struct {
             b = x;
         }
 
-        return Color{
-            .r = r + m,
-            .g = g + m,
-            .b = b + m,
-            .a = self.a,
+        return Srgba{
+            .red = r + m,
+            .green = g + m,
+            .blue = b + m,
+            .alpha = self.alpha,
         };
     }
 
-    pub fn fromRgba(color: Color) Hsva {
-        const r = color.r;
-        const g = color.g;
-        const b = color.b;
+    pub fn fromSrgba(color: Srgba) Hsva {
+        const r = color.red;
+        const g = color.green;
+        const b = color.blue;
 
         const max_val = @max(@max(r, g), b);
         const min_val = @min(@min(r, g), b);
@@ -260,10 +270,10 @@ pub const Hsva = extern struct {
 
         if (delta == 0.0) {
             return Hsva{
-                .h = 0.0,
-                .s = 0.0,
-                .v = v,
-                .a = color.a,
+                .hue = 0.0,
+                .saturation = 0.0,
+                .value = v,
+                .alpha = color.alpha,
             };
         }
 
@@ -281,165 +291,116 @@ pub const Hsva = extern struct {
         if (h < 0.0) h += 360.0;
 
         return Hsva{
-            .h = h,
-            .s = s,
-            .v = v,
-            .a = color.a,
+            .hue = h,
+            .saturation = s,
+            .value = v,
+            .alpha = color.alpha,
         };
     }
 };
 
 // ============================================================================
-// LinearRgba type
+// Hwba - HWB with Alpha
 // ============================================================================
-pub const LinearRgba = extern struct {
-    r: f32,
-    g: f32,
-    b: f32,
+pub const Hwba = extern struct {
+    hue: f32,
+    whiteness: f32,
+    blackness: f32,
+    alpha: f32,
+
+    pub fn new(hue: f32, whiteness: f32, blackness: f32, alpha: f32) Hwba {
+        return .{ .hue = hue, .whiteness = whiteness, .blackness = blackness, .alpha = alpha };
+    }
+};
+
+// ============================================================================
+// Laba - CIE Lab with Alpha
+// ============================================================================
+pub const Laba = extern struct {
+    lightness: f32,
     a: f32,
+    b: f32,
+    alpha: f32,
 
-    pub fn init(r: f32, g: f32, b: f32, a: f32) LinearRgba {
-        return .{ .r = r, .g = g, .b = b, .a = a };
+    pub fn new(lightness: f32, a: f32, b: f32, alpha: f32) Laba {
+        return .{ .lightness = lightness, .a = a, .b = b, .alpha = alpha };
     }
 
-    pub fn fromRgba(color: Color) LinearRgba {
-        return LinearRgba{
-            .r = srgbToLinear(color.r),
-            .g = srgbToLinear(color.g),
-            .b = srgbToLinear(color.b),
-            .a = color.a,
-        };
-    }
-
-    pub fn toRgba(self: LinearRgba) Color {
-        return Color{
-            .r = linearToSrgb(self.r),
-            .g = linearToSrgb(self.g),
-            .b = linearToSrgb(self.b),
-            .a = self.a,
-        };
-    }
-
-    fn srgbToLinear(value: f32) f32 {
-        if (value <= 0.04045) {
-            return value / 12.92;
-        } else {
-            return std.math.pow(f32, (value + 0.055) / 1.055, 2.4);
-        }
-    }
-
-    fn linearToSrgb(value: f32) f32 {
-        if (value <= 0.0031308) {
-            return value * 12.92;
-        } else {
-            return 1.055 * std.math.pow(f32, value, 1.0 / 2.4) - 0.055;
-        }
-    }
-
-    pub fn lerp(self: LinearRgba, other: LinearRgba, t: f32) LinearRgba {
-        return LinearRgba{
-            .r = self.r + (other.r - self.r) * t,
-            .g = self.g + (other.g - self.g) * t,
-            .b = self.b + (other.b - self.b) * t,
-            .a = self.a + (other.a - self.a) * t,
-        };
+    pub fn deltaE(self: Laba, other: Laba) f32 {
+        const dl = self.lightness - other.lightness;
+        const da = self.a - other.a;
+        const db = self.b - other.b;
+        return std.math.sqrt(dl * dl + da * da + db * db);
     }
 };
 
 // ============================================================================
-// Color operations
+// Lcha - LCH with Alpha
 // ============================================================================
-pub fn lighten(color: Color, amount: f32) Color {
-    const hsl = Hsla.fromRgba(color);
-    const new_l = std.math.clamp(hsl.l + amount, 0.0, 1.0);
-    const new_hsl = Hsla{ .h = hsl.h, .s = hsl.s, .l = new_l, .a = hsl.a };
-    return new_hsl.toRgba();
-}
+pub const Lcha = extern struct {
+    lightness: f32,
+    chroma: f32,
+    hue: f32,
+    alpha: f32,
 
-pub fn darken(color: Color, amount: f32) Color {
-    return lighten(color, -amount);
-}
-
-pub fn saturate(color: Color, amount: f32) Color {
-    const hsl = Hsla.fromRgba(color);
-    const new_s = std.math.clamp(hsl.s + amount, 0.0, 1.0);
-    const new_hsl = Hsla{ .h = hsl.h, .s = new_s, .l = hsl.l, .a = hsl.a };
-    return new_hsl.toRgba();
-}
-
-pub fn desaturate(color: Color, amount: f32) Color {
-    return saturate(color, -amount);
-}
+    pub fn new(lightness: f32, chroma: f32, hue: f32, alpha: f32) Lcha {
+        return .{ .lightness = lightness, .chroma = chroma, .hue = hue, .alpha = alpha };
+    }
+};
 
 // ============================================================================
-// Standard colors
+// Oklaba - Oklab with Alpha
 // ============================================================================
-pub const WHITE = Color.rgb(1.0, 1.0, 1.0);
-pub const BLACK = Color.rgb(0.0, 0.0, 0.0);
-pub const RED = Color.rgb(1.0, 0.0, 0.0);
-pub const GREEN = Color.rgb(0.0, 1.0, 0.0);
-pub const BLUE = Color.rgb(0.0, 0.0, 1.0);
-pub const YELLOW = Color.rgb(1.0, 1.0, 0.0);
-pub const CYAN = Color.rgb(0.0, 1.0, 1.0);
-pub const MAGENTA = Color.rgb(1.0, 0.0, 1.0);
-pub const GRAY = Color.rgb(0.5, 0.5, 0.5);
-pub const DARK_GRAY = Color.rgb(0.25, 0.25, 0.25);
-pub const LIGHT_GRAY = Color.rgb(0.75, 0.75, 0.75);
-pub const ORANGE = Color.rgb(1.0, 0.5, 0.0);
-pub const PURPLE = Color.rgb(0.5, 0.0, 0.5);
-pub const PINK = Color.rgb(1.0, 0.75, 0.8);
-pub const BROWN = Color.rgb(0.6, 0.4, 0.2);
-pub const TRANSPARENT = Color.rgba(0.0, 0.0, 0.0, 0.0);
+pub const Oklaba = extern struct {
+    lightness: f32,
+    a: f32,
+    b: f32,
+    alpha: f32,
+
+    pub fn new(lightness: f32, a: f32, b: f32, alpha: f32) Oklaba {
+        return .{ .lightness = lightness, .a = a, .b = b, .alpha = alpha };
+    }
+};
 
 // ============================================================================
-// FFI exports
+// Oklcha - Oklch with Alpha
+// ============================================================================
+pub const Oklcha = extern struct {
+    lightness: f32,
+    chroma: f32,
+    hue: f32,
+    alpha: f32,
+
+    pub fn new(lightness: f32, chroma: f32, hue: f32, alpha: f32) Oklcha {
+        return .{ .lightness = lightness, .chroma = chroma, .hue = hue, .alpha = alpha };
+    }
+};
+
+// ============================================================================
+// Xyza - CIE XYZ with Alpha
+// ============================================================================
+pub const Xyza = extern struct {
+    x: f32,
+    y: f32,
+    z: f32,
+    alpha: f32,
+
+    pub fn new(x: f32, y: f32, z: f32, alpha: f32) Xyza {
+        return .{ .x = x, .y = y, .z = z, .alpha = alpha };
+    }
+};
+
+// ============================================================================
+// FFI Exports
 // ============================================================================
 
-// Color exports
-export fn color_rgb(r: f32, g: f32, b: f32) Color {
-    return Color.rgb(r, g, b);
+// Srgba exports
+export fn srgba_new(red: f32, green: f32, blue: f32, alpha: f32) Srgba {
+    return Srgba.new(red, green, blue, alpha);
 }
 
-export fn color_rgba(r: f32, g: f32, b: f32, a: f32) Color {
-    return Color.rgba(r, g, b, a);
-}
-
-export fn color_with_alpha(color: Color, alpha: f32) Color {
-    return color.withAlpha(alpha);
-}
-
-export fn color_lerp(a: Color, b: Color, t: f32) Color {
-    return a.lerp(b, t);
-}
-
-export fn color_mix(a: Color, b: Color, weight: f32) Color {
-    return a.mix(b, weight);
-}
-
-// Hsla exports
-export fn hsla_init(h: f32, s: f32, l: f32, a: f32) Hsla {
-    return Hsla.init(h, s, l, a);
-}
-
-export fn hsla_to_rgba(hsla: Hsla) Color {
-    return hsla.toRgba();
-}
-
-export fn hsla_from_rgba(color: Color) Hsla {
-    return Hsla.fromRgba(color);
-}
-
-// Hsva exports
-export fn hsva_init(h: f32, s: f32, v: f32, a: f32) Hsva {
-    return Hsva.init(h, s, v, a);
-}
-
-export fn hsva_to_rgba(hsva: Hsva) Color {
-    return hsva.toRgba();
-}
-
-export fn hsva_from_rgba(color: Color) Hsva {
-    return Hsva.fromRgba(color);
+export fn srgba_rgb(red: f32, green: f32, blue: f32) Srgba {
+    return Srgba.rgb(red, green, blue);
 }
 
 // LinearRgba exports
@@ -447,11 +408,11 @@ export fn linear_rgba_init(r: f32, g: f32, b: f32, a: f32) LinearRgba {
     return LinearRgba.init(r, g, b, a);
 }
 
-export fn linear_rgba_from_rgba(color: Color) LinearRgba {
+export fn linear_rgba_from_rgba(color: Srgba) LinearRgba {
     return LinearRgba.fromRgba(color);
 }
 
-export fn linear_rgba_to_rgba(linear: LinearRgba) Color {
+export fn linear_rgba_to_rgba(linear: LinearRgba) Srgba {
     return linear.toRgba();
 }
 
@@ -459,72 +420,62 @@ export fn linear_rgba_lerp(a: LinearRgba, b: LinearRgba, t: f32) LinearRgba {
     return a.lerp(b, t);
 }
 
-// Color operations exports
-export fn color_lighten(color: Color, amount: f32) Color {
-    return lighten(color, amount);
+// Hsla exports
+export fn hsla_init(h: f32, s: f32, l: f32, a: f32) Hsla {
+    return Hsla.init(h, s, l, a);
 }
 
-export fn color_darken(color: Color, amount: f32) Color {
-    return darken(color, amount);
+export fn hsla_to_srgba(hsla: Hsla) Srgba {
+    return hsla.toSrgba();
 }
 
-export fn color_saturate(color: Color, amount: f32) Color {
-    return saturate(color, amount);
+export fn hsla_from_srgba(color: Srgba) Hsla {
+    return Hsla.fromSrgba(color);
 }
 
-export fn color_desaturate(color: Color, amount: f32) Color {
-    return desaturate(color, amount);
+// Hsva exports
+export fn hsva_init(h: f32, s: f32, v: f32, a: f32) Hsva {
+    return Hsva.init(h, s, v, a);
 }
 
-// Standard colors exports
-export fn color_white() Color {
-    return WHITE;
+export fn hsva_to_srgba(hsva: Hsva) Srgba {
+    return hsva.toSrgba();
 }
 
-export fn color_black() Color {
-    return BLACK;
+export fn hsva_from_srgba(color: Srgba) Hsva {
+    return Hsva.fromSrgba(color);
 }
 
-export fn color_red() Color {
-    return RED;
+// Hwba exports
+export fn hwba_new(hue: f32, whiteness: f32, blackness: f32, alpha: f32) Hwba {
+    return Hwba.new(hue, whiteness, blackness, alpha);
 }
 
-export fn color_green() Color {
-    return GREEN;
+// Laba exports
+export fn laba_new(lightness: f32, a: f32, b: f32, alpha: f32) Laba {
+    return Laba.new(lightness, a, b, alpha);
 }
 
-export fn color_blue() Color {
-    return BLUE;
+export fn laba_delta_e(a: Laba, b: Laba) f32 {
+    return a.deltaE(b);
 }
 
-export fn color_yellow() Color {
-    return YELLOW;
+// Lcha exports
+export fn lcha_new(lightness: f32, chroma: f32, hue: f32, alpha: f32) Lcha {
+    return Lcha.new(lightness, chroma, hue, alpha);
 }
 
-export fn color_cyan() Color {
-    return CYAN;
+// Oklaba exports
+export fn oklaba_new(lightness: f32, a: f32, b: f32, alpha: f32) Oklaba {
+    return Oklaba.new(lightness, a, b, alpha);
 }
 
-export fn color_magenta() Color {
-    return MAGENTA;
+// Oklcha exports
+export fn oklcha_new(lightness: f32, chroma: f32, hue: f32, alpha: f32) Oklcha {
+    return Oklcha.new(lightness, chroma, hue, alpha);
 }
 
-export fn color_gray() Color {
-    return GRAY;
-}
-
-export fn color_orange() Color {
-    return ORANGE;
-}
-
-export fn color_purple() Color {
-    return PURPLE;
-}
-
-export fn color_pink() Color {
-    return PINK;
-}
-
-export fn color_transparent() Color {
-    return TRANSPARENT;
+// Xyza exports
+export fn xyza_new(x: f32, y: f32, z: f32, alpha: f32) Xyza {
+    return Xyza.new(x, y, z, alpha);
 }

@@ -1,7 +1,7 @@
 //! 模块 3: State 示例
 //! 演示 autozig-state 的状态管理功能
 
-use autozig_state::prelude::*;
+use autozig_ecs::plugin::App;
 
 pub fn run_state_demo() {
     println!("\n{}", "=".repeat(60));

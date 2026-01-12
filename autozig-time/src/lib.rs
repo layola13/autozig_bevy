@@ -1,15 +1,22 @@
 //! # AutoZig Time - Bevy Time System implemented in Zig
 //!
 //! 90% Zig实现，10% Rust包装
-//! 
+//!
 //! 提供以下核心功能：
 //! - Time 资源: 追踪帧间增量时间和总运行时间
 //! - Stopwatch: 秒表功能，支持暂停/恢复/重置
 //! - Timer: 计时器功能，支持一次性和循环模式
 //! - 时间工具函数: 纳秒/秒转换等
+//! - Fixed: 固定时间步
+//! - Real: 真实时间
+//! - Virtual: 虚拟时间
+//! - TimePlugin: 时间插件
+//! - TimeUpdateStrategy: 时间更新策略
 
 use autozig::include_zig;
 use std::fmt;
+#[cfg(feature = "std")]
+pub use crossbeam_channel::{Receiver, Sender, TrySendError};
 
 // ========== Timer Mode ==========
 
@@ -303,4 +310,277 @@ mod tests {
         // 允许浮点误差
         assert!((back_to_secs - secs).abs() < 0.001);
     }
+}
+
+// ========== Fixed Time Context ==========
+
+/// 固定时间步上下文
+///
+/// 用于固定频率的时间更新，适用于物理模拟等需要稳定时间步长的场景
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Fixed {
+    pub timestep_nanos: u64,
+    pub overstep_nanos: u64,
+}
+
+impl Default for Fixed {
+    fn default() -> Self {
+        Self {
+            timestep_nanos: 15_625_000, // 64 Hz (15.625 ms)
+            overstep_nanos: 0,
+        }
+    }
+}
+
+impl Fixed {
+    /// 创建具有指定时间步长的固定时间（秒）
+    pub fn from_seconds(seconds: f32) -> Self {
+        Self {
+            timestep_nanos: secs_to_nanos(seconds),
+            overstep_nanos: 0,
+        }
+    }
+
+    /// 创建具有指定频率的固定时间（Hz）
+    pub fn from_hz(hz: f32) -> Self {
+        Self::from_seconds(1.0 / hz)
+    }
+
+    /// 获取时间步长（纳秒）
+    pub fn timestep(&self) -> u64 {
+        self.timestep_nanos
+    }
+
+    /// 设置时间步长（秒）
+    pub fn set_timestep(&mut self, seconds: f32) {
+        self.timestep_nanos = secs_to_nanos(seconds);
+    }
+
+    /// 获取超步时间（纳秒）
+    pub fn overstep(&self) -> u64 {
+        self.overstep_nanos
+    }
+
+    /// 累积超步时间
+    pub fn accumulate(&mut self, delta_nanos: u64) {
+        self.overstep_nanos += delta_nanos;
+    }
+
+    /// 消耗一个时间步
+    pub fn expend(&mut self) -> bool {
+        if self.overstep_nanos >= self.timestep_nanos {
+            self.overstep_nanos -= self.timestep_nanos;
+            true
+        } else {
+            false
+        }
+    }
+}
+
+// ========== Real Time Context ==========
+
+/// 真实时间上下文
+///
+/// 追踪真实世界的墙钟时间，不受游戏暂停或时间缩放的影响
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Real {
+    pub startup_nanos: u64,
+    pub first_update_nanos: u64,
+    pub last_update_nanos: u64,
+}
+
+impl Default for Real {
+    fn default() -> Self {
+        let now = now_nanos();
+        Self {
+            startup_nanos: now,
+            first_update_nanos: 0,
+            last_update_nanos: 0,
+        }
+    }
+}
+
+impl Real {
+    /// 创建新的真实时间上下文
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 获取启动时间（纳秒）
+    pub fn startup(&self) -> u64 {
+        self.startup_nanos
+    }
+
+    /// 获取首次更新时间（纳秒）
+    pub fn first_update(&self) -> Option<u64> {
+        if self.first_update_nanos == 0 {
+            None
+        } else {
+            Some(self.first_update_nanos)
+        }
+    }
+
+    /// 获取最后更新时间（纳秒）
+    pub fn last_update(&self) -> Option<u64> {
+        if self.last_update_nanos == 0 {
+            None
+        } else {
+            Some(self.last_update_nanos)
+        }
+    }
+}
+
+// ========== Virtual Time Context ==========
+
+/// 虚拟时间上下文
+///
+/// 游戏时间，可以被暂停、加速或减速
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Virtual {
+    pub max_delta_nanos: u64,
+    pub paused: bool,
+    pub relative_speed: f32,
+    pub effective_speed: f32,
+}
+
+impl Default for Virtual {
+    fn default() -> Self {
+        Self {
+            max_delta_nanos: 250_000_000, // 250 ms
+            paused: false,
+            relative_speed: 1.0,
+            effective_speed: 1.0,
+        }
+    }
+}
+
+impl Virtual {
+    /// 创建新的虚拟时间上下文
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 暂停时间
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    /// 恢复时间
+    pub fn unpause(&mut self) {
+        self.paused = false;
+    }
+
+    /// 切换暂停状态
+    pub fn toggle(&mut self) {
+        self.paused = !self.paused;
+    }
+
+    /// 是否已暂停
+    pub fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    /// 设置相对速度
+    pub fn set_relative_speed(&mut self, speed: f32) {
+        self.relative_speed = speed.max(0.0);
+    }
+
+    /// 获取相对速度
+    pub fn relative_speed(&self) -> f32 {
+        self.relative_speed
+    }
+
+    /// 获取有效速度（考虑暂停状态）
+    pub fn effective_speed(&self) -> f32 {
+        self.effective_speed
+    }
+
+    /// 设置最大增量时间（秒）
+    pub fn set_max_delta(&mut self, seconds: f32) {
+        self.max_delta_nanos = secs_to_nanos(seconds);
+    }
+
+    /// 获取最大增量时间（纳秒）
+    pub fn max_delta(&self) -> u64 {
+        self.max_delta_nanos
+    }
+}
+
+// ========== Time Update Strategy ==========
+
+/// 时间更新策略
+///
+/// 控制时间系统如何更新
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TimeUpdateStrategy {
+    /// 自动更新（使用系统时钟）
+    Automatic,
+    /// 手动指定时间点（纳秒）
+    ManualInstant(u64),
+    /// 手动指定增量时间（纳秒）
+    ManualDuration(u64),
+    /// 固定时间步数（每次更新运行n个固定步）
+    FixedTimesteps(u32),
+}
+
+impl Default for TimeUpdateStrategy {
+    fn default() -> Self {
+        TimeUpdateStrategy::Automatic
+    }
+}
+
+impl TimeUpdateStrategy {
+    /// 创建手动增量时间策略（秒）
+    pub fn manual_duration_secs(seconds: f32) -> Self {
+        TimeUpdateStrategy::ManualDuration(secs_to_nanos(seconds))
+    }
+}
+
+// ========== Time Plugin ==========
+
+/// 时间插件
+///
+/// 向应用添加时间功能的插件
+#[derive(Debug, Default, Clone, Copy)]
+pub struct TimePlugin;
+
+impl TimePlugin {
+    /// 创建新的时间插件
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+// ========== Time Systems ==========
+
+/// 时间系统标签
+///
+/// 用于系统调度的标签，任何与Time交互的系统都应在此之后运行
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TimeSystems;
+
+// ========== Time Channels (仅在std特性启用时可用) ==========
+
+/// 时间接收器
+///
+/// 用于从渲染世界接收时间的通道资源
+#[cfg(feature = "std")]
+pub struct TimeReceiver(pub Receiver<u64>);
+
+/// 时间发送器
+///
+/// 用于向主世界发送时间的通道资源
+#[cfg(feature = "std")]
+pub struct TimeSender(pub Sender<u64>);
+
+/// 创建时间通道
+///
+/// 创建用于在渲染世界和主世界之间发送时间的通道
+#[cfg(feature = "std")]
+pub fn create_time_channels() -> (TimeSender, TimeReceiver) {
+    let (s, r) = crossbeam_channel::bounded::<u64>(2);
+    (TimeSender(s), TimeReceiver(r))
 }

@@ -39,6 +39,11 @@ fn get_state_id<S: 'static>() -> StateId {
 
 /// Trait for state types
 pub trait States: 'static + Send + Sync + Clone + Eq + std::fmt::Debug {
+    /// How many other states this state depends on.
+    /// Used to help order transitions and de-duplicate [`ComputedStates`], as well as prevent cyclical
+    /// `ComputedState` dependencies.
+    const DEPENDENCY_DEPTH: usize = 1;
+    
     /// Get the unique identifier for this state type
     fn state_id(&self) -> StateId {
         get_state_id::<Self>()
@@ -64,33 +69,83 @@ impl<S: States> State<S> {
     }
 }
 
-/// Next state resource for state transitions
-pub struct NextState<S: States> {
-    queued: Option<S>,
+/// The previous state of [`State<S>`].
+///
+/// This resource holds the state value that was active immediately **before** the
+/// most recent state transition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreviousState<S: States>(pub S);
+
+impl<S: States> PreviousState<S> {
+    pub fn new(state: S) -> Self {
+        Self(state)
+    }
+    
+    /// Get the previous state.
+    pub fn get(&self) -> &S {
+        &self.0
+    }
+}
+
+/// The next state of [`State<S>`].
+///
+/// This can be fetched as a resource and used to queue state transitions.
+/// To queue a transition, call [`NextState::set`] or mutate the value to [`NextState::Pending`] directly.
+#[derive(Debug, Clone)]
+pub enum NextState<S: States> {
+    /// No state transition is pending
+    Unchanged,
+    /// There is a pending transition for state `S`
+    Pending(S),
+    /// There is a pending transition for state `S`
+    ///
+    /// This will not trigger state transition schedules if the target state is the same as the current one.
+    PendingIfNeq(S),
 }
 
 impl<S: States> NextState<S> {
     pub fn new() -> Self {
-        Self { queued: None }
+        Self::Unchanged
     }
     
-    /// Queue a state transition
+    /// Tentatively set a pending state transition to `Some(state)`.
+    ///
+    /// This will run the state transition schedules [`OnEnter`](crate::transition::OnEnter)
+    /// and [`OnExit`](crate::transition::OnExit).
     pub fn set(&mut self, state: S) {
-        self.queued = Some(state);
+        *self = Self::Pending(state);
+    }
+    
+    /// Tentatively set a pending state transition to `Some(state)`.
+    ///
+    /// Like [`set`](Self::set), but will not run any state transition schedules
+    /// if the target state is the same as the current one.
+    pub fn set_if_neq(&mut self, state: S) {
+        if !matches!(self, Self::Pending(s) if s == &state) {
+            *self = Self::PendingIfNeq(state);
+        }
+    }
+    
+    /// Remove any pending changes to [`State<S>`]
+    pub fn reset(&mut self) {
+        *self = Self::Unchanged;
     }
     
     pub fn take(&mut self) -> Option<S> {
-        self.queued.take()
+        match std::mem::replace(self, Self::Unchanged) {
+            Self::Pending(state) | Self::PendingIfNeq(state) => Some(state),
+            Self::Unchanged => None,
+        }
     }
     
     pub fn is_pending(&self) -> bool {
-        self.queued.is_some()
+        !matches!(self, Self::Unchanged)
     }
 }
 
 impl<S: States> Default for NextState<S> {
     fn default() -> Self {
-        Self::new()
+        Self::Unchanged
     }
 }
 

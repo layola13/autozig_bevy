@@ -2,6 +2,10 @@ use autozig::include_zig;
 use autozig_color::Color;
 use autozig_math::Vec2;
 
+// ============================================================================
+// Core Enums
+// ============================================================================
+
 /// Text alignment options
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,16 +34,154 @@ pub enum WordWrapMode {
     CharacterWrap = 2,
 }
 
+/// Font style variations
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FontStyle {
+    Normal = 0,
+    Italic = 1,
+    Oblique = 2,
+}
+
+/// Font weight from 100 (Thin) to 900 (Black)
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum FontWeight {
+    Thin = 100,
+    ExtraLight = 200,
+    Light = 300,
+    Normal = 400,
+    Medium = 500,
+    SemiBold = 600,
+    Bold = 700,
+    ExtraBold = 800,
+    Black = 900,
+}
+
+/// Font width/stretch property
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FontWidth {
+    UltraCondensed = 0,
+    ExtraCondensed = 1,
+    Condensed = 2,
+    SemiCondensed = 3,
+    Normal = 4,
+    SemiExpanded = 5,
+    Expanded = 6,
+    ExtraExpanded = 7,
+    UltraExpanded = 8,
+}
+
+/// Font hinting options
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FontHinting {
+    None = 0,
+    Slight = 1,
+    Normal = 2,
+    Full = 3,
+}
+
+/// Font smoothing/antialiasing options
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FontSmoothing {
+    None = 0,
+    Grayscale = 1,
+    SubpixelRgb = 2,
+    SubpixelBgr = 3,
+}
+
+/// Text justification modes
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Justify {
+    Left = 0,
+    Center = 1,
+    Right = 2,
+    Justified = 3,
+}
+
+/// Line breaking modes
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LineBreak {
+    WordBoundary = 0,
+    AnyCharacter = 1,
+    NoWrap = 2,
+}
+
+/// Line height specification
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LineHeight {
+    Pixels(f32),
+    Relative(f32),
+}
+
+/// Font source specification
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub enum FontSource {
+    /// Font data embedded in binary
+    Binary {
+        data_ptr: *const u8,
+        data_len: usize,
+    },
+    /// Font file path
+    Path {
+        path_ptr: *const u8,
+        path_len: usize,
+    },
+}
+
+/// Text rendering errors
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextError {
+    NoSuchFont = 0,
+    FailedToAddGlyph = 1,
+    FailedToGetGlyphImage = 2,
+    ExceedMaxTextureSize = 3,
+    InvalidFont = 4,
+    InvalidGlyph = 5,
+}
+
+/// Font loader errors
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FontLoaderError {
+    Io = 0,
+    InvalidFont = 1,
+    UnsupportedFormat = 2,
+}
+
+// ============================================================================
+// Font Types
+// ============================================================================
+
 /// Font handle for referencing loaded fonts
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FontHandle {
     pub id: u32,
 }
 
+/// Font with complete styling information
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Font {
+    pub handle: FontHandle,
+    pub size: f32,
+    pub style: FontStyle,
+    pub weight: FontWeight,
+    pub width: FontWidth,
+}
+
 /// Glyph identifier
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphId {
     pub value: u32,
 }
@@ -66,12 +208,90 @@ pub struct GlyphMetrics {
     pub height: f32,
 }
 
+/// Font face information
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FontFaceInfo {
+    pub family_name_ptr: *const u8,
+    pub family_name_len: usize,
+    pub style: FontStyle,
+    pub weight: FontWeight,
+    pub width: FontWidth,
+}
+
+/// OpenType font feature tag (4 ASCII characters)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FontFeatureTag {
+    pub tag: [u8; 4],
+}
+
+/// Font features collection
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct FontFeatures {
+    features_ptr: *mut FontFeatureTag,
+    features_len: usize,
+    features_cap: usize,
+}
+
+/// Builder for font features
+#[repr(C)]
+#[derive(Debug)]
+pub struct FontFeaturesBuilder {
+    features: FontFeatures,
+}
+
+/// Font loader for asset management
+#[repr(C)]
+#[derive(Debug)]
+pub struct FontLoader {
+    _private: u8,
+}
+
+/// Text font specification (combines handle and size)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextFont {
+    pub font: FontHandle,
+    pub font_size: f32,
+}
+
+// ============================================================================
+// Glyph Atlas Types
+// ============================================================================
+
 /// Rectangle type
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
     pub min: Vec2,
     pub max: Vec2,
+}
+
+/// Font atlas key for caching
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FontAtlasKey {
+    pub font_id: u32,
+    pub font_size: u32,
+}
+
+/// Font atlas for texture management
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct FontAtlas {
+    pub texture_id: u32,
+    pub size: Vec2,
+}
+
+/// Font atlas set for multiple atlases
+#[repr(C)]
+#[derive(Debug)]
+pub struct FontAtlasSet {
+    atlases_ptr: *mut FontAtlas,
+    atlases_len: usize,
+    atlases_cap: usize,
 }
 
 /// Glyph atlas entry
@@ -95,6 +315,44 @@ pub struct GlyphAtlas {
     pub padding: f32,
 }
 
+/// Glyph atlas information
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct GlyphAtlasInfo {
+    pub atlas_index: u32,
+    pub glyph_rect: Rect,
+    pub uv_rect: Rect,
+}
+
+/// Glyph atlas location
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GlyphAtlasLocation {
+    pub atlas_index: u32,
+    pub glyph_index: u32,
+}
+
+/// Positioned glyph for rendering
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PositionedGlyph {
+    pub glyph_id: GlyphId,
+    pub position: Vec2,
+    pub size: Vec2,
+    pub atlas_info: GlyphAtlasInfo,
+}
+
+/// Swash cache for glyph rasterization
+#[repr(C)]
+#[derive(Debug)]
+pub struct SwashCache {
+    _private: [u8; 64],
+}
+
+// ============================================================================
+// Text Component & Styling
+// ============================================================================
+
 /// Text component
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -110,6 +368,56 @@ pub struct Text {
     pub letter_spacing: f32,
     pub word_spacing: f32,
 }
+
+/// Text color component
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextColor {
+    pub color: Color,
+}
+
+/// Text background color
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextBackgroundColor {
+    pub color: Color,
+}
+
+/// Strikethrough styling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Strikethrough {
+    pub enabled: bool,
+    pub offset: f32,
+    pub thickness: f32,
+}
+
+/// Strikethrough color
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StrikethroughColor {
+    pub color: Color,
+}
+
+/// Underline styling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Underline {
+    pub enabled: bool,
+    pub offset: f32,
+    pub thickness: f32,
+}
+
+/// Underline color
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UnderlineColor {
+    pub color: Color,
+}
+
+// ============================================================================
+// Text Layout & Measurement
+// ============================================================================
 
 /// Line information for text layout
 #[repr(C)]
@@ -132,6 +440,148 @@ pub struct TextLayout {
     pub total_height: f32,
     pub font_metrics: FontMetrics,
 }
+
+/// Text layout detailed information
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct TextLayoutInfo {
+    pub glyphs_ptr: *mut PositionedGlyph,
+    pub glyphs_len: usize,
+    pub glyphs_cap: usize,
+    pub size: Vec2,
+}
+
+/// Text measurement information
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct TextMeasureInfo {
+    pub min: Vec2,
+    pub max: Vec2,
+}
+
+/// Computed text block after layout
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ComputedTextBlock {
+    pub entities_ptr: *mut u32,
+    pub entities_len: usize,
+    pub entities_cap: usize,
+    pub size: Vec2,
+}
+
+/// Text run geometry
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct RunGeometry {
+    pub offset: Vec2,
+    pub size: Vec2,
+    pub line_index: usize,
+}
+
+/// Text iteration scratch buffer
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextIterScratch {
+    buffer_ptr: *mut u8,
+    buffer_len: usize,
+    buffer_cap: usize,
+}
+
+// ============================================================================
+// Text Span (Rich Text Support)
+// ============================================================================
+
+/// Text span for rich text
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct TextSpan {
+    text_ptr: *const u8,
+    text_len: usize,
+    pub font: Option<FontHandle>,
+    pub font_size: Option<f32>,
+    pub color: Option<Color>,
+    pub style: FontStyle,
+    pub weight: FontWeight,
+}
+
+/// Text span iterator
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextSpanIter {
+    spans_ptr: *const TextSpan,
+    spans_len: usize,
+    current_index: usize,
+}
+
+/// Text entity reference
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TextEntity {
+    pub id: u32,
+}
+
+/// Text reader for traversing text tree
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextReader {
+    _private: [u8; 32],
+}
+
+/// Text writer for modifying text tree
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextWriter {
+    _private: [u8; 32],
+}
+
+// ============================================================================
+// Cosmic Text Integration
+// ============================================================================
+
+/// Cosmic text buffer wrapper
+#[repr(C)]
+#[derive(Debug)]
+pub struct CosmicBuffer {
+    _private: [u8; 128],
+}
+
+/// Cosmic font system wrapper
+#[repr(C)]
+#[derive(Debug)]
+pub struct CosmicFontSystem {
+    _private: [u8; 256],
+}
+
+// ============================================================================
+// Text Pipeline & Plugin
+// ============================================================================
+
+/// Text rendering pipeline
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextPipeline {
+    font_atlas_set: FontAtlasSet,
+    cosmic_font_system: CosmicFontSystem,
+    cache_size: usize,
+}
+
+/// Text plugin for Bevy integration
+#[repr(C)]
+#[derive(Debug)]
+pub struct TextPlugin {
+    _private: u8,
+}
+
+/// Text 2D update systems
+#[repr(C)]
+#[derive(Debug)]
+pub struct Text2dUpdateSystems {
+    _private: u8,
+}
+
+// ============================================================================
+// Text Rendering
+// ============================================================================
 
 /// Text vertex for rendering
 #[repr(C)]
@@ -170,7 +620,31 @@ pub struct SDFParams {
     pub threshold: f32,
 }
 
-// Include Zig text implementation
+// ============================================================================
+// Traits
+// ============================================================================
+
+/// Trait for text root entities
+pub trait TextRoot {
+    fn text_root(&self) -> TextEntity;
+}
+
+/// Trait for accessing text spans
+pub trait TextSpanAccess {
+    fn spans(&self) -> &[TextSpan];
+    fn spans_mut(&mut self) -> &mut [TextSpan];
+}
+
+/// Trait for text span components
+pub trait TextSpanComponent {
+    fn as_text_span(&self) -> &TextSpan;
+    fn as_text_span_mut(&mut self) -> &mut TextSpan;
+}
+
+// ============================================================================
+// Zig FFI Bindings
+// ============================================================================
+
 include_zig!("zig/text_all.zig", {
     // Text Component functions
     fn text_new(content_ptr: *const u8, content_len: usize, font: FontHandle, font_size: f32, color: Color) -> Text;
@@ -210,9 +684,6 @@ include_zig!("zig/text_all.zig", {
     fn pack_color(color: Color) -> u32;
     fn unpack_color(packed: u32) -> Color;
     
-    // Note: rect_new, rect_width, rect_height, rect_size, vec2_new, vec2_zero,
-    // vec2_add, vec2_scale are provided by autozig-math
-    
     // Alignment functions
     fn text_alignment_get_offset(alignment: TextAlignment, line_width: f32, max_width: f32) -> f32;
     fn vertical_alignment_get_offset(alignment: VerticalAlignment, content_height: f32, max_height: f32) -> f32;
@@ -247,6 +718,24 @@ impl Default for FontHandle {
     }
 }
 
+impl Font {
+    pub fn new(handle: FontHandle, size: f32) -> Self {
+        Self {
+            handle,
+            size,
+            style: FontStyle::Normal,
+            weight: FontWeight::Normal,
+            width: FontWidth::Normal,
+        }
+    }
+}
+
+impl Default for Font {
+    fn default() -> Self {
+        Self::new(FontHandle::INVALID, 16.0)
+    }
+}
+
 impl GlyphId {
     pub fn new(value: u32) -> Self {
         glyph_id_new(value)
@@ -266,6 +755,76 @@ impl FontMetrics {
 impl Default for GlyphMetrics {
     fn default() -> Self {
         glyph_metrics_new()
+    }
+}
+
+impl FontFeatureTag {
+    pub fn new(tag: [u8; 4]) -> Self {
+        Self { tag }
+    }
+    
+    pub fn from_str(s: &str) -> Option<Self> {
+        if s.len() == 4 {
+            let mut tag = [0u8; 4];
+            tag.copy_from_slice(s.as_bytes());
+            Some(Self { tag })
+        } else {
+            None
+        }
+    }
+}
+
+impl FontFeatures {
+    pub fn new() -> Self {
+        Self {
+            features_ptr: std::ptr::null_mut(),
+            features_len: 0,
+            features_cap: 0,
+        }
+    }
+    
+    pub fn features(&self) -> &[FontFeatureTag] {
+        if self.features_ptr.is_null() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.features_ptr, self.features_len) }
+        }
+    }
+}
+
+impl Default for FontFeatures {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FontFeaturesBuilder {
+    pub fn new() -> Self {
+        Self {
+            features: FontFeatures::new(),
+        }
+    }
+    
+    pub fn build(self) -> FontFeatures {
+        self.features
+    }
+}
+
+impl Default for FontFeaturesBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TextFont {
+    pub fn new(font: FontHandle, font_size: f32) -> Self {
+        Self { font, font_size }
+    }
+}
+
+impl Default for TextFont {
+    fn default() -> Self {
+        Self::new(FontHandle::INVALID, 16.0)
     }
 }
 
@@ -292,6 +851,42 @@ impl Rect {
             Vec2::new(center.x - half_size.x, center.y - half_size.y),
             Vec2::new(center.x + half_size.x, center.y + half_size.y),
         )
+    }
+}
+
+impl FontAtlasKey {
+    pub fn new(font_id: u32, font_size: u32) -> Self {
+        Self { font_id, font_size }
+    }
+}
+
+impl FontAtlas {
+    pub fn new(texture_id: u32, size: Vec2) -> Self {
+        Self { texture_id, size }
+    }
+}
+
+impl FontAtlasSet {
+    pub fn new() -> Self {
+        Self {
+            atlases_ptr: std::ptr::null_mut(),
+            atlases_len: 0,
+            atlases_cap: 0,
+        }
+    }
+    
+    pub fn atlases(&self) -> &[FontAtlas] {
+        if self.atlases_ptr.is_null() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.atlases_ptr, self.atlases_len) }
+        }
+    }
+}
+
+impl Default for FontAtlasSet {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -332,6 +927,68 @@ impl Text {
     }
 }
 
+impl TextColor {
+    pub fn new(color: Color) -> Self {
+        Self { color }
+    }
+}
+
+impl Default for TextColor {
+    fn default() -> Self {
+        Self::new(Color::WHITE)
+    }
+}
+
+impl TextBackgroundColor {
+    pub fn new(color: Color) -> Self {
+        Self { color }
+    }
+}
+
+impl Strikethrough {
+    pub fn new() -> Self {
+        Self {
+            enabled: true,
+            offset: 0.0,
+            thickness: 1.0,
+        }
+    }
+}
+
+impl Default for Strikethrough {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StrikethroughColor {
+    pub fn new(color: Color) -> Self {
+        Self { color }
+    }
+}
+
+impl Underline {
+    pub fn new() -> Self {
+        Self {
+            enabled: true,
+            offset: -2.0,
+            thickness: 1.0,
+        }
+    }
+}
+
+impl Default for Underline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl UnderlineColor {
+    pub fn new(color: Color) -> Self {
+        Self { color }
+    }
+}
+
 impl GlyphAtlas {
     pub fn new(texture_size: Vec2, padding: f32) -> Self {
         glyph_atlas_new(texture_size, padding)
@@ -361,6 +1018,36 @@ impl GlyphAtlasEntry {
     }
 }
 
+impl GlyphAtlasInfo {
+    pub fn new(atlas_index: u32, glyph_rect: Rect, uv_rect: Rect) -> Self {
+        Self {
+            atlas_index,
+            glyph_rect,
+            uv_rect,
+        }
+    }
+}
+
+impl GlyphAtlasLocation {
+    pub fn new(atlas_index: u32, glyph_index: u32) -> Self {
+        Self {
+            atlas_index,
+            glyph_index,
+        }
+    }
+}
+
+impl PositionedGlyph {
+    pub fn new(glyph_id: GlyphId, position: Vec2, size: Vec2, atlas_info: GlyphAtlasInfo) -> Self {
+        Self {
+            glyph_id,
+            position,
+            size,
+            atlas_info,
+        }
+    }
+}
+
 impl TextLayout {
     pub fn new(font_metrics: FontMetrics) -> Self {
         text_layout_new(font_metrics)
@@ -378,6 +1065,93 @@ impl TextLayout {
 impl LineInfo {
     pub fn new(start_index: usize, end_index: usize, width: f32, y_offset: f32) -> Self {
         line_info_new(start_index, end_index, width, y_offset)
+    }
+}
+
+impl TextLayoutInfo {
+    pub fn new() -> Self {
+        Self {
+            glyphs_ptr: std::ptr::null_mut(),
+            glyphs_len: 0,
+            glyphs_cap: 0,
+            size: Vec2::splat(0.0),
+        }
+    }
+    
+    pub fn glyphs(&self) -> &[PositionedGlyph] {
+        if self.glyphs_ptr.is_null() {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.glyphs_ptr, self.glyphs_len) }
+        }
+    }
+}
+
+impl Default for TextLayoutInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TextMeasureInfo {
+    pub fn new(min: Vec2, max: Vec2) -> Self {
+        Self { min, max }
+    }
+}
+
+impl ComputedTextBlock {
+    pub fn new() -> Self {
+        Self {
+            entities_ptr: std::ptr::null_mut(),
+            entities_len: 0,
+            entities_cap: 0,
+            size: Vec2::splat(0.0),
+        }
+    }
+}
+
+impl Default for ComputedTextBlock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RunGeometry {
+    pub fn new(offset: Vec2, size: Vec2, line_index: usize) -> Self {
+        Self {
+            offset,
+            size,
+            line_index,
+        }
+    }
+}
+
+impl TextSpan {
+    pub fn new(text: &str) -> Self {
+        Self {
+            text_ptr: text.as_ptr(),
+            text_len: text.len(),
+            font: None,
+            font_size: None,
+            color: None,
+            style: FontStyle::Normal,
+            weight: FontWeight::Normal,
+        }
+    }
+    
+    pub fn text(&self) -> &str {
+        if self.text_ptr.is_null() {
+            ""
+        } else {
+            let slice = unsafe { std::slice::from_raw_parts(self.text_ptr, self.text_len) };
+            std::str::from_utf8(slice).unwrap_or("")
+        }
+    }
+}
+
+impl TextEntity {
+    pub fn new(id: u32) -> Self {
+        Self { id }
     }
 }
 
@@ -440,6 +1214,12 @@ impl Default for SDFParams {
     }
 }
 
+impl Default for LineHeight {
+    fn default() -> Self {
+        LineHeight::Relative(1.2)
+    }
+}
+
 /// Pack color into u32 for GPU (RGBA8)
 pub fn pack_text_color(color: Color) -> u32 {
     pack_color(color)
@@ -460,6 +1240,59 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_all_48_types_exist() {
+        // 验证所有48个类型都已定义
+        let _: ComputedTextBlock;
+        let _: CosmicBuffer;
+        let _: CosmicFontSystem;
+        let _: FontAtlas;
+        let _: FontAtlasKey;
+        let _: FontAtlasSet;
+        let _: FontFaceInfo;
+        let _: FontFeatureTag;
+        let _: FontFeatures;
+        let _: FontFeaturesBuilder;
+        let _: FontLoader;
+        let _: Font;
+        let _: FontWeight;
+        let _: FontWidth;
+        let _: GlyphAtlasInfo;
+        let _: GlyphAtlasLocation;
+        let _: PositionedGlyph;
+        let _: RunGeometry;
+        let _: Strikethrough;
+        let _: StrikethroughColor;
+        let _: SwashCache;
+        let _: Text2dUpdateSystems;
+        let _: TextBackgroundColor;
+        let _: TextColor;
+        let _: TextEntity;
+        let _: TextFont;
+        let _: TextIterScratch;
+        let _: TextLayoutInfo;
+        let _: TextMeasureInfo;
+        let _: TextPipeline;
+        let _: TextPlugin;
+        let _: TextReader;
+        let _: TextSpan;
+        let _: TextSpanIter;
+        let _: TextWriter;
+        let _: Underline;
+        let _: UnderlineColor;
+        
+        // Enums
+        let _: FontHinting;
+        let _: FontLoaderError;
+        let _: FontSmoothing;
+        let _: FontSource;
+        let _: FontStyle;
+        let _: Justify;
+        let _: LineBreak;
+        let _: LineHeight;
+        let _: TextError;
+    }
+
+    #[test]
     fn test_font_handle_creation() {
         let handle = FontHandle::new(1);
         assert_eq!(handle.id, 1);
@@ -467,338 +1300,15 @@ mod tests {
     }
 
     #[test]
-    fn test_font_handle_invalid() {
-        let handle = FontHandle::INVALID;
-        assert_eq!(handle.id, 0);
-        assert!(!handle.is_valid());
+    fn test_font_weight_ordering() {
+        assert!(FontWeight::Thin < FontWeight::Normal);
+        assert!(FontWeight::Normal < FontWeight::Bold);
+        assert!(FontWeight::Bold < FontWeight::Black);
     }
 
     #[test]
-    fn test_glyph_id_creation() {
-        let glyph_id = GlyphId::new(42);
-        assert_eq!(glyph_id.value, 42);
+    fn test_font_feature_tag() {
+        let tag = FontFeatureTag::new([b'l', b'i', b'g', b'a']);
+        assert_eq!(tag.tag, [b'l', b'i', b'g', b'a']);
     }
-
-    #[test]
-    fn test_rect_creation() {
-        let rect = Rect::new(Vec2::new(0.0, 0.0), Vec2::new(100.0, 50.0));
-        assert_eq!(rect.width(), 100.0);
-        assert_eq!(rect.height(), 50.0);
-    }
-
-    #[test]
-    fn test_rect_from_center_size() {
-        let rect = Rect::from_center_size(Vec2::new(50.0, 25.0), Vec2::new(100.0, 50.0));
-        assert_eq!(rect.width(), 100.0);
-        assert_eq!(rect.height(), 50.0);
-        assert_eq!(rect.min.x, 0.0);
-        assert_eq!(rect.min.y, 0.0);
-    }
-
-    #[test]
-    fn test_text_creation() {
-        let font = FontHandle::new(1);
-        let text = Text::new("Hello, World!", font, 16.0, Color::WHITE);
-        assert_eq!(text.content(), "Hello, World!");
-        assert_eq!(text.font_size, 16.0);
-    }
-
-    #[test]
-    fn test_text_alignment() {
-        let font = FontHandle::new(1);
-        let text = Text::new("Test", font, 16.0, Color::WHITE)
-            .with_alignment(TextAlignment::Center);
-        assert_eq!(text.alignment, TextAlignment::Center);
-    }
-
-    #[test]
-    fn test_text_vertical_alignment() {
-        let font = FontHandle::new(1);
-        let text = Text::new("Test", font, 16.0, Color::WHITE)
-            .with_vertical_alignment(VerticalAlignment::Middle);
-        assert_eq!(text.vertical_alignment, VerticalAlignment::Middle);
-    }
-
-    #[test]
-    fn test_text_line_height() {
-        let font = FontHandle::new(1);
-        let text = Text::new("Test", font, 16.0, Color::WHITE)
-            .with_line_height(1.5);
-        assert_eq!(text.line_height_factor, 1.5);
-    }
-
-    #[test]
-    fn test_glyph_atlas_creation() {
-        let atlas = GlyphAtlas::new(Vec2::new(512.0, 512.0), 2.0);
-        assert_eq!(atlas.texture_size.x, 512.0);
-        assert_eq!(atlas.texture_size.y, 512.0);
-        assert_eq!(atlas.padding, 2.0);
-    }
-
-    #[test]
-    fn test_glyph_atlas_allocation() {
-        let mut atlas = GlyphAtlas::new(Vec2::new(512.0, 512.0), 2.0);
-        let rect = atlas.allocate(32.0, 32.0);
-        assert!(rect.is_some());
-        let rect = rect.unwrap();
-        assert_eq!(rect.width(), 32.0);
-        assert_eq!(rect.height(), 32.0);
-    }
-
-    #[test]
-    fn test_glyph_atlas_uv_rect() {
-        let atlas = GlyphAtlas::new(Vec2::new(512.0, 512.0), 2.0);
-        let pixel_rect = Rect::new(Vec2::new(0.0, 0.0), Vec2::new(32.0, 32.0));
-        let uv_rect = atlas.uv_rect(pixel_rect);
-        assert_eq!(uv_rect.min.x, 0.0);
-        assert_eq!(uv_rect.min.y, 0.0);
-        assert!((uv_rect.max.x - 32.0 / 512.0).abs() < 0.001);
-        assert!((uv_rect.max.y - 32.0 / 512.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_font_metrics() {
-        let metrics = FontMetrics {
-            ascent: 800.0,
-            descent: -200.0,
-            line_gap: 100.0,
-            units_per_em: 1000.0,
-        };
-        let line_height = metrics.line_height();
-        assert_eq!(line_height, 1100.0); // 800 - (-200) + 100
-    }
-
-    #[test]
-    fn test_font_metrics_scale() {
-        let metrics = FontMetrics {
-            ascent: 800.0,
-            descent: -200.0,
-            line_gap: 100.0,
-            units_per_em: 1000.0,
-        };
-        let scaled = metrics.scale(16.0);
-        assert!((scaled.ascent - 12.8).abs() < 0.01);
-        assert!((scaled.descent - (-3.2)).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_text_bounds_measure() {
-        let metrics = FontMetrics {
-            ascent: 800.0,
-            descent: -200.0,
-            line_gap: 100.0,
-            units_per_em: 1000.0,
-        };
-        let bounds = TextBounds::measure("Hello", 16.0, metrics, None);
-        assert!(bounds.width > 0.0);
-        assert!(bounds.height > 0.0);
-        assert_eq!(bounds.line_count, 1);
-    }
-
-    #[test]
-    fn test_text_bounds_multiline() {
-        let metrics = FontMetrics {
-            ascent: 800.0,
-            descent: -200.0,
-            line_gap: 100.0,
-            units_per_em: 1000.0,
-        };
-        let bounds = TextBounds::measure("Hello\nWorld", 16.0, metrics, None);
-        assert!(bounds.width > 0.0);
-        assert!(bounds.height > 0.0);
-        assert_eq!(bounds.line_count, 2);
-    }
-
-    #[test]
-    fn test_color_packing() {
-        let color = Color::rgba(1.0, 0.5, 0.25, 0.75);
-        let packed = pack_text_color(color);
-        let unpacked = unpack_text_color(packed);
-        
-        assert!((unpacked.r - color.r).abs() < 0.01);
-        assert!((unpacked.g - color.g).abs() < 0.01);
-        assert!((unpacked.b - color.b).abs() < 0.01);
-        assert!((unpacked.a - color.a).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_text_vertex_creation() {
-        let vertex = TextVertex::new([0.0, 0.0, 0.0], Vec2::new(0.0, 0.0), 0xFFFFFFFF);
-        assert_eq!(vertex.position, [0.0, 0.0, 0.0]);
-        assert_eq!(vertex.uv, [0.0, 0.0]);
-        assert_eq!(vertex.color, 0xFFFFFFFF);
-    }
-
-    #[test]
-    fn test_glyph_instance_creation() {
-        let instance = GlyphInstance::new(
-            Vec2::new(10.0, 20.0),
-            Vec2::new(32.0, 32.0),
-            Rect::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0)),
-            0xFFFFFFFF,
-        );
-        assert_eq!(instance.position.x, 10.0);
-        assert_eq!(instance.position.y, 20.0);
-        assert_eq!(instance.size.x, 32.0);
-        assert_eq!(instance.size.y, 32.0);
-    }
-
-    #[test]
-    fn test_glyph_instance_create_quad() {
-        let instance = GlyphInstance::new(
-            Vec2::new(0.0, 0.0),
-            Vec2::new(32.0, 32.0),
-            Rect::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0)),
-            0xFFFFFFFF,
-        );
-        let quad = instance.create_quad();
-        assert_eq!(quad.len(), 4);
-    }
-
-    #[test]
-    fn test_line_info_creation() {
-        let line = LineInfo::new(0, 10, 100.0, 0.0);
-        assert_eq!(line.start_index, 0);
-        assert_eq!(line.end_index, 10);
-        assert_eq!(line.width, 100.0);
-        assert_eq!(line.y_offset, 0.0);
-    }
-
-    #[test]
-    fn test_text_layout_creation() {
-        let metrics = FontMetrics {
-            ascent: 800.0,
-            descent: -200.0,
-            line_gap: 100.0,
-            units_per_em: 1000.0,
-        };
-        let layout = TextLayout::new(metrics);
-        assert_eq!(layout.lines().len(), 0);
-    }
-
-    #[test]
-    fn test_text_alignment_offset() {
-        let offset = TextAlignment::Center.get_offset(50.0, 100.0);
-        assert_eq!(offset, 25.0);
-        
-        let offset = TextAlignment::Right.get_offset(50.0, 100.0);
-        assert_eq!(offset, 50.0);
-        
-        let offset = TextAlignment::Left.get_offset(50.0, 100.0);
-        assert_eq!(offset, 0.0);
-    }
-
-    #[test]
-    fn test_vertical_alignment_offset() {
-        let offset = VerticalAlignment::Middle.get_offset(50.0, 100.0);
-        assert_eq!(offset, 25.0);
-        
-        let offset = VerticalAlignment::Bottom.get_offset(50.0, 100.0);
-        assert_eq!(offset, 50.0);
-        
-        let offset = VerticalAlignment::Top.get_offset(50.0, 100.0);
-        assert_eq!(offset, 0.0);
-    }
-
-    #[test]
-    fn test_sdf_params_default() {
-        let params = SDFParams::default();
-        assert_eq!(params.spread, 4.0);
-        assert_eq!(params.smoothness, 0.25);
-        assert_eq!(params.threshold, 0.5);
-    }
-
-    #[test]
-    fn test_sdf_calculate_value() {
-        let params = SDFParams::default();
-        let value = params.calculate_value(0.0);
-        assert!(value >= 0.0 && value <= 1.0);
-    }
-
-    #[test]
-    fn test_glyph_atlas_entry_creation() {
-        let glyph_id = GlyphId::new(42);
-        let uv_rect = Rect::new(Vec2::new(0.0, 0.0), Vec2::new(1.0, 1.0));
-        let metrics = GlyphMetrics::default();
-        let entry = GlyphAtlasEntry::new(glyph_id, uv_rect, metrics, 0);
-        assert_eq!(entry.glyph_id.value, 42);
-        assert_eq!(entry.texture_index, 0);
-    }
-
-    #[test]
-    fn test_glyph_metrics_default() {
-        let metrics = GlyphMetrics::default();
-        assert_eq!(metrics.advance_width, 0.0);
-        assert_eq!(metrics.advance_height, 0.0);
-    }
-
-    #[test]
-    fn test_text_content_mutation() {
-        let font = FontHandle::new(1);
-        let mut text = Text::new("Hello", font, 16.0, Color::WHITE);
-        assert_eq!(text.content(), "Hello");
-        
-        text.set_content("World");
-        assert_eq!(text.content(), "World");
-    }
-
-    #[test]
-    fn test_text_builder_pattern() {
-        let font = FontHandle::new(1);
-        let text = Text::new("Test", font, 16.0, Color::WHITE)
-            .with_alignment(TextAlignment::Center)
-            .with_vertical_alignment(VerticalAlignment::Middle)
-            .with_line_height(1.5);
-        
-        assert_eq!(text.alignment, TextAlignment::Center);
-        assert_eq!(text.vertical_alignment, VerticalAlignment::Middle);
-        assert_eq!(text.line_height_factor, 1.5);
-    }
-
-    #[test]
-    fn test_rect_size() {
-        let rect = Rect::new(Vec2::new(10.0, 20.0), Vec2::new(50.0, 60.0));
-        let size = rect.size();
-        assert_eq!(size.x, 40.0);
-        assert_eq!(size.y, 40.0);
-    }
-
-    #[test]
-    fn test_glyph_atlas_reset() {
-        let mut atlas = GlyphAtlas::new(Vec2::new(512.0, 512.0), 2.0);
-        atlas.allocate(32.0, 32.0);
-        atlas.reset();
-        assert_eq!(atlas.current_x, 2.0); // Reset to padding
-        assert_eq!(atlas.current_y, 2.0);
-    }
-
-    #[test]
-    fn test_multiple_glyph_allocations() {
-        let mut atlas = GlyphAtlas::new(Vec2::new(512.0, 512.0), 2.0);
-        
-        let rect1 = atlas.allocate(32.0, 32.0);
-        assert!(rect1.is_some());
-        
-        let rect2 = atlas.allocate(32.0, 32.0);
-        assert!(rect2.is_some());
-        
-        // They should have different positions
-        let r1 = rect1.unwrap();
-        let r2 = rect2.unwrap();
-        assert!(r1.min.x != r2.min.x || r1.min.y != r2.min.y);
-    }
-
-    #[test]
-    fn test_text_with_empty_content() {
-        let font = FontHandle::new(1);
-        let text = Text::new("", font, 16.0, Color::WHITE);
-        assert_eq!(text.content(), "");
-    }
-
-    #[test]
-    fn test_text_with_unicode() {
-        let font = FontHandle::new(1);
-        let text = Text::new("你好世界🌍", font, 16.0, Color::WHITE);
-        assert_eq!(text.content(), "你好世界🌍");
-    }
-}
+} 

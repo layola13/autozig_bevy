@@ -1,3 +1,4 @@
+
 use autozig::include_zig;
 use autozig_color::Color;
 use autozig_math::{Vec2, Vec3};
@@ -125,18 +126,14 @@ pub enum PositionType {
 }
 
 /// Overflow behavior
-#[repr(u8)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Overflow {
-    /// Content is not clipped
-    Visible = 0,
-    /// Content is clipped
-    Hidden = 1,
-    /// Show scrollbar
-    Scroll = 2,
+pub struct Overflow {
+    pub x: OverflowAxis,
+    pub y: OverflowAxis,
 }
 
-/// Unit type for size values
+/// Unit type for CSS values
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unit {
@@ -148,14 +145,30 @@ pub enum Unit {
     Percent = 2,
     /// Auto size
     Auto = 3,
+    /// Viewport width percentage
+    Vw = 4,
+    /// Viewport height percentage
+    Vh = 5,
+    /// Viewport minimum percentage
+    VMin = 6,
+    /// Viewport maximum percentage
+    VMax = 7,
 }
 
-/// Value with unit
+/// CSS value with unit
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Val {
     pub value: f32,
     pub unit: Unit,
+}
+
+/// Two-dimensional value pair
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Val2 {
+    pub x: Val,
+    pub y: Val,
 }
 
 /// Rectangle of values (for margin, padding, border, etc.)
@@ -197,7 +210,709 @@ pub struct FocusState {
 }
 
 // ============================================================================
-// Main Components
+// Missing Enums (20 types)
+// ============================================================================
+
+/// Focus policy for input events
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusPolicy {
+    /// Block focus
+    Block = 0,
+    /// Pass focus through
+    Pass = 1,
+}
+
+/// Box sizing model
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoxSizing {
+    /// Content box
+    ContentBox = 0,
+    /// Border box
+    BorderBox = 1,
+}
+
+/// Grid auto flow direction
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridAutoFlow {
+    Row = 0,
+    Column = 1,
+    RowDense = 2,
+    ColumnDense = 3,
+}
+
+/// Grid track repetition
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridTrackRepetition {
+    /// Count-based repetition
+    Count = 0,
+    /// Auto-fill
+    AutoFill = 1,
+    /// Auto-fit
+    AutoFit = 2,
+}
+
+/// Justify items alignment
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JustifyItems {
+    Default = 0,
+    Start = 1,
+    End = 2,
+    Center = 3,
+    Stretch = 4,
+    Baseline = 5,
+}
+
+/// Justify self alignment
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JustifySelf {
+    Auto = 0,
+    Start = 1,
+    End = 2,
+    Center = 3,
+    Stretch = 4,
+    Baseline = 5,
+}
+
+/// Overflow behavior per axis
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverflowAxis {
+    Visible = 0,
+    Clip = 1,
+    Hidden = 2,
+    Scroll = 3,
+}
+
+/// Overflow clip box
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverflowClipBox {
+    PaddingBox = 0,
+    ContentBox = 1,
+}
+
+/// Interpolation color space for gradients
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterpolationColorSpace {
+    LinearRgb = 0,
+    Srgb = 1,
+    OkLab = 2,
+    OkLch = 3,
+}
+
+/// Radial gradient shape
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RadialGradientShape {
+    Circle = 0,
+    Ellipse = 1,
+}
+
+/// Node image rendering mode
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeImageMode {
+    Auto = 0,
+    Stretch = 1,
+    Tile = 2,
+}
+
+/// Minimum track sizing function
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MinTrackSizingFunction {
+    Fixed = 0,
+    MinContent = 1,
+    MaxContent = 2,
+    Auto = 3,
+}
+
+/// Maximum track sizing function
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MaxTrackSizingFunction {
+    Fixed = 0,
+    MinContent = 1,
+    MaxContent = 2,
+    FitContent = 3,
+    Auto = 4,
+    Fraction = 5,
+}
+
+/// Node measurement mode
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeMeasure {
+    Fixed = 0,
+    Text = 1,
+    Image = 2,
+}
+
+/// UI system set labels
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum UiSystems {
+    Prepare = 0,
+    Layout = 1,
+    PostLayout = 2,
+    Focus = 3,
+    Stack = 4,
+}
+
+/// Gradient type
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gradient {
+    Linear = 0,
+    Radial = 1,
+    Conic = 2,
+}
+
+/// Layout error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutError {
+    InvalidNode = 0,
+    InvalidStyle = 1,
+    CircularDependency = 2,
+}
+
+/// Grid placement error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GridPlacementError {
+    InvalidSpan = 0,
+    OutOfBounds = 1,
+}
+
+/// Val arithmetic error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValArithmeticError {
+    IncompatibleUnits = 0,
+    Overflow = 1,
+}
+
+/// Val parse error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValParseError {
+    InvalidFormat = 0,
+    InvalidUnit = 1,
+    InvalidValue = 2,
+}
+
+// ============================================================================
+// Missing Structs (64 types)
+// ============================================================================
+
+/// Button component marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Button;
+
+/// Label component
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Label {
+    pub text: *const u8,
+    pub len: usize,
+}
+
+/// Text component
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Text {
+    pub sections: *const u8,
+    pub section_count: usize,
+}
+
+/// Checkable marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Checkable;
+
+/// Checked state
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Checked {
+    pub is_checked: bool,
+}
+
+/// Pressed state marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pressed;
+
+/// Interaction disabled marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InteractionDisabled;
+
+/// Color stop for gradients
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ColorStop {
+    pub color: Color,
+    pub position: f32,
+}
+
+/// Angular color stop for conic gradients
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AngularColorStop {
+    pub color: Color,
+    pub angle: f32,
+}
+
+/// Linear gradient
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LinearGradient {
+    pub angle: f32,
+    pub stops: *const ColorStop,
+    pub stop_count: usize,
+    pub color_space: InterpolationColorSpace,
+}
+
+/// Radial gradient
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RadialGradient {
+    pub center: Vec2,
+    pub radius: f32,
+    pub shape: RadialGradientShape,
+    pub stops: *const ColorStop,
+    pub stop_count: usize,
+    pub color_space: InterpolationColorSpace,
+}
+
+/// Conic gradient
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConicGradient {
+    pub center: Vec2,
+    pub rotation: f32,
+    pub stops: *const AngularColorStop,
+    pub stop_count: usize,
+    pub color_space: InterpolationColorSpace,
+}
+
+/// Background gradient
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BackgroundGradient {
+    pub gradient_type: Gradient,
+    pub data: [u8; 64], // Union storage
+}
+
+/// Border gradient
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BorderGradient {
+    pub gradient_type: Gradient,
+    pub data: [u8; 64], // Union storage
+}
+
+/// Box shadow
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BoxShadow {
+    pub color: Color,
+    pub offset: Vec2,
+    pub blur_radius: f32,
+    pub spread_radius: f32,
+}
+
+/// Text shadow
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextShadow {
+    pub color: Color,
+    pub offset: Vec2,
+    pub blur_radius: f32,
+}
+
+/// Shadow style
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShadowStyle {
+    pub shadows: *const BoxShadow,
+    pub shadow_count: usize,
+}
+
+/// Outline
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Outline {
+    pub width: Val,
+    pub offset: Val,
+    pub color: Color,
+}
+
+/// Overflow clip margin
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OverflowClipMargin {
+    pub margin: f32,
+    pub clip_box: OverflowClipBox,
+}
+
+/// Calculated clip rectangle
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CalculatedClip {
+    pub clip: [f32; 4], // x, y, width, height
+}
+
+/// Override clip
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OverrideClip {
+    pub clip: [f32; 4],
+}
+
+/// Resolved border radius after layout
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ResolvedBorderRadius {
+    pub top_left: f32,
+    pub top_right: f32,
+    pub bottom_left: f32,
+    pub bottom_right: f32,
+}
+
+/// Grid placement
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridPlacement {
+    pub start: i32,
+    pub end: i32,
+    pub span: u16,
+}
+
+/// Grid track
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GridTrack {
+    pub min_sizing: MinTrackSizingFunction,
+    pub max_sizing: MaxTrackSizingFunction,
+}
+
+/// Repeated grid track
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RepeatedGridTrack {
+    pub repetition: GridTrackRepetition,
+    pub tracks: *const GridTrack,
+    pub track_count: usize,
+}
+
+/// Content size
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ContentSize {
+    pub size: Vec2,
+}
+
+/// Image node
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ImageNode {
+    pub texture: usize, // Texture handle
+    pub rect: Option<[f32; 4]>,
+    pub mode: NodeImageMode,
+}
+
+/// Image node size
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ImageNodeSize {
+    pub size: Vec2,
+}
+
+/// Text node flags
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TextNodeFlags {
+    pub needs_recompute: bool,
+    pub linebreak_behavior: u8,
+}
+
+/// Ghost node (invisible but affects layout)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GhostNode;
+
+/// Relative cursor position
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RelativeCursorPosition {
+    pub normalized: Option<Vec2>,
+}
+
+/// Scroll position
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrollPosition {
+    pub offset: Vec2,
+}
+
+/// Ignore scroll marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IgnoreScroll;
+
+/// Z-index for layering
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ZIndex {
+    pub value: i32,
+}
+
+/// Global Z-index
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GlobalZIndex {
+    pub value: i32,
+}
+
+/// UI transform
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiTransform {
+    pub translation: Vec3,
+    pub rotation: f32,
+    pub scale: Vec2,
+}
+
+/// UI global transform
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiGlobalTransform {
+    pub translation: Vec3,
+    pub rotation: f32,
+    pub scale: Vec2,
+}
+
+/// UI position in screen space
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiPosition {
+    pub position: Vec2,
+}
+
+/// UI scale factor
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiScale {
+    pub scale: f32,
+}
+
+/// UI stack for rendering order
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UiStack {
+    pub index: usize,
+}
+
+/// Layout context
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutContext {
+    pub scale_factor: f32,
+    pub physical_size: Vec2,
+    pub min_size: Vec2,
+    pub max_size: Vec2,
+}
+
+/// Layout node
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutNode {
+    pub position: Vec2,
+    pub size: Vec2,
+    pub parent: usize,
+}
+
+/// Layout configuration
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutConfig {
+    pub use_rounding: bool,
+}
+
+/// Measure arguments
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MeasureArgs {
+    pub width: Option<f32>,
+    pub height: Option<f32>,
+    pub available_width: f32,
+    pub available_height: f32,
+}
+
+/// Fixed measure
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FixedMeasure {
+    pub size: Vec2,
+}
+
+/// Image measure
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ImageMeasure {
+    pub size: Vec2,
+}
+
+/// Text measure
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextMeasure {
+    pub size: Vec2,
+}
+
+/// UI surface
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiSurface {
+    pub camera_entity: usize,
+}
+
+/// Target camera for UI
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UiTargetCamera {
+    pub entity: usize,
+}
+
+/// Computed UI render target info
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ComputedUiRenderTargetInfo {
+    pub physical_size: Vec2,
+    pub scale_factor: f32,
+}
+
+/// Computed UI target camera
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ComputedUiTargetCamera {
+    pub entity: usize,
+}
+
+/// Default UI camera marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DefaultUiCamera;
+
+/// Is default UI camera marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IsDefaultUiCamera;
+
+/// UI picking camera
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UiPickingCamera {
+    pub enabled: bool,
+}
+
+/// UI picking settings
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiPickingSettings {
+    pub enabled: bool,
+    pub should_ignore_scroll: bool,
+}
+
+/// UI picking plugin marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UiPickingPlugin;
+
+/// UI plugin marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UiPlugin;
+
+/// UI root nodes collection
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiRootNodes {
+    pub nodes: *const usize,
+    pub count: usize,
+}
+
+/// UI children collection
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiChildren {
+    pub children: *const usize,
+    pub count: usize,
+}
+
+/// UI children iterator
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UiChildrenIter {
+    pub children: *const usize,
+    pub count: usize,
+    pub index: usize,
+}
+
+/// Viewport node
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ViewportNode {
+    pub viewport: [f32; 4], // x, y, width, height
+}
+
+/// Node query helper
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NodeQuery {
+    pub entity: usize,
+    pub node_type: u8,
+}
+
+/// State component for UI state management
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct State {
+    pub value: u32,
+}
+
+// ============================================================================
+// Missing Traits (3 types)
+// ============================================================================
+
+/// Trait for types that can be in a color space
+pub trait InColorSpace {
+    fn in_color_space(&self, space: InterpolationColorSpace) -> Self;
+}
+
+/// Trait for types that can measure content
+pub trait Measure {
+    fn measure(&self, args: MeasureArgs) -> Vec2;
+}
+
+/// Trait for numeric Val operations
+pub trait ValNum {
+    fn to_val(&self) -> Val;
+    fn from_val(val: Val) -> Option<Self> where Self: Sized;
+}
+
+// ============================================================================
+// Main Components (from original implementation)
 // ============================================================================
 
 /// Style component defining layout and appearance
@@ -321,6 +1036,10 @@ include_zig!("zig/ui_all.zig", {
     // Val functions
     fn val_px(value: f32) -> Val;
     fn val_percent(value: f32) -> Val;
+    fn val_vw(value: f32) -> Val;
+    fn val_vh(value: f32) -> Val;
+    fn val_vmin(value: f32) -> Val;
+    fn val_vmax(value: f32) -> Val;
     fn val_auto() -> Val;
     fn val_undefined() -> Val;
     fn val_to_pixels(val: Val, reference: f32) -> f32;
@@ -403,6 +1122,22 @@ impl Val {
     
     pub fn percent(value: f32) -> Self {
         val_percent(value)
+    }
+    
+    pub fn vw(value: f32) -> Self {
+        val_vw(value)
+    }
+    
+    pub fn vh(value: f32) -> Self {
+        val_vh(value)
+    }
+    
+    pub fn vmin(value: f32) -> Self {
+        val_vmin(value)
+    }
+    
+    pub fn vmax(value: f32) -> Self {
+        val_vmax(value)
     }
     
     pub fn auto() -> Self {

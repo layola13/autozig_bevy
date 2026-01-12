@@ -1,6 +1,6 @@
 //! Plugin system - Bevy-compatible plugin architecture
 
-use autozig::include_zig;
+use autozig_macro::include_zig;
 use crate::into_system::{BoxedSystem, IntoSystem};
 use crate::world::World;
 

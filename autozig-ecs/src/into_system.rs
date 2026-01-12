@@ -1,6 +1,6 @@
 //! IntoSystem - Convert closures into systems
 
-use autozig::include_zig;
+use autozig_macro::include_zig;
 use crate::system_param::{SystemParam, WorldAccessFlags};
 use crate::world::World;
 use std::marker::PhantomData;

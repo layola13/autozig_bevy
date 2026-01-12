@@ -5,10 +5,24 @@ edition = "2021"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
-# autozig-utils = { path = "../autozig-utils" }  # 暂时注释，依赖库有编译问题
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+futures = "0.3"
+futures-io = "0.3"
+async-trait = "0.1"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+ron = "0.8"
+bevy_reflect = { version = "0.14", optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"
+tokio = { version = "1.0", features = ["full"] }
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
+
+[features]
+default = []
+reflect = ["bevy_reflect"]

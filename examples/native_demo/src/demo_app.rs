@@ -9,6 +9,8 @@
 //! - Startup vs Update 系统
 
 use autozig_ecs::prelude::*;
+use autozig_ecs::plugin::App;
+use autozig_ecs::plugin::{CorePlugin, TimePlugin};
 
 /// 自定义插件示例：打印消息插件
 /// 类似 bevy/examples/app/plugin.rs 中的 PrintMessagePlugin

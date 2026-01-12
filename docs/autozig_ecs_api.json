@@ -1,0 +1,4594 @@
+{
+  "structs": [
+    {
+      "name": "Access",
+      "path": "component.rs"
+    },
+    {
+      "name": "Access",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "AccessConflictError",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "AccessConflictError",
+      "path": "component.rs"
+    },
+    {
+      "name": "AdapterSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "AddBundle",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "Added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "AddedFetch",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "AddedFetch",
+      "path": "query.rs"
+    },
+    {
+      "name": "AncestorIter",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "AndThenSystem",
+      "path": "combinator.rs"
+    },
+    {
+      "name": "AnonymousSet",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "AnonymousSet",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "AnyOf",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "AnyOf",
+      "path": "query.rs"
+    },
+    {
+      "name": "App",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "Archetype",
+      "path": "storage.rs"
+    },
+    {
+      "name": "Archetype",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeComponentId",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeEntity",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeGeneration",
+      "path": "component.rs"
+    },
+    {
+      "name": "ArchetypeGeneration",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ArchetypeGeneration",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeId",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeOpaque",
+      "path": "storage.rs"
+    },
+    {
+      "name": "ArchetypeRecord",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ArchetypeSwapRemoveResult",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "Archetypes",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "AutoInsertApplyDeferredPass",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "BevyError",
+      "path": "utils.rs"
+    },
+    {
+      "name": "BlobVec",
+      "path": "storage.rs"
+    },
+    {
+      "name": "BoxedSystem",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "BoxedSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "BundleId",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "BundleInfo",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "BundleInfoOpaque",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "BundleInserter",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "BundleSpawner",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "Bundles",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "CachedComponentObservers",
+      "path": "observer.rs"
+    },
+    {
+      "name": "CachedObservers",
+      "path": "observer.rs"
+    },
+    {
+      "name": "CachedSystemId",
+      "path": "system.rs"
+    },
+    {
+      "name": "ChainSystem",
+      "path": "combinator.rs"
+    },
+    {
+      "name": "ChangeDetectionContext",
+      "path": "component.rs"
+    },
+    {
+      "name": "ChangeDetectionContext",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "Changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "ChangedFetch",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "ChangedFetch",
+      "path": "query.rs"
+    },
+    {
+      "name": "CheckChangeTicks",
+      "path": "system.rs"
+    },
+    {
+      "name": "ChildOf",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "Children",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "ClientFetch",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "ClientFetch",
+      "path": "query.rs"
+    },
+    {
+      "name": "ClosureRegistry",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "ClosureRegistryOpaque",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "Column",
+      "path": "table.rs"
+    },
+    {
+      "name": "CombinatorSystem",
+      "path": "system_adapter.rs"
+    },
+    {
+      "name": "CombinatorSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "CommandBuffer",
+      "path": "command.rs"
+    },
+    {
+      "name": "CommandBufferOpaque",
+      "path": "command.rs"
+    },
+    {
+      "name": "CommandQueue",
+      "path": "deferred.rs"
+    },
+    {
+      "name": "Commands",
+      "path": "command.rs"
+    },
+    {
+      "name": "CompactNodeIdAndDirection",
+      "path": "dag.rs"
+    },
+    {
+      "name": "CompactNodeIdPair",
+      "path": "dag.rs"
+    },
+    {
+      "name": "ComponentCloneHandler",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentCloneHandler",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentDescriptor",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentDescriptor",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentDropHandler",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentDropHandler",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentHooks",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentHooks",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentId",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentIdFor",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentIdFor",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentInfo",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentInfo",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentObserver",
+      "path": "observer.rs"
+    },
+    {
+      "name": "ComponentRelationshipAccessor",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentRelationshipAccessor",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentSparseSet",
+      "path": "storage.rs"
+    },
+    {
+      "name": "ComponentTicks",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentTicks",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "ComponentTicks",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "Components",
+      "path": "component.rs"
+    },
+    {
+      "name": "Components",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentsQueuedRegistrator",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentsQueuedRegistrator",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ComponentsRegistrator",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentsRegistrator",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ConditionWithAccess",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ConflictingSystems",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ConstGenericParam",
+      "path": "utils.rs"
+    },
+    {
+      "name": "CorePlugin",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "CustomParam",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Dag",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DagAnalysis",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DagCrossDependencyError",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DagGroups",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DagOverlappingGroupError",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DagRedundancyError",
+      "path": "dag.rs"
+    },
+    {
+      "name": "DebugName",
+      "path": "utils.rs"
+    },
+    {
+      "name": "DefaultErrorHandler",
+      "path": "utils.rs"
+    },
+    {
+      "name": "DefaultPlugins",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "DefaultQueryFilters",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "DefaultQueryFilters",
+      "path": "query.rs"
+    },
+    {
+      "name": "DeferredCommands",
+      "path": "deferred.rs"
+    },
+    {
+      "name": "DeferredWorld",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "DeferredWorld",
+      "path": "world.rs"
+    },
+    {
+      "name": "DescendantDepthFirstIter",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "DescendantIter",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "Diagnostics",
+      "path": "utils.rs"
+    },
+    {
+      "name": "DynParamBuilder",
+      "path": "system.rs"
+    },
+    {
+      "name": "DynSystemParam",
+      "path": "system.rs"
+    },
+    {
+      "name": "DynSystemParamState",
+      "path": "system.rs"
+    },
+    {
+      "name": "DynamicBundle",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "Edges",
+      "path": "dag.rs"
+    },
+    {
+      "name": "Edges",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "EncapsulatedParam",
+      "path": "system.rs"
+    },
+    {
+      "name": "Entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityAllocator",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityAllocator",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityCloneCtx",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityCloneCtx",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityCloner",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityClonerBuilder",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityClonerBuilder",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityCommands",
+      "path": "command.rs"
+    },
+    {
+      "name": "EntityHash",
+      "path": "entity_hash.rs"
+    },
+    {
+      "name": "EntityHasher",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityHasher",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityLocation",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityMap",
+      "path": "utils.rs"
+    },
+    {
+      "name": "EntityMut",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityMut",
+      "path": "world.rs"
+    },
+    {
+      "name": "EntityNotSpawnedError",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityNotSpawnedError",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityObserver",
+      "path": "observer.rs"
+    },
+    {
+      "name": "EntityRef",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EntityRef",
+      "path": "world.rs"
+    },
+    {
+      "name": "EntityWorldMut",
+      "path": "entity.rs"
+    },
+    {
+      "name": "EventCursor",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventId",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventInstance",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventIterator",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventParIter",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventQueueOpaque",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventReader",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventRegistry",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventSequence",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventUpdateSignal",
+      "path": "event.rs"
+    },
+    {
+      "name": "EventWriter",
+      "path": "event.rs"
+    },
+    {
+      "name": "Events",
+      "path": "event.rs"
+    },
+    {
+      "name": "ExclusiveFunctionSystem",
+      "path": "exclusive_system.rs"
+    },
+    {
+      "name": "ExclusiveFunctionSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "FilteredAccess",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "FilteredAccess",
+      "path": "query.rs"
+    },
+    {
+      "name": "FilteredEntityMut",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "FilteredEntityRef",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "First",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "FixedUpdate",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "FunctionObserverSystem",
+      "path": "observer.rs"
+    },
+    {
+      "name": "FunctionSystem",
+      "path": "function_system.rs"
+    },
+    {
+      "name": "FunctionSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "GetComponentReflectError",
+      "path": "entity.rs"
+    },
+    {
+      "name": "Has",
+      "path": "query.rs"
+    },
+    {
+      "name": "Immutable",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "Immutable",
+      "path": "component.rs"
+    },
+    {
+      "name": "ImmutableSparseSet",
+      "path": "storage.rs"
+    },
+    {
+      "name": "In",
+      "path": "system.rs"
+    },
+    {
+      "name": "Last",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "LastTick",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "Local",
+      "path": "local.rs"
+    },
+    {
+      "name": "ManualEventIterator",
+      "path": "event.rs"
+    },
+    {
+      "name": "ManualEventReader",
+      "path": "event.rs"
+    },
+    {
+      "name": "Marker",
+      "path": "utils.rs"
+    },
+    {
+      "name": "MessageBus",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Mut",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "Mut",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "MutUntyped",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "Mutable",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "Mutable",
+      "path": "component.rs"
+    },
+    {
+      "name": "NodeConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "NodeId",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "NonSend",
+      "path": "resource.rs"
+    },
+    {
+      "name": "NonSend",
+      "path": "system.rs"
+    },
+    {
+      "name": "NonSendMut",
+      "path": "resource.rs"
+    },
+    {
+      "name": "NonSendMut",
+      "path": "system.rs"
+    },
+    {
+      "name": "NotSystem",
+      "path": "combinator.rs"
+    },
+    {
+      "name": "Observer",
+      "path": "observer.rs"
+    },
+    {
+      "name": "ObserverDescriptor",
+      "path": "observer.rs"
+    },
+    {
+      "name": "ObserverRunner",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OccupiedEntry",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "OccupiedEntry",
+      "path": "component.rs"
+    },
+    {
+      "name": "OnAdd",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OnInsert",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OnRemove",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OnReplace",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OptionFetch",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "OptionFetch",
+      "path": "query.rs"
+    },
+    {
+      "name": "Or",
+      "path": "query.rs"
+    },
+    {
+      "name": "OrElseSystem",
+      "path": "combinator.rs"
+    },
+    {
+      "name": "ParamSet",
+      "path": "param_set.rs"
+    },
+    {
+      "name": "Parent",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "PipeSystem",
+      "path": "combinator.rs"
+    },
+    {
+      "name": "PluginManagerOpaque",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "PostUpdate",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "PreUpdate",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "Query",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryBuilder",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QueryBuilder",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryCombinationIter",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QueryCombinationIter",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryIter",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryManyIter",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QueryManyIter",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryParIter",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QueryParIter",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryState",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryStateOpaque",
+      "path": "query.rs"
+    },
+    {
+      "name": "Read",
+      "path": "query.rs"
+    },
+    {
+      "name": "Ref",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "RemovedComponentEntity",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "RemovedComponentEvents",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "RemovedComponentReader",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "RemovedComponents",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "RemovedComponents",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "RemovedComponentsIter",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "RequiredComponents",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "RequiredComponents",
+      "path": "component.rs"
+    },
+    {
+      "name": "RequiredComponentsError",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "RequiredComponentsError",
+      "path": "component.rs"
+    },
+    {
+      "name": "Res",
+      "path": "resource.rs"
+    },
+    {
+      "name": "ResMut",
+      "path": "resource.rs"
+    },
+    {
+      "name": "ResourceId",
+      "path": "resource.rs"
+    },
+    {
+      "name": "ResourceRegistry",
+      "path": "resource.rs"
+    },
+    {
+      "name": "ResourceRegistryOpaque",
+      "path": "resource.rs"
+    },
+    {
+      "name": "Schedule",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "Schedule",
+      "path": "system.rs"
+    },
+    {
+      "name": "ScheduleBuildSettings",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleGraph",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleOpaque",
+      "path": "system.rs"
+    },
+    {
+      "name": "Schedules",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "SendBatchIds",
+      "path": "event.rs"
+    },
+    {
+      "name": "SparseArray",
+      "path": "storage.rs"
+    },
+    {
+      "name": "SparseSet",
+      "path": "component.rs"
+    },
+    {
+      "name": "SparseSet",
+      "path": "storage.rs"
+    },
+    {
+      "name": "SparseSetIter",
+      "path": "component.rs"
+    },
+    {
+      "name": "SparseSetOpaque",
+      "path": "component.rs"
+    },
+    {
+      "name": "SparseSetOpaque",
+      "path": "storage.rs"
+    },
+    {
+      "name": "SparseStorage",
+      "path": "component.rs"
+    },
+    {
+      "name": "SparseStorage",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "Startup",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "Stepping",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "SteppingState",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "Storages",
+      "path": "storage.rs"
+    },
+    {
+      "name": "SystemAdapter",
+      "path": "system_adapter.rs"
+    },
+    {
+      "name": "SystemConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "SystemId",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemMeta",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemName",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemSetConfig",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "SystemSetConfigs",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "SystemState",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemTypeSet",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemTypeSet",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "Table",
+      "path": "table.rs"
+    },
+    {
+      "name": "Table",
+      "path": "storage.rs"
+    },
+    {
+      "name": "TableBuilder",
+      "path": "table.rs"
+    },
+    {
+      "name": "TableId",
+      "path": "table.rs"
+    },
+    {
+      "name": "TableMoveResult",
+      "path": "table.rs"
+    },
+    {
+      "name": "TableOpaque",
+      "path": "storage.rs"
+    },
+    {
+      "name": "TableRow",
+      "path": "table.rs"
+    },
+    {
+      "name": "TableStorage",
+      "path": "component.rs"
+    },
+    {
+      "name": "TableStorage",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "Tables",
+      "path": "table.rs"
+    },
+    {
+      "name": "Tick",
+      "path": "component.rs"
+    },
+    {
+      "name": "Tick",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "Tick",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "TickCells",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "TimePlugin",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "Trigger",
+      "path": "observer.rs"
+    },
+    {
+      "name": "TriggerTargets",
+      "path": "observer.rs"
+    },
+    {
+      "name": "TryFromFilteredError",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "TryFromFilteredError",
+      "path": "query.rs"
+    },
+    {
+      "name": "TypeIdMap",
+      "path": "utils.rs"
+    },
+    {
+      "name": "UnsafeWorldCell",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "UnsafeWorldCell",
+      "path": "world.rs"
+    },
+    {
+      "name": "Update",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "VacantEntry",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "VacantEntry",
+      "path": "component.rs"
+    },
+    {
+      "name": "With",
+      "path": "query.rs"
+    },
+    {
+      "name": "Without",
+      "path": "query.rs"
+    },
+    {
+      "name": "World",
+      "path": "world.rs"
+    },
+    {
+      "name": "WorldAccessFlags",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "WorldCell",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "WorldCell",
+      "path": "world.rs"
+    },
+    {
+      "name": "WorldChildBuilder",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "WorldId",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "WorldId",
+      "path": "world.rs"
+    },
+    {
+      "name": "WorldOpaque",
+      "path": "world.rs"
+    },
+    {
+      "name": "Write",
+      "path": "query.rs"
+    },
+    {
+      "name": "ZigChangeDetectionContext",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "ZigComponentTicks",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "ZigRemovedComponentsOpaque",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "ZigTick",
+      "path": "change_detection.rs"
+    }
+  ],
+  "enums": [
+    {
+      "name": "BatchingStrategy",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "BatchingStrategy",
+      "path": "query.rs"
+    },
+    {
+      "name": "ComponentAccessKind",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentAccessKind",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentCloneBehavior",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentCloneBehavior",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentEntry",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentEntry",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentStatus",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "DiGraphToposortError",
+      "path": "dag.rs"
+    },
+    {
+      "name": "Direction",
+      "path": "dag.rs"
+    },
+    {
+      "name": "EcsAccessLevel",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EcsAccessLevel",
+      "path": "component.rs"
+    },
+    {
+      "name": "EcsAccessType",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EcsAccessType",
+      "path": "component.rs"
+    },
+    {
+      "name": "EntityMutableFetchError",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntityMutableFetchError",
+      "path": "entity.rs"
+    },
+    {
+      "name": "ExecutorKind",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "GetComponentReflectError",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "GetEntityMutByIdError",
+      "path": "entity.rs"
+    },
+    {
+      "name": "LogLevel",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "NodeId",
+      "path": "dag.rs"
+    },
+    {
+      "name": "ObserverEventType",
+      "path": "observer.rs"
+    },
+    {
+      "name": "ObserverState",
+      "path": "observer.rs"
+    },
+    {
+      "name": "QueryAccessError",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QueryAccessError",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryEntityError",
+      "path": "query.rs"
+    },
+    {
+      "name": "QuerySingleError",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "QuerySingleError",
+      "path": "query.rs"
+    },
+    {
+      "name": "RegisteredSystemError",
+      "path": "system.rs"
+    },
+    {
+      "name": "RelationshipAccessor",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipHookMode",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RunSystemError",
+      "path": "system.rs"
+    },
+    {
+      "name": "ScheduleBuildError",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleBuildWarning",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleCleanupPolicy",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleError",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ShouldRun",
+      "path": "condition.rs"
+    },
+    {
+      "name": "ShouldUpdateMessages",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "StorageType",
+      "path": "component.rs"
+    },
+    {
+      "name": "StorageType",
+      "path": "storage.rs"
+    },
+    {
+      "name": "StorageType",
+      "path": "component_advanced.rs"
+    }
+  ],
+  "traits": [
+    {
+      "name": "Adapt",
+      "path": "utils.rs"
+    },
+    {
+      "name": "ArchetypeFilter",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "ArchetypeFilter",
+      "path": "query.rs"
+    },
+    {
+      "name": "ArchetypeQueryData",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "ArchetypeQueryData",
+      "path": "query.rs"
+    },
+    {
+      "name": "Bundle",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "CloneByFilter",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Combine",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Component",
+      "path": "component.rs"
+    },
+    {
+      "name": "ComponentMutability",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ComponentMutability",
+      "path": "component.rs"
+    },
+    {
+      "name": "Condition",
+      "path": "condition.rs"
+    },
+    {
+      "name": "ContainsEntity",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "ContainsEntity",
+      "path": "component.rs"
+    },
+    {
+      "name": "DebugCheckedUnwrap",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "DebugCheckedUnwrap",
+      "path": "query.rs"
+    },
+    {
+      "name": "DefaultCloneBehaviorBase",
+      "path": "component.rs"
+    },
+    {
+      "name": "DefaultCloneBehaviorBase",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "DefaultCloneBehaviorViaClone",
+      "path": "component.rs"
+    },
+    {
+      "name": "DefaultCloneBehaviorViaClone",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "DetectChanges",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "DetectChangesMut",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "DynEq",
+      "path": "component.rs"
+    },
+    {
+      "name": "DynEq",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "DynHash",
+      "path": "component.rs"
+    },
+    {
+      "name": "DynHash",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "EntityMapper",
+      "path": "component.rs"
+    },
+    {
+      "name": "EntitySet",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "EntitySet",
+      "path": "component.rs"
+    },
+    {
+      "name": "Event",
+      "path": "event.rs"
+    },
+    {
+      "name": "ExclusiveSystem",
+      "path": "exclusive_system.rs"
+    },
+    {
+      "name": "ExclusiveSystem",
+      "path": "system.rs"
+    },
+    {
+      "name": "ExclusiveSystemParamFunction",
+      "path": "system.rs"
+    },
+    {
+      "name": "FilterableIds",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "FilterableIds",
+      "path": "query.rs"
+    },
+    {
+      "name": "FnRet",
+      "path": "system.rs"
+    },
+    {
+      "name": "FromEntitySetIterator",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "FromEntitySetIterator",
+      "path": "component.rs"
+    },
+    {
+      "name": "FromInput",
+      "path": "system.rs"
+    },
+    {
+      "name": "FromWorld",
+      "path": "resource.rs"
+    },
+    {
+      "name": "GraphNodeId",
+      "path": "dag.rs"
+    },
+    {
+      "name": "Internable",
+      "path": "dag.rs"
+    },
+    {
+      "name": "IntoCondition",
+      "path": "condition.rs"
+    },
+    {
+      "name": "IntoObserverSystem",
+      "path": "observer.rs"
+    },
+    {
+      "name": "IntoResult",
+      "path": "system.rs"
+    },
+    {
+      "name": "IntoScheduleConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "IntoSystem",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "IntoSystemConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "IntoSystemSet",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "IntoSystemSetConfig",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "IntoSystemSetConfig",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "IntoSystemSetConfigs",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "IntoSystemSetConfigs",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "MapEntities",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Message",
+      "path": "utils.rs"
+    },
+    {
+      "name": "NoBundleEffect",
+      "path": "component.rs"
+    },
+    {
+      "name": "NoBundleEffect",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "ObserverSystem",
+      "path": "observer.rs"
+    },
+    {
+      "name": "OrderedRelationshipSourceCollection",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "Plugin",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "QueryData",
+      "path": "query.rs"
+    },
+    {
+      "name": "QueryFilter",
+      "path": "query.rs"
+    },
+    {
+      "name": "ReadOnlyQueryData",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "ReadOnlyQueryData",
+      "path": "query.rs"
+    },
+    {
+      "name": "ReadOnlySystemParam",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "Relationship",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipCloneBehaviorBase",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipCloneBehaviorViaClone",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipCloneBehaviorViaReflect",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipSourceCollection",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipTarget",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipTargetCloneBehaviorHierarchy",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipTargetCloneBehaviorViaClone",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "RelationshipTargetCloneBehaviorViaReflect",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "Resource",
+      "path": "resource.rs"
+    },
+    {
+      "name": "RunCriteria",
+      "path": "condition.rs"
+    },
+    {
+      "name": "RunSystemOnce",
+      "path": "system.rs"
+    },
+    {
+      "name": "Schedulable",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleBuildPass",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "ScheduleLabel",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "Seal",
+      "path": "utils.rs"
+    },
+    {
+      "name": "Sealed",
+      "path": "utils.rs"
+    },
+    {
+      "name": "SetEntityEventTarget",
+      "path": "event.rs"
+    },
+    {
+      "name": "SparseSetIndex",
+      "path": "storage.rs"
+    },
+    {
+      "name": "SpawnRelated",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "SpawnableList",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "StaticSystemParam",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "System",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemAdapter",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemBuffer",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemCondition",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemInput",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemOut",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemParam",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "SystemParamFunction",
+      "path": "system.rs"
+    },
+    {
+      "name": "SystemSet",
+      "path": "system_set.rs"
+    },
+    {
+      "name": "Traversal",
+      "path": "utils.rs"
+    },
+    {
+      "name": "TriggerEvent",
+      "path": "observer.rs"
+    },
+    {
+      "name": "WorldQuery",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "WorldQuery",
+      "path": "query.rs"
+    }
+  ],
+  "types": [
+    {
+      "name": "EntityHashMap",
+      "path": "lib.rs"
+    },
+    {
+      "name": "EntityHashMap",
+      "path": "entity_hash.rs"
+    },
+    {
+      "name": "EntityHashSet",
+      "path": "lib.rs"
+    },
+    {
+      "name": "EntityHashSet",
+      "path": "entity_hash.rs"
+    },
+    {
+      "name": "PluginBuildFn",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "RefMut",
+      "path": "query.rs"
+    },
+    {
+      "name": "SystemFn",
+      "path": "system.rs"
+    }
+  ],
+  "functions": [
+    {
+      "name": "access",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "access",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "access",
+      "path": "query.rs"
+    },
+    {
+      "name": "access_mut",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "add",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "add",
+      "path": "dag.rs"
+    },
+    {
+      "name": "add",
+      "path": "component.rs"
+    },
+    {
+      "name": "add",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "add",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_column",
+      "path": "table.rs"
+    },
+    {
+      "name": "add_column",
+      "path": "table.rs"
+    },
+    {
+      "name": "add_column",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_conflict",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "add_edge",
+      "path": "dag.rs"
+    },
+    {
+      "name": "add_entity",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_entity",
+      "path": "query.rs"
+    },
+    {
+      "name": "add_entry",
+      "path": "utils.rs"
+    },
+    {
+      "name": "add_excluded",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "add_node",
+      "path": "dag.rs"
+    },
+    {
+      "name": "add_observer",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_observer",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_on_add",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_on_insert",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_on_remove",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_on_replace",
+      "path": "observer.rs"
+    },
+    {
+      "name": "add_plugin",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "add_plugins",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "add_read",
+      "path": "component.rs"
+    },
+    {
+      "name": "add_read",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "add_read",
+      "path": "query.rs"
+    },
+    {
+      "name": "add_required",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "add_sparse_set",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_sparse_set_component",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_system",
+      "path": "system.rs"
+    },
+    {
+      "name": "add_systems",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "add_systems",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "add_table",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_table_component",
+      "path": "storage.rs"
+    },
+    {
+      "name": "add_to_group",
+      "path": "dag.rs"
+    },
+    {
+      "name": "add_with",
+      "path": "query.rs"
+    },
+    {
+      "name": "add_without",
+      "path": "query.rs"
+    },
+    {
+      "name": "add_write",
+      "path": "component.rs"
+    },
+    {
+      "name": "add_write",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "add_write",
+      "path": "query.rs"
+    },
+    {
+      "name": "added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "advance",
+      "path": "event.rs"
+    },
+    {
+      "name": "alloc",
+      "path": "entity.rs"
+    },
+    {
+      "name": "allocate",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "allocate",
+      "path": "table.rs"
+    },
+    {
+      "name": "analyze",
+      "path": "dag.rs"
+    },
+    {
+      "name": "apply",
+      "path": "command.rs"
+    },
+    {
+      "name": "apply",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "archetype_id",
+      "path": "entity.rs"
+    },
+    {
+      "name": "archetype_row",
+      "path": "entity.rs"
+    },
+    {
+      "name": "as_set",
+      "path": "dag.rs"
+    },
+    {
+      "name": "as_str",
+      "path": "utils.rs"
+    },
+    {
+      "name": "as_str",
+      "path": "system.rs"
+    },
+    {
+      "name": "as_system",
+      "path": "dag.rs"
+    },
+    {
+      "name": "as_unsafe_world_cell",
+      "path": "world.rs"
+    },
+    {
+      "name": "as_unsafe_world_cell_mut",
+      "path": "world.rs"
+    },
+    {
+      "name": "behavior",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "build",
+      "path": "entity.rs"
+    },
+    {
+      "name": "build",
+      "path": "table.rs"
+    },
+    {
+      "name": "build",
+      "path": "query.rs"
+    },
+    {
+      "name": "bundle_insert",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "bundle_remove",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "bundle_spawn",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "capacity",
+      "path": "storage.rs"
+    },
+    {
+      "name": "cell",
+      "path": "world.rs"
+    },
+    {
+      "name": "changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "check_if_added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "check_if_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "check_overlaps",
+      "path": "dag.rs"
+    },
+    {
+      "name": "check_tick",
+      "path": "system.rs"
+    },
+    {
+      "name": "clear",
+      "path": "command.rs"
+    },
+    {
+      "name": "clear",
+      "path": "component.rs"
+    },
+    {
+      "name": "clear",
+      "path": "utils.rs"
+    },
+    {
+      "name": "clear",
+      "path": "utils.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "storage.rs"
+    },
+    {
+      "name": "clear",
+      "path": "event.rs"
+    },
+    {
+      "name": "clear",
+      "path": "event.rs"
+    },
+    {
+      "name": "clear",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "clear",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "clear",
+      "path": "observer.rs"
+    },
+    {
+      "name": "clear",
+      "path": "observer.rs"
+    },
+    {
+      "name": "clear",
+      "path": "query.rs"
+    },
+    {
+      "name": "clone",
+      "path": "component.rs"
+    },
+    {
+      "name": "clone_entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "clone_entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "closure_system_count",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "commands",
+      "path": "command.rs"
+    },
+    {
+      "name": "component_id",
+      "path": "table.rs"
+    },
+    {
+      "name": "component_id",
+      "path": "component.rs"
+    },
+    {
+      "name": "component_ids",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "components",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "condition",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "configure_sets",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "contains",
+      "path": "resource.rs"
+    },
+    {
+      "name": "contains",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "contains",
+      "path": "entity.rs"
+    },
+    {
+      "name": "contains",
+      "path": "component.rs"
+    },
+    {
+      "name": "contains",
+      "path": "component.rs"
+    },
+    {
+      "name": "contains",
+      "path": "world.rs"
+    },
+    {
+      "name": "contains",
+      "path": "utils.rs"
+    },
+    {
+      "name": "contains",
+      "path": "storage.rs"
+    },
+    {
+      "name": "contains",
+      "path": "storage.rs"
+    },
+    {
+      "name": "contains",
+      "path": "storage.rs"
+    },
+    {
+      "name": "contains",
+      "path": "storage.rs"
+    },
+    {
+      "name": "contains_entity",
+      "path": "storage.rs"
+    },
+    {
+      "name": "count",
+      "path": "query.rs"
+    },
+    {
+      "name": "current_tick",
+      "path": "world.rs"
+    },
+    {
+      "name": "current_tick",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "defer",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "descriptor",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "despawn",
+      "path": "command.rs"
+    },
+    {
+      "name": "despawn",
+      "path": "entity.rs"
+    },
+    {
+      "name": "despawn",
+      "path": "entity.rs"
+    },
+    {
+      "name": "despawn",
+      "path": "world.rs"
+    },
+    {
+      "name": "despawn",
+      "path": "world.rs"
+    },
+    {
+      "name": "direction",
+      "path": "dag.rs"
+    },
+    {
+      "name": "disable",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "drain",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "drop",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "drop",
+      "path": "component.rs"
+    },
+    {
+      "name": "enable",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "enqueue",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "entities",
+      "path": "table.rs"
+    },
+    {
+      "name": "entities",
+      "path": "storage.rs"
+    },
+    {
+      "name": "entities",
+      "path": "observer.rs"
+    },
+    {
+      "name": "entities",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "entity",
+      "path": "command.rs"
+    },
+    {
+      "name": "entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "entity",
+      "path": "entity.rs"
+    },
+    {
+      "name": "entity",
+      "path": "world.rs"
+    },
+    {
+      "name": "entity",
+      "path": "world.rs"
+    },
+    {
+      "name": "entity",
+      "path": "observer.rs"
+    },
+    {
+      "name": "entity",
+      "path": "observer.rs"
+    },
+    {
+      "name": "entity_count",
+      "path": "table.rs"
+    },
+    {
+      "name": "entity_count",
+      "path": "world.rs"
+    },
+    {
+      "name": "entity_count",
+      "path": "storage.rs"
+    },
+    {
+      "name": "entity_count",
+      "path": "storage.rs"
+    },
+    {
+      "name": "entity_count",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "event",
+      "path": "observer.rs"
+    },
+    {
+      "name": "filter_with",
+      "path": "query.rs"
+    },
+    {
+      "name": "filter_without",
+      "path": "query.rs"
+    },
+    {
+      "name": "finish",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "finish",
+      "path": "entity.rs"
+    },
+    {
+      "name": "finish",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "flush",
+      "path": "component.rs"
+    },
+    {
+      "name": "flush",
+      "path": "world.rs"
+    },
+    {
+      "name": "for_each",
+      "path": "event.rs"
+    },
+    {
+      "name": "for_each",
+      "path": "query.rs"
+    },
+    {
+      "name": "frame",
+      "path": "event.rs"
+    },
+    {
+      "name": "free",
+      "path": "entity.rs"
+    },
+    {
+      "name": "from",
+      "path": "dag.rs"
+    },
+    {
+      "name": "from_bits",
+      "path": "entity.rs"
+    },
+    {
+      "name": "from_raw",
+      "path": "entity.rs"
+    },
+    {
+      "name": "generation",
+      "path": "entity.rs"
+    },
+    {
+      "name": "generation",
+      "path": "system.rs"
+    },
+    {
+      "name": "generation",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "get",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "get",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "get",
+      "path": "resource.rs"
+    },
+    {
+      "name": "get",
+      "path": "table.rs"
+    },
+    {
+      "name": "get",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "get",
+      "path": "event.rs"
+    },
+    {
+      "name": "get",
+      "path": "system.rs"
+    },
+    {
+      "name": "get",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "get",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "get",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "get",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "get",
+      "path": "query.rs"
+    },
+    {
+      "name": "get",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "get_clone",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "get_column",
+      "path": "table.rs"
+    },
+    {
+      "name": "get_column_mut",
+      "path": "table.rs"
+    },
+    {
+      "name": "get_column_ptr",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_entity",
+      "path": "world.rs"
+    },
+    {
+      "name": "get_entity_mut",
+      "path": "world.rs"
+    },
+    {
+      "name": "get_entity_row",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_entity_row",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_entry",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get_group",
+      "path": "dag.rs"
+    },
+    {
+      "name": "get_id",
+      "path": "component.rs"
+    },
+    {
+      "name": "get_info",
+      "path": "component.rs"
+    },
+    {
+      "name": "get_info",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "get_info_mut",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "table.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "utils.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "event.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "system.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "get_mut",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "get_observers",
+      "path": "observer.rs"
+    },
+    {
+      "name": "get_on_add",
+      "path": "observer.rs"
+    },
+    {
+      "name": "get_on_insert",
+      "path": "observer.rs"
+    },
+    {
+      "name": "get_on_remove",
+      "path": "observer.rs"
+    },
+    {
+      "name": "get_on_replace",
+      "path": "observer.rs"
+    },
+    {
+      "name": "get_or_clone",
+      "path": "entity.rs"
+    },
+    {
+      "name": "get_reader",
+      "path": "event.rs"
+    },
+    {
+      "name": "get_removed_components",
+      "path": "world.rs"
+    },
+    {
+      "name": "get_sparse_set",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_sparse_set_mut",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_table",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_table_mut",
+      "path": "storage.rs"
+    },
+    {
+      "name": "get_writer",
+      "path": "event.rs"
+    },
+    {
+      "name": "handle_error",
+      "path": "utils.rs"
+    },
+    {
+      "name": "has_component",
+      "path": "storage.rs"
+    },
+    {
+      "name": "has_sparse_set_component",
+      "path": "storage.rs"
+    },
+    {
+      "name": "has_table_component",
+      "path": "storage.rs"
+    },
+    {
+      "name": "hash",
+      "path": "entity_hash.rs"
+    },
+    {
+      "name": "hooks",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "hooks_mut",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "id",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "id",
+      "path": "entity.rs"
+    },
+    {
+      "name": "id",
+      "path": "entity.rs"
+    },
+    {
+      "name": "id",
+      "path": "entity.rs"
+    },
+    {
+      "name": "id",
+      "path": "table.rs"
+    },
+    {
+      "name": "id",
+      "path": "component.rs"
+    },
+    {
+      "name": "id",
+      "path": "world.rs"
+    },
+    {
+      "name": "id",
+      "path": "world.rs"
+    },
+    {
+      "name": "id",
+      "path": "world.rs"
+    },
+    {
+      "name": "id",
+      "path": "storage.rs"
+    },
+    {
+      "name": "id",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "id",
+      "path": "event.rs"
+    },
+    {
+      "name": "id",
+      "path": "system.rs"
+    },
+    {
+      "name": "id",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "id",
+      "path": "filtered_entity.rs"
+    },
+    {
+      "name": "id",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "id",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "ids",
+      "path": "event.rs"
+    },
+    {
+      "name": "increment",
+      "path": "component.rs"
+    },
+    {
+      "name": "increment",
+      "path": "component.rs"
+    },
+    {
+      "name": "increment",
+      "path": "event.rs"
+    },
+    {
+      "name": "increment",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "increment",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "increment",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "increment",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "index",
+      "path": "entity.rs"
+    },
+    {
+      "name": "index",
+      "path": "table.rs"
+    },
+    {
+      "name": "index",
+      "path": "table.rs"
+    },
+    {
+      "name": "index",
+      "path": "component.rs"
+    },
+    {
+      "name": "index",
+      "path": "world.rs"
+    },
+    {
+      "name": "index",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "index",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "init",
+      "path": "entity.rs"
+    },
+    {
+      "name": "initial",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "initial",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "insert",
+      "path": "command.rs"
+    },
+    {
+      "name": "insert",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "insert",
+      "path": "resource.rs"
+    },
+    {
+      "name": "insert",
+      "path": "entity.rs"
+    },
+    {
+      "name": "insert",
+      "path": "component.rs"
+    },
+    {
+      "name": "insert",
+      "path": "utils.rs"
+    },
+    {
+      "name": "insert",
+      "path": "utils.rs"
+    },
+    {
+      "name": "insert",
+      "path": "storage.rs"
+    },
+    {
+      "name": "insert",
+      "path": "storage.rs"
+    },
+    {
+      "name": "insert",
+      "path": "storage.rs"
+    },
+    {
+      "name": "insert",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "insert_bundle",
+      "path": "command.rs"
+    },
+    {
+      "name": "insert_bundle",
+      "path": "world.rs"
+    },
+    {
+      "name": "into_inner",
+      "path": "utils.rs"
+    },
+    {
+      "name": "into_inner",
+      "path": "system.rs"
+    },
+    {
+      "name": "is_added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_added",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_alive",
+      "path": "entity.rs"
+    },
+    {
+      "name": "is_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_changed",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_compatible",
+      "path": "component.rs"
+    },
+    {
+      "name": "is_compatible",
+      "path": "query.rs"
+    },
+    {
+      "name": "is_compatible_with",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "command.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "entity.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "table.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "table.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "dag.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "component.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "component.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "utils.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "utils.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "utils.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "storage.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "storage.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "storage.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "storage.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "storage.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "event.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "event.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "event.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "query.rs"
+    },
+    {
+      "name": "is_empty",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "is_enabled",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "is_enabled",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "is_initialized",
+      "path": "entity.rs"
+    },
+    {
+      "name": "is_newer_than",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "is_registered",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_send_sync",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_sparse_set",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "is_table",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "iter",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "iter",
+      "path": "table.rs"
+    },
+    {
+      "name": "iter",
+      "path": "dag.rs"
+    },
+    {
+      "name": "iter",
+      "path": "component.rs"
+    },
+    {
+      "name": "iter",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "iter",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "iter",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "iter",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "iter",
+      "path": "query.rs"
+    },
+    {
+      "name": "iter",
+      "path": "query.rs"
+    },
+    {
+      "name": "iter",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "iter_entities",
+      "path": "component.rs"
+    },
+    {
+      "name": "last_change_tick",
+      "path": "world.rs"
+    },
+    {
+      "name": "last_change_tick",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "last_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "layout",
+      "path": "component.rs"
+    },
+    {
+      "name": "len",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "len",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "len",
+      "path": "entity.rs"
+    },
+    {
+      "name": "len",
+      "path": "table.rs"
+    },
+    {
+      "name": "len",
+      "path": "table.rs"
+    },
+    {
+      "name": "len",
+      "path": "dag.rs"
+    },
+    {
+      "name": "len",
+      "path": "component.rs"
+    },
+    {
+      "name": "len",
+      "path": "component.rs"
+    },
+    {
+      "name": "len",
+      "path": "utils.rs"
+    },
+    {
+      "name": "len",
+      "path": "utils.rs"
+    },
+    {
+      "name": "len",
+      "path": "utils.rs"
+    },
+    {
+      "name": "len",
+      "path": "storage.rs"
+    },
+    {
+      "name": "len",
+      "path": "storage.rs"
+    },
+    {
+      "name": "len",
+      "path": "storage.rs"
+    },
+    {
+      "name": "len",
+      "path": "storage.rs"
+    },
+    {
+      "name": "len",
+      "path": "storage.rs"
+    },
+    {
+      "name": "len",
+      "path": "event.rs"
+    },
+    {
+      "name": "len",
+      "path": "event.rs"
+    },
+    {
+      "name": "len",
+      "path": "event.rs"
+    },
+    {
+      "name": "len",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "len",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "len",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "len",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "len",
+      "path": "query.rs"
+    },
+    {
+      "name": "len",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "map",
+      "path": "utils.rs"
+    },
+    {
+      "name": "map_entity",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "map_unchanged",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "merge",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "meta",
+      "path": "system.rs"
+    },
+    {
+      "name": "meta",
+      "path": "system.rs"
+    },
+    {
+      "name": "name",
+      "path": "component.rs"
+    },
+    {
+      "name": "name",
+      "path": "system.rs"
+    },
+    {
+      "name": "name",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "neighbors",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "command.rs"
+    },
+    {
+      "name": "new",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "new",
+      "path": "function_system.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "new",
+      "path": "resource.rs"
+    },
+    {
+      "name": "new",
+      "path": "resource.rs"
+    },
+    {
+      "name": "new",
+      "path": "resource.rs"
+    },
+    {
+      "name": "new",
+      "path": "resource.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "entity.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "table.rs"
+    },
+    {
+      "name": "new",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "dag.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "component.rs"
+    },
+    {
+      "name": "new",
+      "path": "exclusive_system.rs"
+    },
+    {
+      "name": "new",
+      "path": "world.rs"
+    },
+    {
+      "name": "new",
+      "path": "world.rs"
+    },
+    {
+      "name": "new",
+      "path": "world.rs"
+    },
+    {
+      "name": "new",
+      "path": "world.rs"
+    },
+    {
+      "name": "new",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "query_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "utils.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "storage.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "event.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "system.rs"
+    },
+    {
+      "name": "new",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "deferred.rs"
+    },
+    {
+      "name": "new",
+      "path": "deferred.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "observer.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "query.rs"
+    },
+    {
+      "name": "new",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "new",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "new",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "new",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "new_mutable",
+      "path": "world.rs"
+    },
+    {
+      "name": "new_readonly",
+      "path": "world.rs"
+    },
+    {
+      "name": "new_with_name",
+      "path": "component.rs"
+    },
+    {
+      "name": "next",
+      "path": "event.rs"
+    },
+    {
+      "name": "next",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "node_id",
+      "path": "dag.rs"
+    },
+    {
+      "name": "of",
+      "path": "resource.rs"
+    },
+    {
+      "name": "on_add",
+      "path": "component.rs"
+    },
+    {
+      "name": "on_add",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "on_insert",
+      "path": "component.rs"
+    },
+    {
+      "name": "on_insert",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "on_remove",
+      "path": "component.rs"
+    },
+    {
+      "name": "on_remove",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "or_insert",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "or_insert_with",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "parent",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "parent",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "plugin_count",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "position",
+      "path": "event.rs"
+    },
+    {
+      "name": "push",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "push",
+      "path": "storage.rs"
+    },
+    {
+      "name": "push",
+      "path": "event.rs"
+    },
+    {
+      "name": "push_row",
+      "path": "storage.rs"
+    },
+    {
+      "name": "read",
+      "path": "event.rs"
+    },
+    {
+      "name": "read",
+      "path": "event.rs"
+    },
+    {
+      "name": "reads",
+      "path": "component.rs"
+    },
+    {
+      "name": "reborrow",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "receive",
+      "path": "utils.rs"
+    },
+    {
+      "name": "record",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "record_component_removed",
+      "path": "world.rs"
+    },
+    {
+      "name": "register",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "register",
+      "path": "component.rs"
+    },
+    {
+      "name": "register",
+      "path": "component.rs"
+    },
+    {
+      "name": "register",
+      "path": "component.rs"
+    },
+    {
+      "name": "register",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "register",
+      "path": "event.rs"
+    },
+    {
+      "name": "register",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "register",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "register_plugin_fn",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "remove",
+      "path": "command.rs"
+    },
+    {
+      "name": "remove",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "remove",
+      "path": "resource.rs"
+    },
+    {
+      "name": "remove",
+      "path": "entity.rs"
+    },
+    {
+      "name": "remove",
+      "path": "component.rs"
+    },
+    {
+      "name": "remove",
+      "path": "utils.rs"
+    },
+    {
+      "name": "remove",
+      "path": "storage.rs"
+    },
+    {
+      "name": "remove",
+      "path": "storage.rs"
+    },
+    {
+      "name": "remove",
+      "path": "storage.rs"
+    },
+    {
+      "name": "remove_bundle",
+      "path": "command.rs"
+    },
+    {
+      "name": "remove_bundle",
+      "path": "world.rs"
+    },
+    {
+      "name": "remove_entity",
+      "path": "storage.rs"
+    },
+    {
+      "name": "remove_observers",
+      "path": "observer.rs"
+    },
+    {
+      "name": "reserve",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "reserve",
+      "path": "storage.rs"
+    },
+    {
+      "name": "reset",
+      "path": "event.rs"
+    },
+    {
+      "name": "run",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "run",
+      "path": "plugin.rs"
+    },
+    {
+      "name": "run",
+      "path": "system.rs"
+    },
+    {
+      "name": "run",
+      "path": "system.rs"
+    },
+    {
+      "name": "run_all",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "run_once",
+      "path": "condition.rs"
+    },
+    {
+      "name": "send",
+      "path": "utils.rs"
+    },
+    {
+      "name": "send",
+      "path": "event.rs"
+    },
+    {
+      "name": "send",
+      "path": "removal_detection.rs"
+    },
+    {
+      "name": "set_added",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "set_build_settings",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "set_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "set_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "set_changed",
+      "path": "change_detection.rs"
+    },
+    {
+      "name": "set_changed",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "should_clone",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "size",
+      "path": "utils.rs"
+    },
+    {
+      "name": "sparse_set_component_count",
+      "path": "storage.rs"
+    },
+    {
+      "name": "spawn",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "spawn",
+      "path": "bundle.rs"
+    },
+    {
+      "name": "spawn_bundle",
+      "path": "command.rs"
+    },
+    {
+      "name": "spawn_bundle",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "spawn_bundle",
+      "path": "world.rs"
+    },
+    {
+      "name": "spawn_empty",
+      "path": "command.rs"
+    },
+    {
+      "name": "spawn_empty",
+      "path": "world.rs"
+    },
+    {
+      "name": "storage_type",
+      "path": "component.rs"
+    },
+    {
+      "name": "storage_type",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "swap_remove",
+      "path": "table.rs"
+    },
+    {
+      "name": "swap_remove",
+      "path": "storage.rs"
+    },
+    {
+      "name": "swap_remove",
+      "path": "storage.rs"
+    },
+    {
+      "name": "system_count",
+      "path": "into_system.rs"
+    },
+    {
+      "name": "system_count",
+      "path": "system.rs"
+    },
+    {
+      "name": "table_component_count",
+      "path": "storage.rs"
+    },
+    {
+      "name": "table_id",
+      "path": "entity.rs"
+    },
+    {
+      "name": "table_row",
+      "path": "entity.rs"
+    },
+    {
+      "name": "target",
+      "path": "component.rs"
+    },
+    {
+      "name": "tick",
+      "path": "world.rs"
+    },
+    {
+      "name": "to",
+      "path": "dag.rs"
+    },
+    {
+      "name": "to_bits",
+      "path": "entity.rs"
+    },
+    {
+      "name": "to_u8",
+      "path": "system_param.rs"
+    },
+    {
+      "name": "topological_sort",
+      "path": "dag.rs"
+    },
+    {
+      "name": "trigger",
+      "path": "observer.rs"
+    },
+    {
+      "name": "trigger_add",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "trigger_insert",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "trigger_remove",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "type_id",
+      "path": "component.rs"
+    },
+    {
+      "name": "type_id",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "update",
+      "path": "event.rs"
+    },
+    {
+      "name": "value",
+      "path": "component.rs"
+    },
+    {
+      "name": "value",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "with",
+      "path": "query.rs"
+    },
+    {
+      "name": "with_capacity",
+      "path": "hierarchy.rs"
+    },
+    {
+      "name": "with_component",
+      "path": "entity.rs"
+    },
+    {
+      "name": "with_components",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "with_filter",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "with_source",
+      "path": "utils.rs"
+    },
+    {
+      "name": "with_target",
+      "path": "component.rs"
+    },
+    {
+      "name": "world",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "world",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "world",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "world",
+      "path": "entity.rs"
+    },
+    {
+      "name": "world",
+      "path": "entity.rs"
+    },
+    {
+      "name": "world",
+      "path": "world.rs"
+    },
+    {
+      "name": "world",
+      "path": "world.rs"
+    },
+    {
+      "name": "world",
+      "path": "world.rs"
+    },
+    {
+      "name": "world",
+      "path": "world.rs"
+    },
+    {
+      "name": "world",
+      "path": "world.rs"
+    },
+    {
+      "name": "world_mut",
+      "path": "schedule.rs"
+    },
+    {
+      "name": "world_mut",
+      "path": "entity.rs"
+    },
+    {
+      "name": "world_mut",
+      "path": "world.rs"
+    },
+    {
+      "name": "world_mut",
+      "path": "world.rs"
+    },
+    {
+      "name": "world_mut",
+      "path": "world.rs"
+    },
+    {
+      "name": "write_entity",
+      "path": "entity_advanced.rs"
+    },
+    {
+      "name": "writes",
+      "path": "component.rs"
+    }
+  ],
+  "consts": [
+    {
+      "name": "EMPTY",
+      "path": "table.rs"
+    },
+    {
+      "name": "EMPTY",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "INVALID",
+      "path": "table.rs"
+    },
+    {
+      "name": "INVALID",
+      "path": "archetype.rs"
+    },
+    {
+      "name": "PLACEHOLDER",
+      "path": "entity.rs"
+    },
+    {
+      "name": "fn",
+      "path": "utils.rs"
+    },
+    {
+      "name": "fn",
+      "path": "component_advanced.rs"
+    },
+    {
+      "name": "fn",
+      "path": "component_advanced.rs"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+    "autozig-app",
+    "autozig-asset",
+    "autozig-camera",
+    "autozig-color",
+    "autozig-core-pipeline",
+    "autozig-derive",
+    "autozig-diagnostic",
+    "autozig-ecs",
+    "autozig-hierarchy",
+    "autozig-image",
+    "autozig-input",
+    "autozig-light",
+    "autozig-log",
+    "autozig-macro-utils",
+    "autozig-math",
+    "autozig-mesh",
+    "autozig-pbr",
+    "autozig-ptr",
+    "autozig-reflect",
+    "autozig-render",
+    "autozig-shader",
+    "autozig-sprite",
+    "autozig-state",
+    "autozig-tasks",
+    "autozig-text",
+    "autozig-time",
+    "autozig-transform",
+    "autozig-ui",
+    "autozig-utils",
+    "autozig-window",
+    "autozig-winit",
+    "autozig_json",
+    "autozig_json_macro",
+    "examples/*",
+]
+
+# 统一管理常用依赖版本
+[workspace.dependencies]
+autozig = { path = "../autozig", version = "0.1.2" }
+bevy = { version = "0.14", default-features = false }
+
+# Profile 优化：大幅减少 target 目录体积
+[profile.dev]
+# 保留基本调试信息（行号），比 true (debug=2) 体积小 50%
+debug = 1
+# Linux 下加快链接速度，减少磁盘 IO
+split-debuginfo = "unpacked"
+
+# 关键配置：关闭依赖库的 debug 信息，大幅减少磁盘占用
+[profile.dev.package."*"]
+opt-level = 0
+debug = 0           # 依赖库不需要 debug 符号
+strip = "symbols"   # 剥离符号表
+
+[profile.release]
+opt-level = 3
+lto = "thin"        # 启用瘦 LTO，平衡编译速度和性能
+codegen-units = 16
+strip = "symbols"   # Release 模式也剥离符号表

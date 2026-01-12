@@ -37,13 +37,12 @@ pub const Vec3 = extern struct {
     }
 };
 
-pub const Anchor = extern union {
+// Anchor is now a simple struct with discriminant tag and optional custom values
+// This avoids the union complexity that causes Zig compiler crashes
+pub const Anchor = extern struct {
     tag: u8,
-    custom: extern struct {
-        _tag: u8,
-        x: f32,
-        y: f32,
-    },
+    custom_x: f32,
+    custom_y: f32,
 
     pub const CENTER: u8 = 0;
     pub const BOTTOM_LEFT: u8 = 1;
@@ -56,6 +55,14 @@ pub const Anchor = extern union {
     pub const TOP_RIGHT: u8 = 8;
     pub const CUSTOM: u8 = 9;
 
+    pub fn center() Anchor {
+        return .{ .tag = CENTER, .custom_x = 0.0, .custom_y = 0.0 };
+    }
+
+    pub fn custom(x: f32, y: f32) Anchor {
+        return .{ .tag = CUSTOM, .custom_x = x, .custom_y = y };
+    }
+
     pub fn asVec(self: Anchor) Vec2 {
         return switch (self.tag) {
             CENTER => Vec2.new(0.5, 0.5),
@@ -67,7 +74,7 @@ pub const Anchor = extern union {
             TOP_LEFT => Vec2.new(0.0, 1.0),
             TOP_CENTER => Vec2.new(0.5, 1.0),
             TOP_RIGHT => Vec2.new(1.0, 1.0),
-            CUSTOM => Vec2.new(self.custom.x, self.custom.y),
+            CUSTOM => Vec2.new(self.custom_x, self.custom_y),
             else => Vec2.new(0.5, 0.5),
         };
     }
@@ -90,7 +97,7 @@ pub const Sprite = extern struct {
             .flip_x = false,
             .flip_y = false,
             .custom_size = null,
-            .anchor = .{ .tag = Anchor.CENTER },
+            .anchor = Anchor.center(),
         };
     }
 
@@ -100,7 +107,7 @@ pub const Sprite = extern struct {
             .flip_x = flip_x,
             .flip_y = flip_y,
             .custom_size = null,
-            .anchor = .{ .tag = Anchor.CENTER },
+            .anchor = Anchor.center(),
         };
     }
 

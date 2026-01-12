@@ -2,13 +2,25 @@
 name = "autozig-ecs"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.77"
 
 [dependencies]
-autozig = { path = "../../autozig", version = "0.1.2" }
+thiserror = "2.0"
+ahash = "0.8"
+fixedbitset = "0.5"
+smallvec = "1.13"
+nonmax = "0.5"
+indexmap = "2.2"
+derive_more = { version = "1.0", features = ["from"] }
+
+# Zig integration
+autozig-macro = { path = "../../autozig/macro" }
 
 [build-dependencies]
-autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
+cc = "1.0"
 
-[dev-dependencies]
+[lib]
+path = "src/lib.rs"
 
+[features]
+default = []
+trace = []

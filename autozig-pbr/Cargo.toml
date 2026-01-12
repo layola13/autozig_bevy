@@ -2,24 +2,16 @@
 name = "autozig-pbr"
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/layola13/autozig"
-description = "PBR材质系统 - Bevy PBR简化版，支持WebGPU/WASM"
+license = "MIT"
+repository = "https://github.com/your-repo/autozig"
+description = "Bevy PBR rendering system for WebGPU/WASM platforms"
 build = "build.rs"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
-autozig-render = { path = "../autozig-render", version = "0.1.0" }
-autozig-light = { path = "../autozig-light", version = "0.1.0" }
-autozig-mesh = { path = "../autozig-mesh", version = "0.1.0" }
-autozig-color = { path = "../autozig-color", version = "0.1.0" }
-autozig-image = { path = "../autozig-image", version = "0.1.0" }
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
-anyhow = "1.0"
-
-[dev-dependencies]
 
 [lib]
 crate-type = ["lib"]

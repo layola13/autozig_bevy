@@ -25,6 +25,70 @@ use core::ptr::NonNull;
 pub use plugin_group::{PluginGroup, PluginGroupBuilder, PluginGroupExt};
 pub use default_plugins::{DefaultPlugins, MinimalPlugins};
 
+// ============================================================================
+// Schedule Label Types (Zero-Sized Types for type-safe schedule identification)
+// ============================================================================
+
+/// Schedule that runs first in the main loop, before all other schedules
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct First;
+
+/// Schedule that runs before Startup (only on first frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PreStartup;
+
+/// Schedule that runs once when the app starts (only on first frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Startup;
+
+/// Schedule that runs after Startup (only on first frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PostStartup;
+
+/// Schedule that runs before Update (every frame after startup)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PreUpdate;
+
+/// Main update loop schedule (every frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Update;
+
+/// Schedule that runs after Update (every frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PostUpdate;
+
+/// Schedule that runs last in the main loop (every frame)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Last;
+
+/// Main schedule in the fixed timestep loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedMain;
+
+/// Schedule that runs first in the fixed timestep loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedFirst;
+
+/// Schedule that runs before FixedUpdate in the fixed timestep loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedPreUpdate;
+
+/// Main fixed timestep update schedule
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedUpdate;
+
+/// Schedule that runs after FixedUpdate in the fixed timestep loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedPostUpdate;
+
+/// Schedule that runs last in the fixed timestep loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FixedLast;
+
+/// Main schedule marker
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Main;
+
 /// Schedule labels defining execution order in the main loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -45,6 +109,35 @@ pub enum MainScheduleOrder {
     PostUpdate = 6,
     /// Runs last in the schedule (every frame)
     Last = 7,
+}
+
+/// Fixed timestep schedule order
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum FixedMainScheduleOrder {
+    /// Runs first in the fixed timestep loop
+    FixedFirst = 0,
+    /// Runs before FixedUpdate
+    FixedPreUpdate = 1,
+    /// Main fixed update
+    FixedUpdate = 2,
+    /// Runs after FixedUpdate
+    FixedPostUpdate = 3,
+    /// Runs last in the fixed timestep loop
+    FixedLast = 4,
+}
+
+impl FixedMainScheduleOrder {
+    /// Get the schedule label as a string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FixedMainScheduleOrder::FixedFirst => "FixedFirst",
+            FixedMainScheduleOrder::FixedPreUpdate => "FixedPreUpdate",
+            FixedMainScheduleOrder::FixedUpdate => "FixedUpdate",
+            FixedMainScheduleOrder::FixedPostUpdate => "FixedPostUpdate",
+            FixedMainScheduleOrder::FixedLast => "FixedLast",
+        }
+    }
 }
 
 impl MainScheduleOrder {
@@ -85,6 +178,494 @@ impl MainScheduleOrder {
         ]
     }
 }
+
+// ============================================================================
+// Plugin System Enums
+// ============================================================================
+
+/// State of the plugin system
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum PluginsState {
+    /// Plugins are being added to the app
+    Adding = 0,
+    /// All plugins have been added, ready to build
+    Ready = 1,
+    /// Plugins are being built
+    Building = 2,
+    /// Plugins have been built and are ready to finish
+    Finishing = 3,
+    /// Plugins have finished initialization
+    Finished = 4,
+    /// Plugins are being cleaned up
+    Cleaning = 5,
+    /// All plugins have been cleaned up
+    Cleaned = 6,
+}
+
+/// Run mode for the application
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum RunMode {
+    /// Run the app loop continuously
+    Loop = 0,
+    /// Run the app loop once then exit
+    Once = 1,
+}
+
+impl Default for RunMode {
+    fn default() -> Self {
+        RunMode::Loop
+    }
+}
+
+/// Systems that run in the fixed main loop
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum RunFixedMainLoopSystems {
+    /// Run before the fixed timestep loop
+    BeforeFixedMainLoop = 0,
+    /// Run the fixed timestep loop
+    FixedMainLoop = 1,
+    /// Run after the fixed timestep loop
+    AfterFixedMainLoop = 2,
+}
+
+// ============================================================================
+// Plugin Implementations
+// ============================================================================
+
+use core::marker::PhantomData;
+
+/// Accessibility plugin for UI accessibility features
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AccessibilityPlugin;
+
+impl Plugin for AccessibilityPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "AccessibilityPlugin" }
+}
+
+/// Animation systems configuration
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AnimationSystems;
+
+/// Audio plugins group
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AudioPlugins;
+
+impl Plugin for AudioPlugins {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "AudioPlugins" }
+}
+
+/// Capsule collision plugin for physics
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CapsuleCollisionPlugin;
+
+impl Plugin for CapsuleCollisionPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "CapsuleCollisionPlugin" }
+}
+
+/// Example/test plugin
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Foo;
+
+impl Plugin for Foo {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "Foo" }
+}
+
+/// Force plugin for physics forces
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ForcePlugin;
+
+impl Plugin for ForcePlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "ForcePlugin" }
+}
+
+/// Hierarchy propagation plugin
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HierarchyPropagatePlugin;
+
+impl Plugin for HierarchyPropagatePlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "HierarchyPropagatePlugin" }
+}
+
+/// Hot patch plugin for runtime code updates
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HotPatchPlugin;
+
+impl Plugin for HotPatchPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "HotPatchPlugin" }
+}
+
+/// Marker for inherited properties in hierarchies
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Inherited;
+
+/// Internal plugin for framework internals
+#[derive(Debug, Default, Clone, Copy)]
+pub struct InternalPlugin;
+
+impl Plugin for InternalPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "InternalPlugin" }
+}
+
+/// Log level configuration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl Default for LogLevel {
+    fn default() -> Self {
+        LogLevel::Info
+    }
+}
+
+/// Logging plugin
+#[derive(Debug, Clone, Copy)]
+pub struct LogPlugin {
+    /// Log level filter
+    pub filter: &'static str,
+    /// Log level
+    pub level: LogLevel,
+}
+
+impl Default for LogPlugin {
+    fn default() -> Self {
+        Self {
+            filter: "wgpu=error,naga=warn",
+            level: LogLevel::Info,
+        }
+    }
+}
+
+impl Plugin for LogPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "LogPlugin" }
+}
+
+/// Main schedule plugin
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MainSchedulePlugin;
+
+impl Plugin for MainSchedulePlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "MainSchedulePlugin" }
+}
+
+/// No-op plugin group for testing
+#[derive(Debug, Default, Clone, Copy)]
+pub struct NoopPluginGroup;
+
+impl PluginGroup for NoopPluginGroup {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+    }
+    fn name() -> &'static str { "NoopPluginGroup" }
+}
+
+/// Panic handler plugin
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PanicHandlerPlugin;
+
+impl Plugin for PanicHandlerPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "PanicHandlerPlugin" }
+}
+
+/// Physics plugins group
+#[derive(Debug, Default, Clone, Copy)]
+pub struct PhysicsPlugins;
+
+impl Plugin for PhysicsPlugins {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "PhysicsPlugins" }
+}
+
+/// Marker type for plugin groups
+#[derive(Debug, Clone, Copy)]
+pub struct PluginGroupMarker<T>(PhantomData<T>);
+
+impl<T> Default for PluginGroupMarker<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+/// Marker type for plugins
+#[derive(Debug, Clone, Copy)]
+pub struct PluginMarker<T>(PhantomData<T>);
+
+impl<T> Default for PluginMarker<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+/// Marker type for plugin tuples
+#[derive(Debug, Clone, Copy)]
+pub struct PluginsTupleMarker<T>(PhantomData<T>);
+
+impl<T> Default for PluginsTupleMarker<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+/// Fixed main loop runner
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RunFixedMainLoop;
+
+/// Schedule runner plugin
+#[derive(Debug, Clone, Copy)]
+pub struct ScheduleRunnerPlugin {
+    /// Run mode for the app
+    pub run_mode: RunMode,
+}
+
+impl Default for ScheduleRunnerPlugin {
+    fn default() -> Self {
+        Self { run_mode: RunMode::Loop }
+    }
+}
+
+impl Plugin for ScheduleRunnerPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "ScheduleRunnerPlugin" }
+}
+
+/// Scene spawning marker
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SpawnScene;
+
+/// Sub-applications container
+#[derive(Debug, Default)]
+pub struct SubApps {
+    _marker: PhantomData<()>,
+}
+
+/// Task pool configuration options
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct TaskPoolOptions {
+    /// Minimum number of threads
+    pub min_threads: usize,
+    /// Maximum number of threads
+    pub max_threads: usize,
+    /// IO task pool thread count
+    pub io_threads: usize,
+    /// Async compute thread count
+    pub async_compute_threads: usize,
+    /// Compute task pool thread count
+    pub compute_threads: usize,
+}
+
+impl Default for TaskPoolOptions {
+    fn default() -> Self {
+        let available_parallelism = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        
+        Self {
+            min_threads: 1,
+            max_threads: usize::MAX,
+            io_threads: 4.min(available_parallelism),
+            async_compute_threads: 4.min(available_parallelism),
+            compute_threads: available_parallelism,
+        }
+    }
+}
+
+/// Thread assignment policy for task pools
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TaskPoolThreadAssignmentPolicy {
+    /// Use logical cores
+    LogicalCores = 0,
+    /// Use physical cores
+    PhysicalCores = 1,
+}
+
+impl Default for TaskPoolThreadAssignmentPolicy {
+    fn default() -> Self {
+        TaskPoolThreadAssignmentPolicy::LogicalCores
+    }
+}
+
+/// Terminal Ctrl+C handler plugin
+#[derive(Debug, Default, Clone, Copy)]
+pub struct TerminalCtrlCHandlerPlugin;
+
+impl Plugin for TerminalCtrlCHandlerPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "TerminalCtrlCHandlerPlugin" }
+}
+
+/// Tickrate plugin for fixed timestep configuration
+#[derive(Debug, Clone, Copy)]
+pub struct TickratePlugin {
+    /// Target ticks per second
+    pub ticks_per_second: f64,
+}
+
+impl Default for TickratePlugin {
+    fn default() -> Self {
+        Self { ticks_per_second: 60.0 }
+    }
+}
+
+impl Plugin for TickratePlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "TickratePlugin" }
+}
+
+/// Velocity plugin for physics velocity
+#[derive(Debug, Default, Clone, Copy)]
+pub struct VelocityPlugin;
+
+impl Plugin for VelocityPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "VelocityPlugin" }
+}
+
+/// Web compatibility plugin for WASM targets
+#[derive(Debug, Default, Clone, Copy)]
+pub struct WebCompatibilityPlugin;
+
+impl Plugin for WebCompatibilityPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "WebCompatibilityPlugin" }
+}
+
+// ============================================================================
+// Hierarchy Propagation Types
+// ============================================================================
+
+/// Marker for propagating changes down the hierarchy
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Propagate;
+
+/// Marker for propagating changes over a hierarchy
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PropagateOver;
+
+/// System set for propagation systems
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PropagateSet;
+
+/// Marker to stop propagation
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PropagateStop;
+
+// ============================================================================
+// Trait: Plugins (for plugin tuples)
+// ============================================================================
+
+/// Trait for types that can be used as a collection of plugins
+pub trait Plugins: Sized {
+    /// Add these plugins to the app
+    fn add_to_app(self, app: &mut App);
+}
+
+// Implement Plugins for single Plugin
+impl<P: Plugin> Plugins for P {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self);
+    }
+}
+
+// Implement Plugins for tuples of plugins (up to 12 elements)
+impl<P1: Plugin> Plugins for (P1,) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin> Plugins for (P1, P2) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin> Plugins for (P1, P2, P3) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin> Plugins for (P1, P2, P3, P4) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin> Plugins for (P1, P2, P3, P4, P5) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin> Plugins for (P1, P2, P3, P4, P5, P6) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+        app.add_plugin(self.7);
+    }
+}
+
+// ============================================================================
+// System Types
+// ============================================================================
 
 /// System function type
 pub type SystemFn = extern "C" fn();
@@ -329,11 +910,17 @@ impl App {
         self
     }
     
-    /// Add multiple plugins
+    /// Add multiple plugins (supports both iterators and tuples)
     pub fn add_plugins(&mut self, plugins: impl IntoIterator<Item = impl Plugin>) -> &mut Self {
         for plugin in plugins {
             self.add_plugin(plugin);
         }
+        self
+    }
+    
+    /// Add plugins from a Plugins implementor (tuples, etc.)
+    pub fn add_plugins_tuple<P: Plugins>(&mut self, plugins: P) -> &mut Self {
+        plugins.add_to_app(self);
         self
     }
     

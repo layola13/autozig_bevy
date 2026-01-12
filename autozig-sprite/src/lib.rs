@@ -1,10 +1,10 @@
 use autozig::include_zig;
 use autozig_color::Color;
-use autozig_math::{Vec2, Vec3};
+use autozig_math::{Rect, Vec2, Vec3};
 
 /// Sprite component for 2D rendering
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Sprite {
     /// Color tint for the sprite
     pub color: Color,
@@ -16,32 +16,53 @@ pub struct Sprite {
     pub custom_size: Option<Vec2>,
     /// Anchor point for sprite positioning
     pub anchor: Anchor,
+    /// Rectangle representing the region of the sprite's image to render
+    pub rect: Option<Rect>,
+    /// How the sprite's image will be scaled
+    pub image_mode: SpriteImageMode,
 }
 
 /// Anchor point for sprite positioning
+///
+/// Normalized offset from the center of a 2D renderable entity.
+/// The value is a Vec2 where:
+/// - (0.0, 0.0) represents the center
+/// - (-0.5, -0.5) represents bottom-left
+/// - (0.5, 0.5) represents top-right
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Anchor {
-    /// Center of the sprite
-    Center,
-    /// Bottom-left corner
-    BottomLeft,
-    /// Bottom-center
-    BottomCenter,
-    /// Bottom-right corner
-    BottomRight,
-    /// Center-left
-    CenterLeft,
-    /// Center-right
-    CenterRight,
-    /// Top-left corner
-    TopLeft,
-    /// Top-center
-    TopCenter,
-    /// Top-right corner
-    TopRight,
-    /// Custom anchor point (normalized coordinates: 0.0 = left/bottom, 1.0 = right/top)
-    Custom(Vec2),
+pub struct Anchor(pub Vec2);
+
+impl Anchor {
+    pub const BOTTOM_LEFT: Self = Self(Vec2 { x: -0.5, y: -0.5 });
+    pub const BOTTOM_CENTER: Self = Self(Vec2 { x: 0.0, y: -0.5 });
+    pub const BOTTOM_RIGHT: Self = Self(Vec2 { x: 0.5, y: -0.5 });
+    pub const CENTER_LEFT: Self = Self(Vec2 { x: -0.5, y: 0.0 });
+    pub const CENTER: Self = Self(Vec2::ZERO);
+    pub const CENTER_RIGHT: Self = Self(Vec2 { x: 0.5, y: 0.0 });
+    pub const TOP_LEFT: Self = Self(Vec2 { x: -0.5, y: 0.5 });
+    pub const TOP_CENTER: Self = Self(Vec2 { x: 0.0, y: 0.5 });
+    pub const TOP_RIGHT: Self = Self(Vec2 { x: 0.5, y: 0.5 });
+
+    pub fn as_vec(&self) -> Vec2 {
+        self.0
+    }
+
+    pub fn custom(x: f32, y: f32) -> Self {
+        Self(Vec2::new(x, y))
+    }
+}
+
+impl Default for Anchor {
+    fn default() -> Self {
+        Self::CENTER
+    }
+}
+
+impl From<Vec2> for Anchor {
+    fn from(value: Vec2) -> Self {
+        Self(value)
+    }
 }
 
 /// Texture atlas for sprite sheets and animations
@@ -68,6 +89,357 @@ pub struct TextureAtlasLayout {
     pub padding: Option<Vec2>,
     /// Offset from the top-left corner
     pub offset: Option<Vec2>,
+}
+
+/// Controls how the sprite's image is altered when scaled
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpriteImageMode {
+    /// The sprite will take on the size of the image by default,
+    /// and will be stretched or shrunk if custom_size is set
+    Auto,
+    /// The texture will be scaled to fit the rect bounds
+    Scale(SpriteScalingMode),
+    /// The texture will be cut in 9 slices, keeping proportions on resize
+    Sliced(TextureSlicer),
+    /// The texture will be repeated if stretched beyond stretch_value
+    Tiled {
+        /// Should the image repeat horizontally
+        tile_x: bool,
+        /// Should the image repeat vertically
+        tile_y: bool,
+        /// The texture will repeat when the ratio between drawing dimensions
+        /// and original texture size are above this value
+        stretch_value: f32,
+    },
+}
+
+impl Default for SpriteImageMode {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+impl SpriteImageMode {
+    /// Returns true if this mode uses slices internally
+    pub fn uses_slices(&self) -> bool {
+        matches!(self, Self::Sliced(..) | Self::Tiled { .. })
+    }
+
+    /// Returns SpriteScalingMode if scale is present
+    pub fn scale(&self) -> Option<SpriteScalingMode> {
+        if let Self::Scale(scale) = self {
+            Some(*scale)
+        } else {
+            None
+        }
+    }
+}
+
+/// Represents various modes for proportional scaling of a texture
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SpriteScalingMode {
+    /// Scale uniformly to fill and center, maintaining aspect ratio
+    FillCenter,
+    /// Scale to fill, align overflow to start (left/top)
+    FillStart,
+    /// Scale to fill, align overflow to end (right/bottom)
+    FillEnd,
+    /// Scale to fit entirely inside, center aligned
+    FitCenter,
+    /// Scale to fit entirely inside, align to start (left/top)
+    FitStart,
+    /// Scale to fit entirely inside, align to end (right/bottom)
+    FitEnd,
+}
+
+impl Default for SpriteScalingMode {
+    fn default() -> Self {
+        Self::FillCenter
+    }
+}
+
+/// Border rectangle defining insets for 9-slice scaling
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BorderRect {
+    /// Inset applied to the rectangle's minimum corner (left, bottom)
+    pub min_inset: Vec2,
+    /// Inset applied to the rectangle's maximum corner (right, top)
+    pub max_inset: Vec2,
+}
+
+impl Default for BorderRect {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl BorderRect {
+    /// An empty border with zero thickness along each edge
+    pub const ZERO: Self = Self {
+        min_inset: Vec2::ZERO,
+        max_inset: Vec2::ZERO,
+    };
+
+    /// Creates a border with the same inset along each edge
+    pub fn all(inset: f32) -> Self {
+        Self {
+            min_inset: Vec2::splat(inset),
+            max_inset: Vec2::splat(inset),
+        }
+    }
+
+    /// Creates a border with horizontal and vertical insets
+    pub fn axes(horizontal: f32, vertical: f32) -> Self {
+        let insets = Vec2::new(horizontal, vertical);
+        Self {
+            min_inset: insets,
+            max_inset: insets,
+        }
+    }
+}
+
+impl From<f32> for BorderRect {
+    fn from(inset: f32) -> Self {
+        Self::all(inset)
+    }
+}
+
+impl From<[f32; 4]> for BorderRect {
+    fn from([min_x, max_x, min_y, max_y]: [f32; 4]) -> Self {
+        Self {
+            min_inset: Vec2::new(min_x, min_y),
+            max_inset: Vec2::new(max_x, max_y),
+        }
+    }
+}
+
+/// Defines how a texture slice scales when resized
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SliceScaleMode {
+    /// The slice will be stretched to fit the area
+    Stretch,
+    /// The slice will be tiled to fit the area
+    Tile {
+        /// The slice will repeat when the ratio between drawing dimensions
+        /// and original texture size are above this value
+        stretch_value: f32,
+    },
+}
+
+impl Default for SliceScaleMode {
+    fn default() -> Self {
+        Self::Stretch
+    }
+}
+
+/// Single texture slice for 9-slice rendering
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextureSlice {
+    /// Texture area to draw
+    pub texture_rect: Rect,
+    /// Slice draw size
+    pub draw_size: Vec2,
+    /// Offset of the slice
+    pub offset: Vec2,
+}
+
+/// Slices a texture using 9-slicing technique
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextureSlicer {
+    /// Border insets in pixels defining the nine slicing sections
+    pub border: BorderRect,
+    /// How the center part scales
+    pub center_scale_mode: SliceScaleMode,
+    /// How the side parts scale
+    pub sides_scale_mode: SliceScaleMode,
+    /// Maximum scale of corner slices (default 1.0)
+    pub max_corner_scale: f32,
+}
+
+impl Default for TextureSlicer {
+    fn default() -> Self {
+        Self {
+            border: BorderRect::default(),
+            center_scale_mode: SliceScaleMode::default(),
+            sides_scale_mode: SliceScaleMode::default(),
+            max_corner_scale: 1.0,
+        }
+    }
+}
+
+impl TextureSlicer {
+    /// Creates a new TextureSlicer with the given border
+    pub fn new(border: BorderRect) -> Self {
+        Self {
+            border,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the center scale mode
+    pub fn with_center_scale_mode(mut self, mode: SliceScaleMode) -> Self {
+        self.center_scale_mode = mode;
+        self
+    }
+
+    /// Sets the sides scale mode
+    pub fn with_sides_scale_mode(mut self, mode: SliceScaleMode) -> Self {
+        self.sides_scale_mode = mode;
+        self
+    }
+
+    /// Sets the maximum corner scale
+    pub fn with_max_corner_scale(mut self, scale: f32) -> Self {
+        self.max_corner_scale = scale;
+        self
+    }
+}
+
+/// 2D text component
+#[repr(C)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct Text2d {
+    /// The text string to display
+    pub text: String,
+    /// Font size
+    pub font_size: f32,
+    /// Text color
+    pub color: Color,
+}
+
+impl Text2d {
+    /// Creates new 2D text
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            font_size: 12.0,
+            color: Color::WHITE,
+        }
+    }
+
+    /// Sets the font size
+    pub fn with_font_size(mut self, size: f32) -> Self {
+        self.font_size = size;
+        self
+    }
+
+    /// Sets the color
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+}
+
+impl Default for Text2d {
+    fn default() -> Self {
+        Self::new("")
+    }
+}
+
+impl From<&str> for Text2d {
+    fn from(text: &str) -> Self {
+        Self::new(text)
+    }
+}
+
+impl From<String> for Text2d {
+    fn from(text: String) -> Self {
+        Self::new(text)
+    }
+}
+
+/// Shadow effect for 2D text
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Text2dShadow {
+    /// Shadow displacement offset
+    pub offset: Vec2,
+    /// Shadow color
+    pub color: Color,
+}
+
+impl Default for Text2dShadow {
+    fn default() -> Self {
+        Self {
+            offset: Vec2::new(4.0, -4.0),
+            color: Color::BLACK,
+        }
+    }
+}
+
+impl Text2dShadow {
+    /// Creates a new text shadow with the given offset
+    pub fn new(offset: Vec2) -> Self {
+        Self {
+            offset,
+            color: Color::BLACK,
+        }
+    }
+
+    /// Sets the shadow color
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+}
+
+/// Sprite picking mode determining how transparent pixels are handled
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SpritePickingMode {
+    /// Consider the entire bounding box, ignoring transparency
+    BoundingBox,
+    /// Only consider pixels with alpha above the threshold (inclusive)
+    AlphaThreshold(f32),
+}
+
+impl Default for SpritePickingMode {
+    fn default() -> Self {
+        Self::AlphaThreshold(0.1)
+    }
+}
+
+/// Camera marker for sprite picking
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SpritePickingCamera;
+
+/// Settings for sprite picking behavior
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SpritePickingSettings {
+    /// When true, only cameras with SpritePickingCamera component are used
+    pub require_markers: bool,
+    /// How transparent pixels are handled during picking
+    pub picking_mode: SpritePickingMode,
+}
+
+impl Default for SpritePickingSettings {
+    fn default() -> Self {
+        Self {
+            require_markers: false,
+            picking_mode: SpritePickingMode::default(),
+        }
+    }
+}
+
+/// Plugin marker for sprite picking functionality
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SpritePickingPlugin;
+
+/// Main sprite rendering plugin
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SpritePlugin;
+
+/// System set labels for sprite rendering
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpriteSystems {
+    /// Extract sprites for rendering
+    ExtractSprites,
+    /// Compute texture slices
+    ComputeSlices,
 }
 
 /// Vertex data for sprite rendering
@@ -172,29 +544,6 @@ impl Sprite {
     }
 }
 
-impl Anchor {
-    pub const CENTER: Self = Self::Center;
-    pub const BOTTOM_LEFT: Self = Self::BottomLeft;
-    pub const BOTTOM_CENTER: Self = Self::BottomCenter;
-    pub const BOTTOM_RIGHT: Self = Self::BottomRight;
-    pub const CENTER_LEFT: Self = Self::CenterLeft;
-    pub const CENTER_RIGHT: Self = Self::CenterRight;
-    pub const TOP_LEFT: Self = Self::TopLeft;
-    pub const TOP_CENTER: Self = Self::TopCenter;
-    pub const TOP_RIGHT: Self = Self::TopRight;
-
-    pub fn as_vec(&self) -> Vec2 {
-        anchor_as_vec(*self)
-    }
-
-    pub fn is_custom(&self) -> bool {
-        anchor_is_custom(*self)
-    }
-
-    pub fn custom(x: f32, y: f32) -> Self {
-        Self::Custom(Vec2::new(x, y))
-    }
-}
 
 impl TextureAtlas {
     pub fn new(index: usize, layout: TextureAtlasLayout) -> Self {

@@ -1,31 +1,30 @@
 const std = @import("std");
-const Color = @import("color.zig").Color;
 
 pub const LinearRgba = extern struct {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+    red: f32,
+    green: f32,
+    blue: f32,
+    alpha: f32,
 
     pub fn init(r: f32, g: f32, b: f32, a: f32) LinearRgba {
-        return .{ .r = r, .g = g, .b = b, .a = a };
+        return .{ .red = r, .green = g, .blue = b, .alpha = a };
     }
 
-    pub fn fromRgba(color: Color) LinearRgba {
+    pub fn fromSrgba(color: @import("srgba.zig").Srgba) LinearRgba {
         return LinearRgba{
-            .r = srgbToLinear(color.r),
-            .g = srgbToLinear(color.g),
-            .b = srgbToLinear(color.b),
-            .a = color.a,
+            .red = srgbToLinear(color.red),
+            .green = srgbToLinear(color.green),
+            .blue = srgbToLinear(color.blue),
+            .alpha = color.alpha,
         };
     }
 
-    pub fn toRgba(self: LinearRgba) Color {
-        return Color{
-            .r = linearToSrgb(self.r),
-            .g = linearToSrgb(self.g),
-            .b = linearToSrgb(self.b),
-            .a = self.a,
+    pub fn toSrgba(self: LinearRgba) @import("srgba.zig").Srgba {
+        return @import("srgba.zig").Srgba{
+            .red = linearToSrgb(self.red),
+            .green = linearToSrgb(self.green),
+            .blue = linearToSrgb(self.blue),
+            .alpha = self.alpha,
         };
     }
 
@@ -47,25 +46,32 @@ pub const LinearRgba = extern struct {
 
     pub fn lerp(self: LinearRgba, other: LinearRgba, t: f32) LinearRgba {
         return LinearRgba{
-            .r = self.r + (other.r - self.r) * t,
-            .g = self.g + (other.g - self.g) * t,
-            .b = self.b + (other.b - self.b) * t,
-            .a = self.a + (other.a - self.a) * t,
+            .red = self.red + (other.red - self.red) * t,
+            .green = self.green + (other.green - self.green) * t,
+            .blue = self.blue + (other.blue - self.blue) * t,
+            .alpha = self.alpha + (other.alpha - self.alpha) * t,
         };
+    }
+
+    pub fn toOklaba(self: LinearRgba) @import("oklaba.zig").Oklaba {
+        return @import("oklaba.zig").Oklaba.fromLinearRgba(self);
+    }
+
+    pub fn fromOklaba(oklab: @import("oklaba.zig").Oklaba) LinearRgba {
+        return oklab.toLinearRgba();
+    }
+
+    pub fn toXyza(self: LinearRgba) @import("xyza.zig").Xyza {
+        return @import("xyza.zig").Xyza.fromLinearRgba(self);
+    }
+
+    pub fn fromXyza(xyz: @import("xyza.zig").Xyza) LinearRgba {
+        return xyz.toLinearRgba();
     }
 };
 
-// FFI exports
 export fn linear_rgba_init(r: f32, g: f32, b: f32, a: f32) LinearRgba {
     return LinearRgba.init(r, g, b, a);
-}
-
-export fn linear_rgba_from_rgba(color: Color) LinearRgba {
-    return LinearRgba.fromRgba(color);
-}
-
-export fn linear_rgba_to_rgba(linear: LinearRgba) Color {
-    return linear.toRgba();
 }
 
 export fn linear_rgba_lerp(a: LinearRgba, b: LinearRgba, t: f32) LinearRgba {

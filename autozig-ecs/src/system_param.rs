@@ -58,6 +58,14 @@ pub trait SystemParam: Sized {
     fn access_flags() -> WorldAccessFlags;
 }
 
+/// Marker trait for SystemParam types that only read data (no mutable access)
+/// This is used for system scheduling to detect data dependencies
+pub trait ReadOnlySystemParam: SystemParam {}
+
+/// Marker trait for SystemParam types with 'static lifetime (no lifetime dependencies)
+/// This allows certain optimizations in system scheduling
+pub trait StaticSystemParam: SystemParam {}
+
 // Note: Res and ResMut SystemParam implementations will be added
 // once we extend World with resource access methods
 
@@ -73,6 +81,10 @@ impl SystemParam for () {
         WorldAccessFlags::default()
     }
 }
+
+// Implement ReadOnlySystemParam and StaticSystemParam for unit type
+impl ReadOnlySystemParam for () {}
+impl StaticSystemParam for () {}
 
 // Tuple implementations for multiple parameters
 macro_rules! impl_system_param_tuple {

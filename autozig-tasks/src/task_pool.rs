@@ -80,6 +80,87 @@ impl Default for TaskPool {
     }
 }
 
+// ============================================================================
+// Task Pool Builder
+// ============================================================================
+
+pub struct TaskPoolBuilder {
+    num_threads: Option<usize>,
+    stack_size: Option<usize>,
+    thread_name: Option<String>,
+}
+
+impl TaskPoolBuilder {
+    pub fn new() -> Self {
+        Self {
+            num_threads: None,
+            stack_size: None,
+            thread_name: None,
+        }
+    }
+
+    pub fn num_threads(mut self, num_threads: usize) -> Self {
+        self.num_threads = Some(num_threads);
+        self
+    }
+
+    pub fn stack_size(mut self, stack_size: usize) -> Self {
+        self.stack_size = Some(stack_size);
+        self
+    }
+
+    pub fn thread_name(mut self, thread_name: impl Into<String>) -> Self {
+        self.thread_name = Some(thread_name.into());
+        self
+    }
+
+    pub fn build(self) -> TaskPool {
+        let num_threads = self.num_threads.unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4)
+        });
+        TaskPool::with_num_threads(num_threads)
+    }
+}
+
+impl Default for TaskPoolBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Scope
+// ============================================================================
+
+pub struct Scope<'scope, 'env: 'scope> {
+    _marker: std::marker::PhantomData<(&'scope (), &'env ())>,
+}
+
+impl<'scope, 'env: 'scope> Scope<'scope, 'env> {
+    pub fn spawn<F>(&self, f: F)
+    where
+        F: FnOnce() + Send + 'scope,
+    {
+        // Simplified implementation
+        f();
+    }
+}
+
+impl TaskPool {
+    pub fn scope<'env, F, R>(&self, f: F) -> R
+    where
+        F: for<'scope> FnOnce(&Scope<'scope, 'env>) -> R + 'env,
+        R: Send,
+    {
+        let scope = Scope {
+            _marker: std::marker::PhantomData,
+        };
+        f(&scope)
+    }
+}
+
 pub mod prelude {
     pub use super::TaskPool;
 }

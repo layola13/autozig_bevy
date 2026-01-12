@@ -45,6 +45,12 @@ pub mod float_ord;
 pub mod swizzles;
 pub mod ops;
 
+// New extended modules for 130 API types
+pub mod int_vectors;
+pub mod affine_ext;
+pub mod extended_types;
+pub mod swizzles_ext;
+
 pub use vec3::Vec3;
 pub use vec2::Vec2;
 pub use vec4::Vec4;
@@ -91,3 +97,65 @@ pub use enums::{CompassQuadrant, EulerRot, InvalidDirectionError};
 pub use float_ord::FloatOrd;
 pub use swizzles::{Vec2Swizzles, Vec3Swizzles, Vec4Swizzles};
 pub use ops::FloatPow;
+
+// Extended integer vector types (18 new types)
+pub use int_vectors::{
+    I8Vec2, I8Vec3, I8Vec4,
+    I16Vec2, I16Vec3, I16Vec4,
+    I64Vec2, I64Vec3, I64Vec4,
+    U8Vec2, U8Vec3, U8Vec4,
+    U16Vec2, U16Vec3, U16Vec4,
+    U64Vec2, U64Vec3, U64Vec4,
+    BVec3A, BVec4A,
+};
+
+// Extended affine transform types (3 new types)
+pub use affine_ext::{DAffine2, DAffine3, Affine3A};
+
+// Extended shapes, curves, bounds, and other types (70+ new types)
+pub use extended_types::{
+    // Direction aliases (3 types)
+    Direction2d, Direction3d, Direction3dA,
+    
+    // Curve types (14 types)
+    CubicBezier2d, QuadraticBezier2d, QuadraticBezier3d,
+    CubicBSpline, CubicCardinalSpline, CubicCurve, CubicSegment,
+    CubicHermite, CubicNurbs, RationalCurve, RationalSegment,
+    
+    // 2D shapes (13 types)
+    Arc2d, CircularSector, CircularSegment, Ellipse, Line2d,
+    Rectangle, RegularPolygon, Rhombus, Segment2d,
+    Polygon, BoxedPolygon, Polyline2d, BoxedPolyline2d,
+    
+    // 3D shapes (9 types)
+    Line3d, Segment3d, Triangle3d, Tetrahedron,
+    Cone, ConicalFrustum, Torus,
+    Polyline3d, BoxedPolyline3d,
+    
+    // Bounding volumes (2 types)
+    BoundingCircle, BoundingSphere,
+    
+    // Mesh and extrusion (5 types)
+    Extruded, Extrusion, ExtrusionBuilder, NormalDisplacement, Gizmos,
+    
+    // Samplers (3 types)
+    ChordLength, UniformMeshSampler, ShapeSample,
+    
+    // Enums (6 types)
+    CubicNurbsError, IntersectionKind, Joinable, Rotation2d, WindingOrder, MeshingError,
+    
+    // Traits (11 types)
+    Primitive2d, Primitive3d,
+    Bounded2d, Bounded3d, BoundedExtrusion,
+    Measured2d, Measured3d,
+    IntersectsVolume, CubicGenerator, RationalGenerator, SampleCurve,
+    BoundingVolume,
+};
+
+// Extended swizzle traits (12 new trait types)
+pub use swizzles_ext::{
+    BVec2Swizzles, BVec3Swizzles, BVec4Swizzles,
+    DVec2Swizzles, DVec3Swizzles, DVec4Swizzles,
+    IVec2Swizzles, IVec3Swizzles, IVec4Swizzles,
+    UVec2Swizzles, UVec3Swizzles, UVec4Swizzles,
+};

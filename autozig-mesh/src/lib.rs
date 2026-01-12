@@ -112,7 +112,7 @@ pub struct VertexAttributeDesc {
 
 /// 顶点缓冲区布局
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct VertexBufferLayout {
     pub attributes: [VertexAttributeDesc; 8],
     pub attribute_count: u32,
@@ -461,5 +461,937 @@ impl MeshUtils {
 
     pub fn generate_wireframe(mesh: &Mesh) -> Result<Mesh, &'static str> {
         mesh.generate_wireframe()
+    }
+}
+
+
+// ============================================================================
+// Bevy Mesh API Compatibility Layer - 56 Missing Types
+// ============================================================================
+
+// ============================================================================
+// Enumerations (15 types)
+// ============================================================================
+
+/// Capsule UV Profile
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CapsuleUvProfile {
+    /// UV profile for uniform mapping
+    Uniform = 0,
+    /// UV profile for fixed mapping
+    Fixed = 1,
+}
+
+/// Circular Mesh UV Mode
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CircularMeshUvMode {
+    /// Map UVs to unit square
+    Uniform = 0,
+    /// Stretch UVs along the perimeter
+    Stretched = 1,
+}
+
+/// Cone Anchor
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ConeAnchor {
+    /// Anchor at the tip
+    Tip = 0,
+    /// Anchor at the base
+    Base = 1,
+    /// Anchor at the center
+    Center = 2,
+}
+
+/// Cylinder Anchor
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CylinderAnchor {
+    /// Anchor at the top
+    Top = 0,
+    /// Anchor at the bottom
+    Bottom = 1,
+    /// Anchor at the center
+    Center = 2,
+}
+
+/// Generate Tangents Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenerateTangentsError {
+    /// Missing positions
+    MissingPositions = 0,
+    /// Missing normals
+    MissingNormals = 1,
+    /// Missing UVs
+    MissingUvs = 2,
+    /// Invalid mesh topology
+    InvalidTopology = 3,
+}
+
+/// Icosphere Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IcosphereError {
+    /// Subdivision level too high
+    SubdivisionTooHigh = 0,
+    /// Invalid radius
+    InvalidRadius = 1,
+}
+
+/// Mesh indices
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Indices {
+    /// 16-bit indices
+    U16(Vec<u16>),
+    /// 32-bit indices
+    U32(Vec<u32>),
+}
+
+/// Mesh Access Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MeshAccessError {
+    /// Attribute not found
+    AttributeNotFound = 0,
+    /// Invalid attribute format
+    InvalidFormat = 1,
+}
+
+/// Mesh Merge Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MeshMergeError {
+    /// Incompatible vertex formats
+    IncompatibleFormats = 0,
+    /// Buffer overflow
+    BufferOverflow = 1,
+}
+
+/// Mesh Triangles Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MeshTrianglesError {
+    /// Missing indices
+    MissingIndices = 0,
+    /// Invalid topology
+    InvalidTopology = 1,
+}
+
+/// Mesh Winding Invert Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MeshWindingInvertError {
+    /// Missing indices
+    MissingIndices = 0,
+    /// Invalid topology
+    InvalidTopology = 1,
+}
+
+/// Morph Build Error
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MorphBuildError {
+    /// Mismatched vertex count
+    MismatchedVertexCount = 0,
+    /// Too many morph targets
+    TooManyTargets = 1,
+}
+
+/// Perimeter Segment
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PerimeterSegment {
+    /// Straight segment
+    Straight = 0,
+    /// Arc segment
+    Arc = 1,
+}
+
+/// Sphere Kind
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SphereKind {
+    /// Icosphere (geodesic)
+    Ico = 0,
+    /// UV sphere (latitude-longitude)
+    Uv = 1,
+}
+
+/// Vertex Attribute Values - all possible vertex attribute formats
+#[derive(Debug, Clone, PartialEq)]
+pub enum VertexAttributeValues {
+    Float32(Vec<f32>),
+    Float32x2(Vec<[f32; 2]>),
+    Float32x3(Vec<[f32; 3]>),
+    Float32x4(Vec<[f32; 4]>),
+    Sint8x2(Vec<[i8; 2]>),
+    Sint8x4(Vec<[i8; 4]>),
+    Uint8x2(Vec<[u8; 2]>),
+    Uint8x4(Vec<[u8; 4]>),
+    Sint16x2(Vec<[i16; 2]>),
+    Sint16x4(Vec<[i16; 4]>),
+    Uint16x2(Vec<[u16; 2]>),
+    Uint16x4(Vec<[u16; 4]>),
+    Sint32(Vec<i32>),
+    Sint32x2(Vec<[i32; 2]>),
+    Sint32x3(Vec<[i32; 3]>),
+    Sint32x4(Vec<[i32; 4]>),
+    Uint32(Vec<u32>),
+    Uint32x2(Vec<[u32; 2]>),
+    Uint32x3(Vec<[u32; 3]>),
+    Uint32x4(Vec<[u32; 4]>),
+    Snorm8x2(Vec<[i8; 2]>),
+    Snorm8x4(Vec<[i8; 4]>),
+    Unorm8x2(Vec<[u8; 2]>),
+    Unorm8x4(Vec<[u8; 4]>),
+    Snorm16x2(Vec<[i16; 2]>),
+    Snorm16x4(Vec<[i16; 4]>),
+    Unorm16x2(Vec<[u16; 2]>),
+    Unorm16x4(Vec<[u16; 4]>),
+}
+
+// ============================================================================
+// Struct Types (42 types)
+// ============================================================================
+
+/// Annulus Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AnnulusMeshBuilder {
+    pub inner_radius: f32,
+    pub outer_radius: f32,
+    pub segments: u32,
+}
+
+/// Base Mesh Pipeline Key
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BaseMeshPipelineKey {
+    pub bits: u32,
+}
+
+/// Capsule 2D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Capsule2dMeshBuilder {
+    pub radius: f32,
+    pub half_length: f32,
+    pub segments: u32,
+}
+
+/// Capsule 3D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Capsule3dMeshBuilder {
+    pub radius: f32,
+    pub half_length: f32,
+    pub rings: u32,
+    pub segments: u32,
+    pub uv_profile: CapsuleUvProfile,
+}
+
+/// Circle Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CircleMeshBuilder {
+    pub radius: f32,
+    pub segments: u32,
+}
+
+/// Circular Sector Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CircularSectorMeshBuilder {
+    pub radius: f32,
+    pub angle: f32,
+    pub segments: u32,
+}
+
+/// Circular Segment Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CircularSegmentMeshBuilder {
+    pub radius: f32,
+    pub angle: f32,
+    pub segments: u32,
+}
+
+/// Cone Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConeMeshBuilder {
+    pub radius: f32,
+    pub height: f32,
+    pub segments: u32,
+    pub anchor: ConeAnchor,
+}
+
+/// Conical Frustum Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConicalFrustumMeshBuilder {
+    pub radius_top: f32,
+    pub radius_bottom: f32,
+    pub height: f32,
+    pub segments: u32,
+}
+
+/// Convex Polygon Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ConvexPolygonMeshBuilder {
+    // Using a pointer to Vec for FFI compatibility
+    points_ptr: *const [f32; 2],
+    points_len: usize,
+}
+
+/// Cuboid Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CuboidMeshBuilder {
+    pub half_size: [f32; 3],
+}
+
+/// Cylinder Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CylinderMeshBuilder {
+    pub radius: f32,
+    pub height: f32,
+    pub segments: u32,
+    pub anchor: CylinderAnchor,
+}
+
+/// Ellipse Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EllipseMeshBuilder {
+    pub half_size: [f32; 2],
+    pub segments: u32,
+}
+
+/// Extrusion Builder
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct ExtrusionBuilder {
+    // Using pointers for FFI compatibility
+    base_shape_ptr: *const u8,
+    base_shape_len: usize,
+    pub depth: f32,
+}
+
+/// From Vertex Attribute Error
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FromVertexAttributeError {
+    pub error_code: u32,
+}
+
+/// Inherit Weight Systems
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InheritWeightSystems {
+    pub bits: u32,
+}
+
+/// Mesh 2D marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Mesh2d;
+
+/// Mesh 3D marker
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Mesh3d;
+
+/// Mesh Deserializer
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MeshDeserializer {
+    // Opaque pointer for deserializer state
+    state: *mut std::ffi::c_void,
+}
+
+/// Mesh Morph Weights
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MeshMorphWeights {
+    // Pointer to weights array
+    weights_ptr: *const f32,
+    weights_len: usize,
+}
+
+/// Mesh Plugin
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MeshPlugin;
+
+/// Mesh Tag
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MeshTag {
+    pub id: u64,
+}
+
+/// Mesh Vertex Attribute
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MeshVertexAttribute {
+    pub id: MeshVertexAttributeId,
+    pub descriptor: VertexAttributeDescriptor,
+}
+
+/// Mesh Vertex Attribute ID
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MeshVertexAttributeId {
+    pub id: u64,
+}
+
+/// Mesh Vertex Buffer Layout (alias for VertexBufferLayout)
+pub type MeshVertexBufferLayout = VertexBufferLayout;
+
+/// Mesh Vertex Buffer Layout Reference
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct MeshVertexBufferLayoutRef<'a> {
+    layout: &'a VertexBufferLayout,
+}
+
+/// Mesh Vertex Buffer Layouts
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MeshVertexBufferLayouts {
+    layouts_ptr: *const VertexBufferLayout,
+    layouts_len: usize,
+}
+
+/// Missing Vertex Attribute Error
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MissingVertexAttributeError {
+    pub attribute_id: MeshVertexAttributeId,
+}
+
+/// Morph Attributes
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MorphAttributes {
+    // Pointer to attribute data
+    data_ptr: *const u8,
+    data_len: usize,
+}
+
+/// Morph Target Image
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MorphTargetImage {
+    // Opaque pointer to image data
+    image_ptr: *mut std::ffi::c_void,
+}
+
+/// Morph Weights
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct MorphWeights {
+    weights_ptr: *const f32,
+    weights_len: usize,
+}
+
+/// Plane Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlaneMeshBuilder {
+    pub half_size: [f32; 2],
+    pub subdivisions: [u32; 2],
+}
+
+/// Polyline 2D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct Polyline2dMeshBuilder {
+    points_ptr: *const [f32; 2],
+    points_len: usize,
+}
+
+/// Polyline 3D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct Polyline3dMeshBuilder {
+    points_ptr: *const [f32; 3],
+    points_len: usize,
+}
+
+/// Rectangle Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RectangleMeshBuilder {
+    pub half_size: [f32; 2],
+}
+
+/// Regular Polygon Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RegularPolygonMeshBuilder {
+    pub circumradius: f32,
+    pub sides: u32,
+}
+
+/// Rhombus Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RhombusMeshBuilder {
+    pub half_diagonals: [f32; 2],
+}
+
+/// Ring Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RingMeshBuilder {
+    pub inner_radius: f32,
+    pub outer_radius: f32,
+    pub segments: u32,
+}
+
+/// Segment 2D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Segment2dMeshBuilder {
+    pub start: [f32; 2],
+    pub end: [f32; 2],
+}
+
+/// Segment 3D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Segment3dMeshBuilder {
+    pub start: [f32; 3],
+    pub end: [f32; 3],
+}
+
+/// Serialized Mesh
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct SerializedMesh {
+    data_ptr: *const u8,
+    data_len: usize,
+}
+
+/// Skinned Mesh
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct SkinnedMesh {
+    inverse_bindposes_ptr: *const [f32; 16],
+    inverse_bindposes_len: usize,
+    joints_ptr: *const u32,
+    joints_len: usize,
+}
+
+/// Skinned Mesh Inverse Bindposes
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct SkinnedMeshInverseBindposes {
+    matrices_ptr: *const [f32; 16],
+    matrices_len: usize,
+}
+
+/// Sphere Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SphereMeshBuilder {
+    pub radius: f32,
+    pub sectors: u32,
+    pub stacks: u32,
+    pub kind: SphereKind,
+}
+
+/// Tetrahedron Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TetrahedronMeshBuilder {
+    pub radius: f32,
+}
+
+/// Torus Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TorusMeshBuilder {
+    pub major_radius: f32,
+    pub minor_radius: f32,
+    pub major_segments: u32,
+    pub minor_segments: u32,
+}
+
+/// Triangle 2D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Triangle2dMeshBuilder {
+    pub vertices: [[f32; 2]; 3],
+}
+
+/// Triangle 3D Mesh Builder
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Triangle3dMeshBuilder {
+    pub vertices: [[f32; 3]; 3],
+}
+
+/// Vertex Attribute Descriptor
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VertexAttributeDescriptor {
+    pub format: VertexFormat,
+    pub offset: u64,
+    pub shader_location: u32,
+}
+
+// ============================================================================
+// Trait Definitions (3 types)
+// ============================================================================
+
+/// Trait for types that can be extruded into 3D meshes
+pub trait Extrudable {
+    /// Extrude the shape along the Z axis
+    fn extrude(&self, depth: f32) -> Mesh;
+}
+
+/// Trait for building meshes
+pub trait MeshBuilder {
+    /// Build the mesh
+    fn build(&self) -> Mesh;
+}
+
+/// Trait for types that can be converted into meshes
+pub trait Meshable {
+    /// Convert to a mesh
+    fn mesh(&self) -> Mesh;
+}
+
+// ============================================================================
+// Trait Implementations
+// ============================================================================
+
+impl Default for AnnulusMeshBuilder {
+    fn default() -> Self {
+        Self {
+            inner_radius: 0.5,
+            outer_radius: 1.0,
+            segments: 32,
+        }
+    }
+}
+
+impl Default for Capsule2dMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 0.5,
+            half_length: 0.5,
+            segments: 16,
+        }
+    }
+}
+
+impl Default for Capsule3dMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 0.5,
+            half_length: 0.5,
+            rings: 8,
+            segments: 16,
+            uv_profile: CapsuleUvProfile::Uniform,
+        }
+    }
+}
+
+impl Default for CircleMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+            segments: 32,
+        }
+    }
+}
+
+impl Default for CircularSectorMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+            angle: std::f32::consts::PI / 2.0,
+            segments: 16,
+        }
+    }
+}
+
+impl Default for CircularSegmentMeshBuilder {
+    fn default() -> Self 
+{
+        Self {
+            radius: 1.0,
+            angle: std::f32::consts::PI / 4.0,
+            segments: 16,
+        }
+    }
+}
+
+impl Default for ConeMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+            height: 2.0,
+            segments: 32,
+            anchor: ConeAnchor::Base,
+        }
+    }
+}
+
+impl Default for ConicalFrustumMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius_top: 0.5,
+            radius_bottom: 1.0,
+            height: 2.0,
+            segments: 32,
+        }
+    }
+}
+
+impl Default for CuboidMeshBuilder {
+    fn default() -> Self {
+        Self {
+            half_size: [0.5, 0.5, 0.5],
+        }
+    }
+}
+
+impl Default for CylinderMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+            height: 2.0,
+            segments: 32,
+            anchor: CylinderAnchor::Center,
+        }
+    }
+}
+
+impl Default for EllipseMeshBuilder {
+    fn default() -> Self {
+        Self {
+            half_size: [1.0, 0.5],
+            segments: 32,
+        }
+    }
+}
+
+impl Default for PlaneMeshBuilder {
+    fn default() -> Self {
+        Self {
+            half_size: [1.0, 1.0],
+            subdivisions: [1, 1],
+        }
+    }
+}
+
+impl Default for RectangleMeshBuilder {
+    fn default() -> Self {
+        Self {
+            half_size: [1.0, 1.0],
+        }
+    }
+}
+
+impl Default for RegularPolygonMeshBuilder {
+    fn default() -> Self {
+        Self {
+            circumradius: 1.0,
+            sides: 6,
+        }
+    }
+}
+
+impl Default for RhombusMeshBuilder {
+    fn default() -> Self {
+        Self {
+            half_diagonals: [1.0, 1.0],
+        }
+    }
+}
+
+impl Default for RingMeshBuilder {
+    fn default() -> Self {
+        Self {
+            inner_radius: 0.5,
+            outer_radius: 1.0,
+            segments: 32,
+        }
+    }
+}
+
+impl Default for SphereMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+            sectors: 36,
+            stacks: 18,
+            kind: SphereKind::Uv,
+        }
+    }
+}
+
+impl Default for TetrahedronMeshBuilder {
+    fn default() -> Self {
+        Self {
+            radius: 1.0,
+        }
+    }
+}
+
+impl Default for TorusMeshBuilder {
+    fn default() -> Self {
+        Self {
+            major_radius: 1.0,
+            minor_radius: 0.25,
+            major_segments: 32,
+            minor_segments: 16,
+        }
+    }
+}
+
+impl Default for Triangle2dMeshBuilder {
+    fn default() -> Self {
+        Self {
+            vertices: [[0.0, 1.0], [-1.0, -1.0], [1.0, -1.0]],
+        }
+    }
+}
+
+impl Default for Triangle3dMeshBuilder {
+    fn default() -> Self {
+        Self {
+            vertices: [
+                [0.0, 1.0, 0.0],
+                [-1.0, -1.0, 0.0],
+                [1.0, -1.0, 0.0],
+            ],
+        }
+    }
+}
+
+// ============================================================================
+// MeshBuilder Trait Implementations for all builders
+// ============================================================================
+
+impl MeshBuilder for SphereMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_sphere(self.radius, self.sectors, self.stacks)
+    }
+}
+
+impl MeshBuilder for CuboidMeshBuilder {
+    fn build(&self) -> Mesh {
+        let size = self.half_size[0] * 2.0;
+        primitives_cube(size)
+    }
+}
+
+impl MeshBuilder for CylinderMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_cylinder(self.radius, self.height, self.segments)
+    }
+}
+
+impl MeshBuilder for ConeMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_cone(self.radius, self.height, self.segments)
+    }
+}
+
+impl MeshBuilder for TorusMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_torus(
+            self.major_radius,
+            self.minor_radius,
+            self.major_segments,
+            self.minor_segments,
+        )
+    }
+}
+
+impl MeshBuilder for Capsule3dMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_capsule(self.radius, self.half_length * 2.0, self.rings, self.segments)
+    }
+}
+
+impl MeshBuilder for PlaneMeshBuilder {
+    fn build(&self) -> Mesh {
+        primitives_plane(
+            self.half_size[0] * 2.0,
+            self.half_size[1] * 2.0,
+            self.subdivisions[0],
+            self.subdivisions[1],
+        )
+    }
+}
+
+// Additional utility implementations
+
+impl Indices {
+    /// Get the number of indices
+    pub fn len(&self) -> usize {
+        match self {
+            Indices::U16(v) => v.len(),
+            Indices::U32(v) => v.len(),
+        }
+    }
+
+    /// Check if indices are empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl VertexAttributeValues {
+    /// Get the number of vertices
+    pub fn len(&self) -> usize {
+        match self {
+            VertexAttributeValues::Float32(v) => v.len(),
+            VertexAttributeValues::Float32x2(v) => v.len(),
+            VertexAttributeValues::Float32x3(v) => v.len(),
+            VertexAttributeValues::Float32x4(v) => v.len(),
+            VertexAttributeValues::Sint8x2(v) => v.len(),
+            VertexAttributeValues::Sint8x4(v) => v.len(),
+            VertexAttributeValues::Uint8x2(v) => v.len(),
+            VertexAttributeValues::Uint8x4(v) => v.len(),
+            VertexAttributeValues::Sint16x2(v) => v.len(),
+            VertexAttributeValues::Sint16x4(v) => v.len(),
+            VertexAttributeValues::Uint16x2(v) => v.len(),
+            VertexAttributeValues::Uint16x4(v) => v.len(),
+            VertexAttributeValues::Sint32(v) => v.len(),
+            VertexAttributeValues::Sint32x2(v) => v.len(),
+            VertexAttributeValues::Sint32x3(v) => v.len(),
+            VertexAttributeValues::Sint32x4(v) => v.len(),
+            VertexAttributeValues::Uint32(v) => v.len(),
+            VertexAttributeValues::Uint32x2(v) => v.len(),
+            VertexAttributeValues::Uint32x3(v) => v.len(),
+            VertexAttributeValues::Uint32x4(v) => v.len(),
+            VertexAttributeValues::Snorm8x2(v) => v.len(),
+            VertexAttributeValues::Snorm8x4(v) => v.len(),
+            VertexAttributeValues::Unorm8x2(v) => v.len(),
+            VertexAttributeValues::Unorm8x4(v) => v.len(),
+            VertexAttributeValues::Snorm16x2(v) => v.len(),
+            VertexAttributeValues::Snorm16x4(v) => v.len(),
+            VertexAttributeValues::Unorm16x2(v) => v.len(),
+            VertexAttributeValues::Unorm16x4(v) => v.len(),
+        }
+    }
+
+    /// Check if values are empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

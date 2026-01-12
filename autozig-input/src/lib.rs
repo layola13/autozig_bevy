@@ -438,3 +438,472 @@ impl Default for GamepadAxisState {
         Self::new()
     }
 }
+
+// ========== Additional Input Types for Bevy API Completeness ==========
+
+/// Gamepad identifier
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Gamepad {
+    pub id: u32,
+}
+
+impl Gamepad {
+    pub fn new(id: u32) -> Self {
+        Self { id }
+    }
+}
+
+/// Key enum for logical key values (character-based)
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Key {
+    Character(char),
+    Unidentified,
+}
+
+/// Accumulated mouse motion for frame
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AccumulatedMouseMotion {
+    pub delta: [f32; 2],
+}
+
+impl AccumulatedMouseMotion {
+    pub fn new() -> Self {
+        Self { delta: [0.0, 0.0] }
+    }
+    
+    pub fn accumulate(&mut self, delta_x: f32, delta_y: f32) {
+        self.delta[0] += delta_x;
+        self.delta[1] += delta_y;
+    }
+    
+    pub fn reset(&mut self) {
+        self.delta = [0.0, 0.0];
+    }
+}
+
+/// Accumulated mouse scroll for frame
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AccumulatedMouseScroll {
+    pub delta: [f32; 2],
+}
+
+impl AccumulatedMouseScroll {
+    pub fn new() -> Self {
+        Self { delta: [0.0, 0.0] }
+    }
+    
+    pub fn accumulate(&mut self, delta_x: f32, delta_y: f32) {
+        self.delta[0] += delta_x;
+        self.delta[1] += delta_y;
+    }
+    
+    pub fn reset(&mut self) {
+        self.delta = [0.0, 0.0];
+    }
+}
+
+/// Generic input state tracker
+#[derive(Debug, Clone)]
+pub struct ButtonInput<T: Copy + Eq + core::hash::Hash> {
+    pressed: std::collections::HashSet<T>,
+    just_pressed: std::collections::HashSet<T>,
+    just_released: std::collections::HashSet<T>,
+}
+
+impl<T: Copy + Eq + core::hash::Hash> ButtonInput<T> {
+    pub fn new() -> Self {
+        Self {
+            pressed: std::collections::HashSet::new(),
+            just_pressed: std::collections::HashSet::new(),
+            just_released: std::collections::HashSet::new(),
+        }
+    }
+    
+    pub fn press(&mut self, input: T) {
+        if !self.pressed.contains(&input) {
+            self.just_pressed.insert(input);
+        }
+        self.pressed.insert(input);
+    }
+    
+    pub fn release(&mut self, input: T) {
+        if self.pressed.contains(&input) {
+            self.just_released.insert(input);
+        }
+        self.pressed.remove(&input);
+    }
+    
+    pub fn pressed(&self, input: T) -> bool {
+        self.pressed.contains(&input)
+    }
+    
+    pub fn just_pressed(&self, input: T) -> bool {
+        self.just_pressed.contains(&input)
+    }
+    
+    pub fn just_released(&self, input: T) -> bool {
+        self.just_released.contains(&input)
+    }
+    
+    pub fn clear(&mut self) {
+        self.just_pressed.clear();
+        self.just_released.clear();
+    }
+    
+    pub fn reset(&mut self) {
+        self.pressed.clear();
+        self.just_pressed.clear();
+        self.just_released.clear();
+    }
+}
+
+impl<T: Copy + Eq + core::hash::Hash> Default for ButtonInput<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Generic axis for input values (-1.0 to 1.0)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Axis<T> {
+    pub value: f32,
+    _marker: core::marker::PhantomData<T>,
+}
+
+impl<T> Axis<T> {
+    pub fn new(value: f32) -> Self {
+        Self {
+            value: value.clamp(-1.0, 1.0),
+            _marker: core::marker::PhantomData,
+        }
+    }
+    
+    pub fn set(&mut self, value: f32) {
+        self.value = value.clamp(-1.0, 1.0);
+    }
+    
+    pub fn get(&self) -> f32 {
+        self.value
+    }
+}
+
+/// Axis settings for dead zones and sensitivity
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct AxisSettings {
+    pub livezone_lowerbound: f32,
+    pub deadzone_lowerbound: f32,
+    pub deadzone_upperbound: f32,
+    pub livezone_upperbound: f32,
+    pub threshold: f32,
+}
+
+impl Default for AxisSettings {
+    fn default() -> Self {
+        Self {
+            livezone_lowerbound: -0.95,
+            deadzone_lowerbound: -0.05,
+            deadzone_upperbound: 0.05,
+            livezone_upperbound: 0.95,
+            threshold: 0.01,
+        }
+    }
+}
+
+/// Button axis settings (for buttons used as axes)
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ButtonAxisSettings {
+    pub high: f32,
+    pub low: f32,
+    pub threshold: f32,
+}
+
+impl Default for ButtonAxisSettings {
+    fn default() -> Self {
+        Self {
+            high: 1.0,
+            low: -1.0,
+            threshold: 0.01,
+        }
+    }
+}
+
+/// Button settings for press threshold
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ButtonSettings {
+    pub press_threshold: f32,
+    pub release_threshold: f32,
+}
+
+impl Default for ButtonSettings {
+    fn default() -> Self {
+        Self {
+            press_threshold: 0.75,
+            release_threshold: 0.65,
+        }
+    }
+}
+
+/// Gamepad settings
+#[derive(Debug, Clone)]
+pub struct GamepadSettings {
+    pub default_axis_settings: AxisSettings,
+    pub default_button_settings: ButtonSettings,
+    pub default_button_axis_settings: ButtonAxisSettings,
+}
+
+impl Default for GamepadSettings {
+    fn default() -> Self {
+        Self {
+            default_axis_settings: AxisSettings::default(),
+            default_button_settings: ButtonSettings::default(),
+            default_button_axis_settings: ButtonAxisSettings::default(),
+        }
+    }
+}
+
+/// Touch collection manager
+#[derive(Debug, Clone)]
+pub struct Touches {
+    touches: Vec<Touch>,
+}
+
+impl Touches {
+    pub fn new() -> Self {
+        Self {
+            touches: Vec::new(),
+        }
+    }
+    
+    pub fn iter(&self) -> impl Iterator<Item = &Touch> {
+        self.touches.iter()
+    }
+    
+    pub fn get_pressed(&self, id: u64) -> Option<&Touch> {
+        self.touches.iter().find(|t| t.id == id)
+    }
+    
+    pub fn just_pressed(&self, id: u64) -> bool {
+        self.touches.iter().any(|t| t.id == id && matches!(t.phase, TouchPhase::Started))
+    }
+    
+    pub fn just_released(&self, id: u64) -> bool {
+        self.touches.iter().any(|t| t.id == id && matches!(t.phase, TouchPhase::Ended))
+    }
+}
+
+impl Default for Touches {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Input plugin marker
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InputPlugin;
+
+/// Input systems set marker
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InputSystems;
+
+/// Keyboard focus lost event
+#[derive(Debug, Clone, Copy)]
+pub struct KeyboardFocusLost;
+
+// ========== Gamepad Events ==========
+
+/// Gamepad axis changed event
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadAxisChangedEvent {
+    pub gamepad: Gamepad,
+    pub axis: GamepadAxis,
+    pub value: f32,
+}
+
+/// Gamepad button changed event
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadButtonChangedEvent {
+    pub gamepad: Gamepad,
+    pub button: GamepadButton,
+    pub value: f32,
+}
+
+/// Gamepad button state changed event
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadButtonStateChangedEvent {
+    pub gamepad: Gamepad,
+    pub button: GamepadButton,
+    pub state: ButtonState,
+}
+
+/// Gamepad connection event
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadConnectionEvent {
+    pub gamepad: Gamepad,
+    pub connection: GamepadConnection,
+}
+
+/// Raw gamepad axis changed event
+#[derive(Debug, Clone, Copy)]
+pub struct RawGamepadAxisChangedEvent {
+    pub gamepad: Gamepad,
+    pub axis: GamepadAxis,
+    pub value: f32,
+}
+
+/// Raw gamepad button changed event
+#[derive(Debug, Clone, Copy)]
+pub struct RawGamepadButtonChangedEvent {
+    pub gamepad: Gamepad,
+    pub button: GamepadButton,
+    pub value: f32,
+}
+
+/// Gamepad rumble intensity
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct GamepadRumbleIntensity {
+    pub strong_motor: f32,
+    pub weak_motor: f32,
+}
+
+impl GamepadRumbleIntensity {
+    pub fn new(strong: f32, weak: f32) -> Self {
+        Self {
+            strong_motor: strong.clamp(0.0, 1.0),
+            weak_motor: weak.clamp(0.0, 1.0),
+        }
+    }
+}
+
+// ========== Gesture Support ==========
+
+/// Double tap gesture
+#[derive(Debug, Clone, Copy)]
+pub struct DoubleTapGesture {
+    pub position: [f32; 2],
+    pub time_delta: f32,
+}
+
+/// Pan gesture
+#[derive(Debug, Clone, Copy)]
+pub struct PanGesture {
+    pub delta: [f32; 2],
+}
+
+/// Pinch gesture
+#[derive(Debug, Clone, Copy)]
+pub struct PinchGesture {
+    pub scale: f32,
+}
+
+/// Rotation gesture
+#[derive(Debug, Clone, Copy)]
+pub struct RotationGesture {
+    pub angle: f32,
+}
+
+// ========== Enums ==========
+
+/// Button state
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ButtonState {
+    Pressed = 0,
+    Released = 1,
+}
+
+/// Force touch state
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ForceTouch {
+    Calibrated { force: f32, max_possible_force: f32, altitude_angle: Option<f32> },
+    Normalized(f32),
+}
+
+/// Gamepad connection state
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GamepadConnection {
+    Connected = 0,
+    Disconnected = 1,
+}
+
+/// Gamepad event enum
+#[derive(Debug, Clone, Copy)]
+pub enum GamepadEvent {
+    Connection(GamepadConnectionEvent),
+    Button(GamepadButtonChangedEvent),
+    Axis(GamepadAxisChangedEvent),
+}
+
+/// Gamepad input enum
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GamepadInput {
+    Button(GamepadButton),
+    Axis(GamepadAxis),
+}
+
+/// Gamepad rumble request
+#[derive(Debug, Clone, Copy)]
+pub enum GamepadRumbleRequest {
+    Start { intensity: GamepadRumbleIntensity, duration: f32 },
+    Stop,
+}
+
+/// Native key code (platform-specific)
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NativeKeyCode {
+    Unidentified = 0,
+    Android(u32),
+    MacOS(u16),
+    Windows(u16),
+    Xkb(u32),
+}
+
+/// Native key (platform-specific logical key)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NativeKey {
+    Unidentified,
+    Android(u32),
+    MacOS(u16),
+    Windows(u16),
+    Xkb(u32),
+}
+
+/// Raw gamepad event enum
+#[derive(Debug, Clone, Copy)]
+pub enum RawGamepadEvent {
+    Axis(RawGamepadAxisChangedEvent),
+    Button(RawGamepadButtonChangedEvent),
+}
+
+// ========== Error Types ==========
+
+/// Axis settings error
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AxisSettingsError {
+    LiveZoneLowerBoundOutOfRange(i32),
+    DeadZoneLowerBoundOutOfRange(i32),
+    DeadZoneUpperBoundOutOfRange(i32),
+    LiveZoneUpperBoundOutOfRange(i32),
+    LiveZoneLowerBoundGreaterThanDeadZoneLowerBound,
+    DeadZoneLowerBoundGreaterThanDeadZoneUpperBound,
+    DeadZoneUpperBoundGreaterThanLiveZoneUpperBound,
+    ThresholdOutOfRange(i32),
+}
+
+/// Button settings error
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ButtonSettingsError {
+    PressThresholdOutOfRange(i32),
+    ReleaseThresholdOutOfRange(i32),
+    ReleaseThresholdGreaterThanPressThreshold,
+}
