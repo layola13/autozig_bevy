@@ -20,6 +20,7 @@ use autozig_macro::include_zig;
 include_zig!("src/query/filter/zig/filter.zig", {
     fn filter_create() -> *mut FilterCoreOpaque;
     fn filter_destroy(filter: *mut FilterCoreOpaque);
+    fn filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32, ticks: *const u32);
     fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool;
 });
 
@@ -175,16 +176,36 @@ impl Default for SpawnedFetch {
 
 /// QueryFilter trait
 pub trait QueryFilter: Send + Sync + 'static {
-    fn matches(&self, entity: Entity) -> bool;
+    type State: Send + Sync + 'static;
+    fn init_state(world: &crate::world::World) -> Self::State;
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;
+    fn matches(&self, entity: crate::entity::Entity) -> bool;
+}
+
+impl QueryFilter for () {
+    type State = ();
+    fn init_state(_world: &crate::world::World) -> Self::State { () }
+    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
+    fn matches(&self, _entity: Entity) -> bool { true }
 }
 
 impl QueryFilter for Allow {
+    type State = ();
+    fn init_state(_world: &crate::world::World) -> Self::State { () }
+    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
     fn matches(&self, _entity: Entity) -> bool {
         true
     }
 }
 
 impl<T: Component> QueryFilter for With<T> {
+    type State = ComponentId;
+    fn init_state(world: &crate::world::World) -> Self::State {
+        world.component_id::<T>().expect("Component not registered")
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        set.contains(state)
+    }
     fn matches(&self, _entity: Entity) -> bool {
         // Would check if entity has component T
         true
@@ -192,6 +213,13 @@ impl<T: Component> QueryFilter for With<T> {
 }
 
 impl<T: Component> QueryFilter for Without<T> {
+    type State = ComponentId;
+    fn init_state(world: &crate::world::World) -> Self::State {
+        world.component_id::<T>().expect("Component not registered")
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        !set.contains(state)
+    }
     fn matches(&self, _entity: Entity) -> bool {
         // Would check if entity does NOT have component T
         true
@@ -199,6 +227,13 @@ impl<T: Component> QueryFilter for Without<T> {
 }
 
 impl<T: Component> QueryFilter for Changed<T> {
+    type State = ComponentId;
+    fn init_state(world: &crate::world::World) -> Self::State {
+        world.component_id::<T>().expect("Component not registered")
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        set.contains(state)
+    }
     fn matches(&self, _entity: Entity) -> bool {
         // Would check if component T has changed
         false
@@ -206,24 +241,69 @@ impl<T: Component> QueryFilter for Changed<T> {
 }
 
 impl<T: Component> QueryFilter for Added<T> {
+    type State = ComponentId;
+    fn init_state(world: &crate::world::World) -> Self::State {
+        world.component_id::<T>().expect("Component not registered")
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        set.contains(state)
+    }
     fn matches(&self, _entity: Entity) -> bool {
         // Would check if component T was just added
         false
     }
 }
 
-// Tuple implementations for Or filter
+// Tuple implementations for QueryFilter
+macro_rules! impl_query_filter_tuple {
+    ($($name:ident),*) => {
+        impl<$($name: QueryFilter),*> QueryFilter for ($($name,)*) {
+            type State = ($($name::State,)*);
+            fn init_state(world: &crate::world::World) -> Self::State {
+                ($($name::init_state(world),)*)
+            }
+            fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+                #[allow(non_snake_case)]
+                let ($($name,)*) = state;
+                $($name::matches_component_set($name, set) &&)* true
+            }
+            fn matches(&self, entity: Entity) -> bool {
+                #[allow(non_snake_case)]
+                let ($($name,)*) = self;
+                $($name.matches(entity) &&)* true
+            }
+        }
+    };
+}
+
+impl_query_filter_tuple!(A);
+impl_query_filter_tuple!(A, B);
+impl_query_filter_tuple!(A, B, C);
+impl_query_filter_tuple!(A, B, C, D);
+
 impl<A: QueryFilter, B: QueryFilter> QueryFilter for Or<(A, B)> {
+    type State = (A::State, B::State);
+    fn init_state(world: &crate::world::World) -> Self::State {
+        (A::init_state(world), B::init_state(world))
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        A::matches_component_set(&state.0, set) || B::matches_component_set(&state.1, set)
+    }
     fn matches(&self, _entity: Entity) -> bool {
-        // Would check if A or B matches
-        false
+        false // Placeholder
     }
 }
 
 impl<A: QueryFilter, B: QueryFilter, C: QueryFilter> QueryFilter for Or<(A, B, C)> {
+    type State = (A::State, B::State, C::State);
+    fn init_state(world: &crate::world::World) -> Self::State {
+        (A::init_state(world), B::init_state(world), C::init_state(world))
+    }
+    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+        A::matches_component_set(&state.0, set) || B::matches_component_set(&state.1, set) || C::matches_component_set(&state.2, set)
+    }
     fn matches(&self, _entity: Entity) -> bool {
-        // Would check if A, B, or C matches
-        false
+        false // Placeholder
     }
 }
 

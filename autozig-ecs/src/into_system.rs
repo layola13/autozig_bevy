@@ -82,7 +82,7 @@ impl Default for ClosureRegistry {
 
 /// Type-erased system containing a closure
 pub struct BoxedSystem {
-    pub(crate) closure: Box<dyn FnMut(&mut World)>,
+    pub(crate) closure: Box<dyn FnMut(&mut World) + Send + Sync>,
     pub(crate) access: WorldAccessFlags,
 }
 
@@ -91,10 +91,12 @@ pub trait IntoSystem<Params> {
     fn into_system(self) -> BoxedSystem;
 }
 
+use crate::system::System;
+
 // Implementation for no parameters
 impl<F> IntoSystem<()> for F
 where
-    F: FnMut() + 'static,
+    F: FnMut() + Send + Sync + 'static,
 {
     fn into_system(mut self) -> BoxedSystem {
         let closure = Box::new(move |_world: &mut World| {
@@ -108,10 +110,43 @@ where
     }
 }
 
+// ... RawClosure struct ... (keep it if needed, or remove)
+// I'll keep the struct definitions but remove the impl block calling transmute on FnMut if I switch to System trait.
+// Actually, I'll just append System impl.
+
+impl System for BoxedSystem {
+    fn run(&mut self, world: &mut World) {
+        (self.closure)(world);
+    }
+}
+
+#[repr(C)]
+pub struct RawClosure {
+    pub data: *mut std::ffi::c_void,
+    pub vtable: *mut std::ffi::c_void,
+}
+
+pub type SystemTrampolineFn = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void);
+
+unsafe extern "C" fn system_trampoline(closure: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
+    let closure = closure as *mut RawClosure;
+    let ptr: *mut (dyn FnMut(&mut World) + Send + Sync) = std::mem::transmute(((*closure).data, (*closure).vtable));
+    let world = &mut *(world_ptr as *mut World);
+    (*ptr)(world);
+}
+
+impl BoxedSystem {
+    pub fn into_raw_parts(self) -> (*mut std::ffi::c_void, *mut std::ffi::c_void, SystemTrampolineFn) {
+        let ptr = Box::into_raw(self.closure);
+        let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
+        (data, vtable, system_trampoline)
+    }
+}
+
 // Implementation for single parameter
 impl<F, P1> IntoSystem<(P1,)> for F
 where
-    F: FnMut(P1::Item<'_>) + 'static,
+    F: FnMut(P1::Item<'_>) + Send + Sync + 'static,
     P1: SystemParam,
 {
     fn into_system(mut self) -> BoxedSystem {
@@ -133,7 +168,7 @@ macro_rules! impl_into_system {
         #[allow(non_snake_case)]
         impl<F, $($param),*> IntoSystem<($($param,)*)> for F
         where
-            F: FnMut($($param::Item<'_>),*) + 'static,
+            F: FnMut($($param::Item<'_>),*) + Send + Sync + 'static,
             $($param: SystemParam),*
         {
             fn into_system(mut self) -> BoxedSystem {

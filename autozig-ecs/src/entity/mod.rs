@@ -10,6 +10,7 @@
 
 use autozig_macro::include_zig;
 use std::marker::PhantomData;
+use std::num::NonZeroU32;
 
 // ============================================================================
 // Submodules - 子模块
@@ -43,6 +44,66 @@ pub use map_entities::{EntityMapper, SceneEntityMapper, SimpleEntityMapper, MapE
 // ============================================================================
 // Core Entity Types - 核心实体类型
 // ============================================================================
+
+/// EntityIndex - 实体索引（使用NonZeroU32进行niche优化）
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EntityIndex(u32);
+
+impl EntityIndex {
+    /// 从原始u32创建EntityIndex
+    #[inline]
+    pub const fn from_raw(index: u32) -> Self {
+        Self(index)
+    }
+    
+    /// 获取原始u32值
+    #[inline]
+    pub const fn index(self) -> u32 {
+        self.0
+    }
+}
+
+/// EntityGeneration - 实体代数（用于防止实体ID别名）
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EntityGeneration(u32);
+
+impl EntityGeneration {
+    /// 从原始u32创建EntityGeneration
+    #[inline]
+    pub const fn from_raw(generation: u32) -> Self {
+        Self(generation)
+    }
+    
+    /// 获取原始u32值
+    #[inline]
+    pub const fn generation(self) -> u32 {
+        self.0
+    }
+    
+    /// 在指定版本之后创建新代数
+    #[inline]
+    pub fn after_versions(versions: u32) -> Self {
+        Self(versions.wrapping_add(1))
+    }
+    
+    /// 在指定版本之后创建新代数，并返回是否可能存在别名
+    #[inline]
+    pub fn after_versions_and_could_alias(versions: u32) -> (Self, bool) {
+        let new_gen = versions.wrapping_add(1);
+        let could_alias = new_gen == 0; // 如果回绕到0，可能存在别名
+        (Self(new_gen), could_alias)
+    }
+    
+    /// 近似比较（用于代数比较，考虑回绕）
+    #[inline]
+    pub fn cmp_approx(&self, other: &Self) -> std::cmp::Ordering {
+        // 简化实现：直接比较值
+        // 完整实现需要考虑u32回绕的情况
+        self.0.cmp(&other.0)
+    }
+}
 
 // Entity structure matching Zig repr(C)
 #[repr(C)]
@@ -84,6 +145,12 @@ impl Entity {
         entity_index(self)
     }
     
+    /// 获取实体index的u32表示
+    #[inline]
+    pub const fn index_u32(self) -> u32 {
+        self.index
+    }
+    
     pub fn generation(self) -> u32 {
         entity_generation(self)
     }
@@ -96,7 +163,39 @@ impl Entity {
         entity_from_bits(bits)
     }
     
+    /// 尝试从bits创建Entity（如果bits无效则返回None）
+    #[inline]
+    pub fn try_from_bits(bits: u64) -> Option<Self> {
+        let index = (bits & 0xFFFFFFFF) as u32;
+        let generation = (bits >> 32) as u32;
+        
+        // 检查index是否有效（不能是u32::MAX）
+        if index == u32::MAX {
+            None
+        } else {
+            Some(Self { index, generation })
+        }
+    }
+    
     pub fn from_raw(index: u32) -> Self {
+        Self { index, generation: 0 }
+    }
+    
+    /// 从原始u32创建Entity（generation为0）
+    #[inline]
+    pub fn from_raw_u32(index: u32) -> Self {
+        Self { index, generation: 0 }
+    }
+    
+    /// 从index和generation创建Entity
+    #[inline]
+    pub fn from_index_and_generation(index: u32, generation: u32) -> Self {
+        Self { index, generation }
+    }
+    
+    /// 仅从index创建Entity（generation为0）
+    #[inline]
+    pub fn from_index(index: u32) -> Self {
         Self { index, generation: 0 }
     }
 }
@@ -140,13 +239,71 @@ impl<'w> EntityWorldMut<'w> {
     
     /// 插入Bundle到此实体
     pub fn insert<B: crate::bundle::Bundle>(&mut self, bundle: B) -> &mut Self {
-        self.world.insert_bundle(self.entity, bundle);
+        // Collect component data for insertion
+        let ids = B::component_ids();
+        let components_data = bundle.get_components()
+            .into_iter()
+            .map(|(id, ptr, size)| (crate::component::ComponentId(id as usize), ptr, size))
+            .collect::<Vec<_>>();
+        
+        // 1. Insert components into storage (internal call to avoid recursion)
+        self.world.insert_bundle_components_internal(self.entity, components_data);
+        
+        // 2. Trigger hooks (after insertion)
+        // Use UnsafeWorldCell to split borrow: read info (immut) + create DeferredWorld (mut)
+        let unsafe_world = self.world.as_unsafe_world_cell();
+        
+        for id in ids {
+            let component_id = crate::component::ComponentId(id as usize);
+            // Safety: We assume component registry is stable during hook execution
+            unsafe {
+                if let Some(info) = unsafe_world.components().get_info(component_id) {
+                    // Trigger on_add
+                    // Note: We create a fresh DeferredWorld for each hook call
+                    if info.hooks().has_on_add() {
+                         let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
+                         info.hooks().trigger_add(deferred_world, self.entity, component_id);
+                    }
+                    
+                    // Trigger on_insert
+                    if info.hooks().has_on_insert() {
+                         let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
+                         info.hooks().trigger_insert(deferred_world, self.entity, component_id);
+                    }
+                }
+            }
+        }
+        
         self
     }
     
     /// 从此实体移除Bundle
     pub fn remove<B: crate::bundle::Bundle>(&mut self) -> &mut Self {
-        self.world.remove_bundle::<B>(self.entity);
+        let ids = B::component_ids();
+        
+        // 1. Trigger hooks (before removal)
+        let unsafe_world = self.world.as_unsafe_world_cell();
+        
+        for id in ids {
+            let component_id = crate::component::ComponentId(id as usize);
+            // Safety: See above
+            unsafe {
+                if let Some(info) = unsafe_world.components().get_info(component_id) {
+                    if info.hooks().has_on_remove() {
+                        let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
+                        info.hooks().trigger_remove(deferred_world, self.entity, component_id);
+                    }
+                }
+            }
+        }
+        
+        // 2. Remove components from storage
+        let component_ids = B::component_ids()
+            .into_iter()
+            .map(|id| crate::component::ComponentId(id as usize))
+            .collect();
+
+        self.world.remove_bundle_components_internal(self.entity, component_ids);
         self
     }
     pub fn get_mut<T: crate::component::Component>(&mut self) -> Option<crate::change_detection::Mut<'w, T>> {
@@ -220,6 +377,28 @@ impl<'w> EntityRef<'w> {
 // Entity Error Types - 实体错误类型
 // ============================================================================
 
+/// SpawnError - 实体生成错误
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpawnError {
+    /// 尝试在已占用的实体位置生成
+    AlreadySpawned(Entity),
+    /// 实体索引超出范围
+    IndexOutOfRange { index: u32, max: u32 },
+}
+
+impl std::fmt::Display for SpawnError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AlreadySpawned(e) => write!(f, "Entity {:?} is already spawned", e),
+            Self::IndexOutOfRange { index, max } => {
+                write!(f, "Entity index {} is out of range (max: {})", index, max)
+            }
+        }
+    }
+}
+
+impl std::error::Error for SpawnError {}
+
 /// EntityNotSpawnedError - 实体未生成错误
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EntityNotSpawnedError(pub Entity);
@@ -231,6 +410,30 @@ impl std::fmt::Display for EntityNotSpawnedError {
 }
 
 impl std::error::Error for EntityNotSpawnedError {}
+
+/// InvalidEntityError - 无效实体错误
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidEntityError(pub Entity);
+
+impl std::fmt::Display for InvalidEntityError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {:?} is invalid", self.0)
+    }
+}
+
+impl std::error::Error for InvalidEntityError {}
+
+/// EntityValidButNotSpawnedError - 实体有效但未生成错误
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EntityValidButNotSpawnedError(pub Entity);
+
+impl std::fmt::Display for EntityValidButNotSpawnedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {:?} is valid but not spawned", self.0)
+    }
+}
+
+impl std::error::Error for EntityValidButNotSpawnedError {}
 
 /// EntityMutableFetchError - 实体可变获取错误
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -288,6 +491,47 @@ impl std::error::Error for GetEntityMutByIdError {}
 // Entity Allocator - 实体分配器
 // ============================================================================
 
+/// AllocEntitiesIterator - 批量分配实体的迭代器
+pub struct AllocEntitiesIterator {
+    allocator: *mut EntityAllocator,
+    remaining: u32,
+}
+
+impl AllocEntitiesIterator {
+    fn new(allocator: &mut EntityAllocator, count: u32) -> Self {
+        Self {
+            allocator: allocator as *mut EntityAllocator,
+            remaining: count,
+        }
+    }
+}
+
+impl Iterator for AllocEntitiesIterator {
+    type Item = Entity;
+    
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        
+        self.remaining -= 1;
+        // SAFETY: allocator保证在迭代器生命周期内有效
+        let entity = unsafe { (*self.allocator).alloc() };
+        Some(entity)
+    }
+    
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.remaining as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl ExactSizeIterator for AllocEntitiesIterator {
+    fn len(&self) -> usize {
+        self.remaining as usize
+    }
+}
+
 /// EntityAllocator - 实体分配器，管理实体ID的分配和回收
 pub struct EntityAllocator {
     next_index: u32,
@@ -315,6 +559,11 @@ impl EntityAllocator {
             self.generations.push(0);
             Entity::new(index, 0)
         }
+    }
+    
+    /// 批量分配多个实体
+    pub fn alloc_many(&mut self, count: u32) -> AllocEntitiesIterator {
+        AllocEntitiesIterator::new(self, count)
     }
     
     /// 释放实体

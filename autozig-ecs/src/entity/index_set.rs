@@ -2,6 +2,11 @@
 
 use super::{Entity, EntityHash};
 use indexmap::IndexSet;
+use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToInclusive};
+use std::ops::Index;
+use std::{fmt, ptr};
+use std::marker::PhantomData;
+use std::iter::FusedIterator;
 
 /// EntityIndexSet - IndexSet optimized for Entity with preserved insertion order
 #[derive(Clone)]
@@ -12,7 +17,7 @@ pub struct EntityIndexSet {
 impl EntityIndexSet {
     /// Creates an empty EntityIndexSet
     #[inline]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             inner: IndexSet::with_hasher(EntityHash),
         }
@@ -179,19 +184,41 @@ impl EntityIndexSet {
         self.inner.reverse();
     }
 
+    /// Returns a slice of all the values in the set
+    #[inline]
+    pub fn as_slice(&self) -> &Slice {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { Slice::from_slice_unchecked(self.inner.as_slice()) }
+    }
+
+    /// Converts into a boxed slice of all the values in the set
+    #[inline]
+    pub fn into_boxed_slice(self) -> Box<Slice> {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { Slice::from_boxed_slice_unchecked(self.inner.into_boxed_slice()) }
+    }
+
+    /// Returns a slice of values in the given range of indices
+    #[inline]
+    pub fn get_range<R: RangeBounds<usize>>(&self, range: R) -> Option<&Slice> {
+        self.inner.get_range(range).map(|slice|
+            // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+            unsafe { Slice::from_slice_unchecked(slice) })
+    }
+
     /// An iterator visiting all values
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &Entity> + ExactSizeIterator {
-        self.inner.iter()
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self.inner.iter(), PhantomData)
     }
 
     /// Clears the set, returning all values as an iterator
     #[inline]
-    pub fn drain<R>(&mut self, range: R) -> impl Iterator<Item = Entity> + '_
+    pub fn drain<R>(&mut self, range: R) -> Drain<'_>
     where
-        R: std::ops::RangeBounds<usize>,
+        R: RangeBounds<usize>,
     {
-        self.inner.drain(range)
+        Drain(self.inner.drain(range), PhantomData)
     }
 
     /// Visits the values representing the difference
@@ -259,24 +286,24 @@ impl Extend<Entity> for EntityIndexSet {
 
 impl IntoIterator for EntityIndexSet {
     type Item = Entity;
-    type IntoIter = indexmap::set::IntoIter<Entity>;
+    type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inner.into_iter()
+        IntoIter(self.inner.into_iter(), PhantomData)
     }
 }
 
 impl<'a> IntoIterator for &'a EntityIndexSet {
     type Item = &'a Entity;
-    type IntoIter = indexmap::set::Iter<'a, Entity>;
+    type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inner.iter()
+        Iter(self.inner.iter(), PhantomData)
     }
 }
 
-impl std::fmt::Debug for EntityIndexSet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for EntityIndexSet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.iter()).finish()
     }
 }
@@ -288,3 +315,400 @@ impl PartialEq for EntityIndexSet {
 }
 
 impl Eq for EntityIndexSet {}
+
+// ============================================================================
+// Slice type and implementations
+// ============================================================================
+
+/// A dynamically-sized slice of values in an EntityIndexSet
+#[repr(transparent)]
+pub struct Slice(PhantomData<EntityHash>, indexmap::set::Slice<Entity>);
+
+impl Slice {
+    /// Returns an empty slice
+    #[inline]
+    pub const fn new<'a>() -> &'a Self {
+        // SAFETY: The source slice is empty
+        unsafe { Self::from_slice_unchecked(indexmap::set::Slice::new()) }
+    }
+
+    /// Constructs a Slice from an indexmap::set::Slice unsafely
+    ///
+    /// # Safety
+    ///
+    /// `slice` must stem from an IndexSet using EntityHash
+    #[inline]
+    pub const unsafe fn from_slice_unchecked(slice: &indexmap::set::Slice<Entity>) -> &Self {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { &*(ptr::from_ref(slice) as *const Self) }
+    }
+
+    /// Casts self to the inner slice
+    #[inline]
+    pub const fn as_inner(&self) -> &indexmap::set::Slice<Entity> {
+        &self.1
+    }
+
+    /// Constructs a boxed Slice from a boxed indexmap::set::Slice unsafely
+    ///
+    /// # Safety
+    ///
+    /// `slice` must stem from an IndexSet using EntityHash
+    #[inline]
+    pub unsafe fn from_boxed_slice_unchecked(slice: Box<indexmap::set::Slice<Entity>>) -> Box<Self> {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { Box::from_raw(Box::into_raw(slice) as *mut Self) }
+    }
+
+    /// Casts a reference to self to the inner boxed slice
+    #[inline]
+    #[allow(clippy::borrowed_box)]
+    pub fn as_boxed_inner(self: &Box<Self>) -> &Box<indexmap::set::Slice<Entity>> {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { &*(ptr::from_ref(self).cast::<Box<indexmap::set::Slice<Entity>>>()) }
+    }
+
+    /// Casts self to the inner boxed slice
+    #[inline]
+    pub fn into_boxed_inner(self: Box<Self>) -> Box<indexmap::set::Slice<Entity>> {
+        // SAFETY: Slice is a transparent wrapper around indexmap::set::Slice
+        unsafe { Box::from_raw(Box::into_raw(self) as *mut indexmap::set::Slice<Entity>) }
+    }
+
+    /// Returns a slice of values in the given range of indices
+    #[inline]
+    pub fn get_range<R: RangeBounds<usize>>(&self, range: R) -> Option<&Self> {
+        self.1.get_range(range).map(|slice|
+            // SAFETY: This is a subslice of a valid slice
+            unsafe { Self::from_slice_unchecked(slice) })
+    }
+
+    /// Divides one slice into two at an index
+    #[inline]
+    pub fn split_at(&self, index: usize) -> (&Self, &Self) {
+        let (slice_1, slice_2) = self.1.split_at(index);
+        // SAFETY: These are subslices of a valid slice
+        unsafe {
+            (
+                Self::from_slice_unchecked(slice_1),
+                Self::from_slice_unchecked(slice_2),
+            )
+        }
+    }
+
+    /// Returns the first value and the rest of the slice, or None if empty
+    #[inline]
+    pub fn split_first(&self) -> Option<(&Entity, &Self)> {
+        self.1.split_first().map(|(first, rest)| {
+            (
+                first,
+                // SAFETY: This is a subslice of a valid slice
+                unsafe { Self::from_slice_unchecked(rest) },
+            )
+        })
+    }
+
+    /// Returns the last value and the rest of the slice, or None if empty
+    #[inline]
+    pub fn split_last(&self) -> Option<(&Entity, &Self)> {
+        self.1.split_last().map(|(last, rest)| {
+            (
+                last,
+                // SAFETY: This is a subslice of a valid slice
+                unsafe { Self::from_slice_unchecked(rest) },
+            )
+        })
+    }
+
+    /// Return an iterator over the values of the set slice
+    #[inline]
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self.1.iter(), PhantomData)
+    }
+}
+
+impl std::ops::Deref for Slice {
+    type Target = indexmap::set::Slice<Entity>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.1
+    }
+}
+
+impl<'a> IntoIterator for &'a Slice {
+    type IntoIter = Iter<'a>;
+    type Item = &'a Entity;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl IntoIterator for Box<Slice> {
+    type IntoIter = IntoIter;
+    type Item = Entity;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter(self.into_boxed_inner().into_iter(), PhantomData)
+    }
+}
+
+impl Clone for Box<Slice> {
+    fn clone(&self) -> Self {
+        // SAFETY: This is a clone of a valid slice
+        unsafe { Slice::from_boxed_slice_unchecked(self.as_boxed_inner().clone()) }
+    }
+}
+
+impl Default for &Slice {
+    fn default() -> Self {
+        // SAFETY: The source slice is empty
+        unsafe { Slice::from_slice_unchecked(<&indexmap::set::Slice<Entity>>::default()) }
+    }
+}
+
+impl Default for Box<Slice> {
+    fn default() -> Self {
+        // SAFETY: The source slice is empty
+        unsafe { Slice::from_boxed_slice_unchecked(<Box<indexmap::set::Slice<Entity>>>::default()) }
+    }
+}
+
+impl fmt::Debug for Slice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Slice")
+            .field(&self.0)
+            .field(&&self.1)
+            .finish()
+    }
+}
+
+impl From<&Slice> for Box<Slice> {
+    fn from(value: &Slice) -> Self {
+        // SAFETY: This slice is a copy of a valid slice
+        unsafe { Slice::from_boxed_slice_unchecked(value.1.into()) }
+    }
+}
+
+impl PartialEq for Slice {
+    fn eq(&self, other: &Self) -> bool {
+        self.1 == other.1
+    }
+}
+
+impl Eq for Slice {}
+
+// ============================================================================
+// Index implementations for Slice
+// ============================================================================
+
+impl Index<(Bound<usize>, Bound<usize>)> for Slice {
+    type Output = Self;
+    fn index(&self, key: (Bound<usize>, Bound<usize>)) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<Range<usize>> for Slice {
+    type Output = Self;
+    fn index(&self, key: Range<usize>) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<RangeFrom<usize>> for Slice {
+    type Output = Slice;
+    fn index(&self, key: RangeFrom<usize>) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<RangeFull> for Slice {
+    type Output = Self;
+    fn index(&self, key: RangeFull) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<RangeInclusive<usize>> for Slice {
+    type Output = Self;
+    fn index(&self, key: RangeInclusive<usize>) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<RangeTo<usize>> for Slice {
+    type Output = Self;
+    fn index(&self, key: RangeTo<usize>) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<RangeToInclusive<usize>> for Slice {
+    type Output = Self;
+    fn index(&self, key: RangeToInclusive<usize>) -> &Self {
+        // SAFETY: This is a subslice of a valid slice
+        unsafe { Self::from_slice_unchecked(self.1.index(key)) }
+    }
+}
+
+impl Index<usize> for Slice {
+    type Output = Entity;
+    fn index(&self, key: usize) -> &Entity {
+        self.1.index(key)
+    }
+}
+
+// ============================================================================
+// Iterator types
+// ============================================================================
+
+/// An iterator over the items of an EntityIndexSet
+pub struct Iter<'a>(indexmap::set::Iter<'a, Entity>, PhantomData<EntityHash>);
+
+impl<'a> Iter<'a> {
+/// Returns a slice of /// Returns a slice of the remaining entries in the iterator
+    #[inline]
+    pub fn as_slice(&self) -> &Slice {
+        // SAFETY: The source IndexSet uses EntityHash
+        unsafe { Slice::from_slice_unchecked(self.0.as_slice()) }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for Iter<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
+}
+
+impl ExactSizeIterator for Iter<'_> {}
+
+impl FusedIterator for Iter<'_> {}
+
+impl Clone for Iter<'_> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
+
+impl fmt::Debug for Iter<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Iter").field(&self.0).finish()
+    }
+}
+
+impl Default for Iter<'_> {
+    fn default() -> Self {
+        Self(Default::default(), PhantomData)
+    }
+}
+
+/// Owning iterator over the items of an EntityIndexSet
+pub struct IntoIter(indexmap::set::IntoIter<Entity>, PhantomData<EntityHash>);
+
+impl IntoIter {
+    /// Returns a slice of the remaining entries in the iterator
+    #[inline]
+    pub fn as_slice(&self) -> &Slice {
+        // SAFETY: The source IndexSet uses EntityHash
+        unsafe { Slice::from_slice_unchecked(self.0.as_slice()) }
+    }
+}
+
+impl Iterator for IntoIter {
+    type Item = Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for IntoIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
+}
+
+impl ExactSizeIterator for IntoIter {}
+
+impl FusedIterator for IntoIter {}
+
+impl Clone for IntoIter {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
+
+impl fmt::Debug for IntoIter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("IntoIter").field(&self.0).finish()
+    }
+}
+
+impl Default for IntoIter {
+    fn default() -> Self {
+        Self(Default::default(), PhantomData)
+    }
+}
+
+/// A draining iterator over the items of an EntityIndexSet
+pub struct Drain<'a>(indexmap::set::Drain<'a, Entity>, PhantomData<EntityHash>);
+
+impl<'a> Drain<'a> {
+    /// Returns a slice of the remaining entries in the iterator
+    #[inline]
+    pub fn as_slice(&self) -> &Slice {
+        // SAFETY: The source IndexSet uses EntityHash
+        unsafe { Slice::from_slice_unchecked(self.0.as_slice()) }
+    }
+}
+
+impl<'a> Iterator for Drain<'a> {
+    type Item = Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl DoubleEndedIterator for Drain<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
+}
+
+impl ExactSizeIterator for Drain<'_> {}
+
+impl FusedIterator for Drain<'_> {}
+
+impl fmt::Debug for Drain<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Drain").field(&self.0).finish()
+    }
+}

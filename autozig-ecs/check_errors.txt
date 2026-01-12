@@ -1,0 +1,1941 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/sonygod/projects/autozig/autozig_bevy/autozig-utils/Cargo.toml
+workspace: /home/sonygod/projects/autozig/autozig_bevy/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/sonygod/projects/autozig/autozig_bevy/examples/native_demo/Cargo.toml
+workspace: /home/sonygod/projects/autozig/autozig_bevy/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/sonygod/projects/autozig/autozig_bevy/examples/wasm_3d_demo/Cargo.toml
+workspace: /home/sonygod/projects/autozig/autozig_bevy/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/sonygod/projects/autozig/autozig_bevy/examples/wasm_hello_world/Cargo.toml
+workspace: /home/sonygod/projects/autozig/autozig_bevy/Cargo.toml
+warning: unused variable: `zig_src`
+  --> autozig-ecs/build.rs:12:9
+   |
+12 |     let zig_src = manifest_dir.join("src/zig");
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_zig_src`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `autozig-ecs` (build script) generated 1 warning
+   Compiling autozig-ecs v0.1.0 (/home/sonygod/projects/autozig/autozig_bevy/autozig-ecs)
+Parser: Successfully parsed file with 1 items
+Parser: Module has 1 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn common_noop();'
+Parser:   Normalized: 'fn common_noop();'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn common_noop();
+Parser:   With body: fn common_noop() { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: common_noop
+Parser: Successfully parsed file with 1 items
+Parser: Module has 7 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn entity_create(index: u32, generation: u32) -> Entity;'
+Parser:   Normalized: 'fn entity_create(index: u32, generation: u32) -> Entity;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn entity_create(index: u32, generation: u32) -> Entity;
+Parser:   With body: fn entity_create(index: u32, generation: u32) -> Entity { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: entity_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn entity_index(entity: Entity) -> u32;'
+Parser:   Normalized: 'fn entity_index(entity: Entity) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn entity_index(entity: Entity) -> u32;
+Parser:   With body: fn entity_index(entity: Entity) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: entity_index
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn entity_generation(entity: Entity) -> u32;'
+Parser:   Normalized: 'fn entity_generation(entity: Entity) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn entity_generation(entity: Entity) -> u32;
+Parser:   With body: fn entity_generation(entity: Entity) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: entity_generation
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn entity_to_bits(entity: Entity) -> u64;'
+Parser:   Normalized: 'fn entity_to_bits(entity: Entity) -> u64;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn entity_to_bits(entity: Entity) -> u64;
+Parser:   With body: fn entity_to_bits(entity: Entity) -> u64 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: entity_to_bits
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn entity_from_bits(bits: u64) -> Entity;'
+Parser:   Normalized: 'fn entity_from_bits(bits: u64) -> Entity;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn entity_from_bits(bits: u64) -> Entity;
+Parser:   With body: fn entity_from_bits(bits: u64) -> Entity { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: entity_from_bits
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn autozig_init();'
+Parser:   Normalized: 'fn autozig_init();'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn autozig_init();
+Parser:   With body: fn autozig_init() { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: autozig_init
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn autozig_is_initialized() -> bool;'
+Parser:   Normalized: 'fn autozig_is_initialized() -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn autozig_is_initialized() -> bool;
+Parser:   With body: fn autozig_is_initialized() -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: autozig_is_initialized
+Parser: Successfully parsed file with 1 items
+Parser: Module has 3 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_id_create(index: u32) -> WorldId;'
+Parser:   Normalized: 'fn world_id_create(index: u32) -> WorldId;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_id_create(index: u32) -> WorldId;
+Parser:   With body: fn world_id_create(index: u32) -> WorldId { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_id_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_id_index(id: WorldId) -> u32;'
+Parser:   Normalized: 'fn world_id_index(id: WorldId) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_id_index(id: WorldId) -> u32;
+Parser:   With body: fn world_id_index(id: WorldId) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_id_index
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_id_equals(a: WorldId, b: WorldId) -> bool;'
+Parser:   Normalized: 'fn world_id_equals(a: WorldId, b: WorldId) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_id_equals(a: WorldId, b: WorldId) -> bool;
+Parser:   With body: fn world_id_equals(a: WorldId, b: WorldId) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_id_equals
+Parser: Successfully parsed file with 1 items
+Parser: Module has 2 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+spawn_batch_reserve(world_ptr: *mut crate::world::WorldOpaque, count: usize);'
+Parser:   Normalized: 'fn spawn_batch_reserve(world_ptr: *mut crate::world::WorldOpaque, count: usize);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+spawn_batch_reserve(world_ptr: *mut crate::world::WorldOpaque, count: usize);
+Parser:   With body: fn spawn_batch_reserve(world_ptr: *mut crate::world::WorldOpaque, count: usize) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: spawn_batch_reserve
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+spawn_batch_alloc_entities(world_ptr: *mut crate::world::WorldOpaque, count:
+usize) -> * mut Entity;'
+Parser:   Normalized: 'fn spawn_batch_alloc_entities(world_ptr: *mut crate::world::WorldOpaque, count: usize) -> * mut Entity;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+spawn_batch_alloc_entities(world_ptr: *mut crate::world::WorldOpaque, count:
+usize) -> * mut Entity;
+Parser:   With body: fn spawn_batch_alloc_entities(world_ptr: *mut crate::world::WorldOpaque, count: usize) -> * mut Entity { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: spawn_batch_alloc_entities
+Parser: Successfully parsed file with 1 items
+Parser: Module has 7 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_create() -> * mut WorldOpaque;'
+Parser:   Normalized: 'fn world_create() -> * mut WorldOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_create() -> * mut WorldOpaque;
+Parser:   With body: fn world_create() -> * mut WorldOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_destroy(world_ptr: *mut WorldOpaque);'
+Parser:   Normalized: 'fn world_destroy(world_ptr: *mut WorldOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_destroy(world_ptr: *mut WorldOpaque);
+Parser:   With body: fn world_destroy(world_ptr: *mut WorldOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_spawn_empty(world_ptr: *mut WorldOpaque) -> Entity;'
+Parser:   Normalized: 'fn world_spawn_empty(world_ptr: *mut WorldOpaque) -> Entity;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_spawn_empty(world_ptr: *mut WorldOpaque) -> Entity;
+Parser:   With body: fn world_spawn_empty(world_ptr: *mut WorldOpaque) -> Entity { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_spawn_empty
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool;'
+Parser:   Normalized: 'fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool;
+Parser:   With body: fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_despawn
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_entity_count(world_ptr: *const WorldOpaque) -> u32;'
+Parser:   Normalized: 'fn world_entity_count(world_ptr: *const WorldOpaque) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_entity_count(world_ptr: *const WorldOpaque) -> u32;
+Parser:   With body: fn world_entity_count(world_ptr: *const WorldOpaque) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_entity_count
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) ->
+bool;'
+Parser:   Normalized: 'fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) ->
+bool;
+Parser:   With body: fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_contains_entity
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn world_clear_entities(world_ptr: *mut WorldOpaque);'
+Parser:   Normalized: 'fn world_clear_entities(world_ptr: *mut WorldOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn world_clear_entities(world_ptr: *mut WorldOpaque);
+Parser:   With body: fn world_clear_entities(world_ptr: *mut WorldOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: world_clear_entities
+Parser: Successfully parsed file with 1 items
+Parser: Module has 13 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_create() -> * mut AccessCoreOpaque;'
+Parser:   Normalized: 'fn access_core_create() -> * mut AccessCoreOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_create() -> * mut AccessCoreOpaque;
+Parser:   With body: fn access_core_create() -> * mut AccessCoreOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_destroy(access: *mut AccessCoreOpaque);'
+Parser:   Normalized: 'fn access_core_destroy(access: *mut AccessCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_destroy(access: *mut AccessCoreOpaque);
+Parser:   With body: fn access_core_destroy(access: *mut AccessCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_add_component_read(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Normalized: 'fn access_core_add_component_read(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_add_component_read(access: *mut AccessCoreOpaque, index: u32);
+Parser:   With body: fn access_core_add_component_read(access: *mut AccessCoreOpaque, index: u32) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_add_component_read
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_add_component_write(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Normalized: 'fn access_core_add_component_write(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_add_component_write(access: *mut AccessCoreOpaque, index: u32);
+Parser:   With body: fn access_core_add_component_write(access: *mut AccessCoreOpaque, index: u32) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_add_component_write
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_add_resource_read(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Normalized: 'fn access_core_add_resource_read(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_add_resource_read(access: *mut AccessCoreOpaque, index: u32);
+Parser:   With body: fn access_core_add_resource_read(access: *mut AccessCoreOpaque, index: u32) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_add_resource_read
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_add_resource_write(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Normalized: 'fn access_core_add_resource_write(access: *mut AccessCoreOpaque, index: u32);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_add_resource_write(access: *mut AccessCoreOpaque, index: u32);
+Parser:   With body: fn access_core_add_resource_write(access: *mut AccessCoreOpaque, index: u32) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_add_resource_write
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_has_component_read(access: *const AccessCoreOpaque, index: u32)
+-> bool;'
+Parser:   Normalized: 'fn access_core_has_component_read(access: *const AccessCoreOpaque, index: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_has_component_read(access: *const AccessCoreOpaque, index: u32)
+-> bool;
+Parser:   With body: fn access_core_has_component_read(access: *const AccessCoreOpaque, index: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_has_component_read
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+access_core_has_component_write(access: *const AccessCoreOpaque, index: u32)
+-> bool;'
+Parser:   Normalized: 'fn access_core_has_component_write(access: *const AccessCoreOpaque, index: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+access_core_has_component_write(access: *const AccessCoreOpaque, index: u32)
+-> bool;
+Parser:   With body: fn access_core_has_component_write(access: *const AccessCoreOpaque, index: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_has_component_write
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_has_resource_read(access: *const AccessCoreOpaque, index: u32)
+-> bool;'
+Parser:   Normalized: 'fn access_core_has_resource_read(access: *const AccessCoreOpaque, index: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_has_resource_read(access: *const AccessCoreOpaque, index: u32)
+-> bool;
+Parser:   With body: fn access_core_has_resource_read(access: *const AccessCoreOpaque, index: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_has_resource_read
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_has_resource_write(access: *const AccessCoreOpaque, index: u32)
+-> bool;'
+Parser:   Normalized: 'fn access_core_has_resource_write(access: *const AccessCoreOpaque, index: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_has_resource_write(access: *const AccessCoreOpaque, index: u32)
+-> bool;
+Parser:   With body: fn access_core_has_resource_write(access: *const AccessCoreOpaque, index: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_has_resource_write
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+access_core_is_compatible(access: *const AccessCoreOpaque, other: *const
+AccessCoreOpaque) -> bool;'
+Parser:   Normalized: 'fn access_core_is_compatible(access: *const AccessCoreOpaque, other: *const AccessCoreOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+access_core_is_compatible(access: *const AccessCoreOpaque, other: *const
+AccessCoreOpaque) -> bool;
+Parser:   With body: fn access_core_is_compatible(access: *const AccessCoreOpaque, other: *const AccessCoreOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_is_compatible
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+access_core_extend(access: *mut AccessCoreOpaque, other: *const
+AccessCoreOpaque);'
+Parser:   Normalized: 'fn access_core_extend(access: *mut AccessCoreOpaque, other: *const AccessCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+access_core_extend(access: *mut AccessCoreOpaque, other: *const
+AccessCoreOpaque);
+Parser:   With body: fn access_core_extend(access: *mut AccessCoreOpaque, other: *const AccessCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_extend
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn access_core_clear(access: *mut AccessCoreOpaque);'
+Parser:   Normalized: 'fn access_core_clear(access: *mut AccessCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn access_core_clear(access: *mut AccessCoreOpaque);
+Parser:   With body: fn access_core_clear(access: *mut AccessCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: access_core_clear
+error: attempted to repeat an expression containing no syntax variables matched as repeating at this depth
+   --> autozig-ecs/src/query/world_query.rs:327:23
+    |
+327 |                 let ($($name_fetch,)*) = fetch;
+    |                       ^^^^^^^^^^^^^^
+
+Parser: Successfully parsed file with 1 items
+Parser: Module has 14 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_builder_create() -> * mut QueryBuilderCoreOpaque;'
+Parser:   Normalized: 'fn query_builder_create() -> * mut QueryBuilderCoreOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_builder_create() -> * mut QueryBuilderCoreOpaque;
+Parser:   With body: fn query_builder_create() -> * mut QueryBuilderCoreOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_builder_destroy(builder: *mut QueryBuilderCoreOpaque);'
+Parser:   Normalized: 'fn query_builder_destroy(builder: *mut QueryBuilderCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_builder_destroy(builder: *mut QueryBuilderCoreOpaque);
+Parser:   With body: fn query_builder_destroy(builder: *mut QueryBuilderCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_add_component(builder: *mut QueryBuilderCoreOpaque,
+component_id: u32) -> bool;'
+Parser:   Normalized: 'fn query_builder_add_component(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_add_component(builder: *mut QueryBuilderCoreOpaque,
+component_id: u32) -> bool;
+Parser:   With body: fn query_builder_add_component(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_add_component
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_add_with(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;'
+Parser:   Normalized: 'fn query_builder_add_with(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_add_with(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;
+Parser:   With body: fn query_builder_add_with(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_add_with
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_add_without(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;'
+Parser:   Normalized: 'fn query_builder_add_without(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_add_without(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;
+Parser:   With body: fn query_builder_add_without(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_add_without
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_add_optional(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;'
+Parser:   Normalized: 'fn query_builder_add_optional(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_add_optional(builder: *mut QueryBuilderCoreOpaque, component_id:
+u32) -> bool;
+Parser:   With body: fn query_builder_add_optional(builder: *mut QueryBuilderCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_add_optional
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_set_read_only(builder: *mut QueryBuilderCoreOpaque, read_only:
+bool);'
+Parser:   Normalized: 'fn query_builder_set_read_only(builder: *mut QueryBuilderCoreOpaque, read_only: bool);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_set_read_only(builder: *mut QueryBuilderCoreOpaque, read_only:
+bool);
+Parser:   With body: fn query_builder_set_read_only(builder: *mut QueryBuilderCoreOpaque, read_only: bool) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_set_read_only
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_has_component(builder: *const QueryBuilderCoreOpaque,
+component_id: u32) -> bool;'
+Parser:   Normalized: 'fn query_builder_has_component(builder: *const QueryBuilderCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_has_component(builder: *const QueryBuilderCoreOpaque,
+component_id: u32) -> bool;
+Parser:   With body: fn query_builder_has_component(builder: *const QueryBuilderCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_has_component
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_builder_clear(builder: *mut QueryBuilderCoreOpaque);'
+Parser:   Normalized: 'fn query_builder_clear(builder: *mut QueryBuilderCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_builder_clear(builder: *mut QueryBuilderCoreOpaque);
+Parser:   With body: fn query_builder_clear(builder: *mut QueryBuilderCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_clear
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_builder_get_component_count(builder: *const QueryBuilderCoreOpaque)
+-> u32;'
+Parser:   Normalized: 'fn query_builder_get_component_count(builder: *const QueryBuilderCoreOpaque) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_builder_get_component_count(builder: *const QueryBuilderCoreOpaque)
+-> u32;
+Parser:   With body: fn query_builder_get_component_count(builder: *const QueryBuilderCoreOpaque) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_get_component_count
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_get_component(builder: *const QueryBuilderCoreOpaque, index:
+u32) -> u32;'
+Parser:   Normalized: 'fn query_builder_get_component(builder: *const QueryBuilderCoreOpaque, index: u32) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_get_component(builder: *const QueryBuilderCoreOpaque, index:
+u32) -> u32;
+Parser:   With body: fn query_builder_get_component(builder: *const QueryBuilderCoreOpaque, index: u32) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_get_component
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_builder_validate(builder: *const QueryBuilderCoreOpaque) -> bool;'
+Parser:   Normalized: 'fn query_builder_validate(builder: *const QueryBuilderCoreOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_builder_validate(builder: *const QueryBuilderCoreOpaque) -> bool;
+Parser:   With body: fn query_builder_validate(builder: *const QueryBuilderCoreOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_validate
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_merge_or(builder: *mut QueryBuilderCoreOpaque, other: *const
+QueryBuilderCoreOpaque) -> bool;'
+Parser:   Normalized: 'fn query_builder_merge_or(builder: *mut QueryBuilderCoreOpaque, other: *const QueryBuilderCoreOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_merge_or(builder: *mut QueryBuilderCoreOpaque, other: *const
+QueryBuilderCoreOpaque) -> bool;
+Parser:   With body: fn query_builder_merge_or(builder: *mut QueryBuilderCoreOpaque, other: *const QueryBuilderCoreOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_merge_or
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_builder_merge_and(builder: *mut QueryBuilderCoreOpaque, other: *const
+QueryBuilderCoreOpaque) -> bool;'
+Parser:   Normalized: 'fn query_builder_merge_and(builder: *mut QueryBuilderCoreOpaque, other: *const QueryBuilderCoreOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_builder_merge_and(builder: *mut QueryBuilderCoreOpaque, other: *const
+QueryBuilderCoreOpaque) -> bool;
+Parser:   With body: fn query_builder_merge_and(builder: *mut QueryBuilderCoreOpaque, other: *const QueryBuilderCoreOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_builder_merge_and
+Parser: Successfully parsed file with 1 items
+Parser: Module has 4 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn fetch_create() -> * mut FetchCoreOpaque;'
+Parser:   Normalized: 'fn fetch_create() -> * mut FetchCoreOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn fetch_create() -> * mut FetchCoreOpaque;
+Parser:   With body: fn fetch_create() -> * mut FetchCoreOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: fetch_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn fetch_destroy(fetch: *mut FetchCoreOpaque);'
+Parser:   Normalized: 'fn fetch_destroy(fetch: *mut FetchCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn fetch_destroy(fetch: *mut FetchCoreOpaque);
+Parser:   With body: fn fetch_destroy(fetch: *mut FetchCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: fetch_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize,
+stride: usize);'
+Parser:   Normalized: 'fn fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize, stride: usize);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize,
+stride: usize);
+Parser:   With body: fn fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize, stride: usize) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: fetch_configure
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> * const u8;'
+Parser:   Normalized: 'fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> * const u8;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> * const u8;
+Parser:   With body: fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> * const u8 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: fetch_get_at
+error: attempted to repeat an expression containing no syntax variables matched as repeating at this depth
+   --> autozig-ecs/src/query/fetch/mod.rs:200:23
+    |
+200 |                 let ($($name_fetch,)*) = self;
+    |                       ^^^^^^^^^^^^^^
+
+Parser: Successfully parsed file with 1 items
+Parser: Module has 4 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn filter_create() -> * mut FilterCoreOpaque;'
+Parser:   Normalized: 'fn filter_create() -> * mut FilterCoreOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn filter_create() -> * mut FilterCoreOpaque;
+Parser:   With body: fn filter_create() -> * mut FilterCoreOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: filter_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn filter_destroy(filter: *mut FilterCoreOpaque);'
+Parser:   Normalized: 'fn filter_destroy(filter: *mut FilterCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn filter_destroy(filter: *mut FilterCoreOpaque);
+Parser:   With body: fn filter_destroy(filter: *mut FilterCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: filter_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32,
+ticks: *const u32);'
+Parser:   Normalized: 'fn filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32, ticks: *const u32);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32,
+ticks: *const u32);
+Parser:   With body: fn filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32, ticks: *const u32) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: filter_configure
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool;'
+Parser:   Normalized: 'fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool;
+Parser:   With body: fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: filter_matches
+Parser: Successfully parsed file with 1 items
+Parser: Module has 8 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_state_create() -> * mut QueryStateCoreOpaque;'
+Parser:   Normalized: 'fn query_state_create() -> * mut QueryStateCoreOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_state_create() -> * mut QueryStateCoreOpaque;
+Parser:   With body: fn query_state_create() -> * mut QueryStateCoreOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_state_destroy(state: *mut QueryStateCoreOpaque);'
+Parser:   Normalized: 'fn query_state_destroy(state: *mut QueryStateCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_state_destroy(state: *mut QueryStateCoreOpaque);
+Parser:   With body: fn query_state_destroy(state: *mut QueryStateCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_state_is_empty(state: *const QueryStateCoreOpaque) -> bool;'
+Parser:   Normalized: 'fn query_state_is_empty(state: *const QueryStateCoreOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_state_is_empty(state: *const QueryStateCoreOpaque) -> bool;
+Parser:   With body: fn query_state_is_empty(state: *const QueryStateCoreOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_is_empty
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_state_matched_entity_count(state: *const QueryStateCoreOpaque) ->
+u32;'
+Parser:   Normalized: 'fn query_state_matched_entity_count(state: *const QueryStateCoreOpaque) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_state_matched_entity_count(state: *const QueryStateCoreOpaque) ->
+u32;
+Parser:   With body: fn query_state_matched_entity_count(state: *const QueryStateCoreOpaque) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_matched_entity_count
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn query_state_update_archetypes(state: *mut QueryStateCoreOpaque);'
+Parser:   Normalized: 'fn query_state_update_archetypes(state: *mut QueryStateCoreOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn query_state_update_archetypes(state: *mut QueryStateCoreOpaque);
+Parser:   With body: fn query_state_update_archetypes(state: *mut QueryStateCoreOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_update_archetypes
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_state_matches_component_list(state: *const QueryStateCoreOpaque,
+components_ptr: *const u32, len: usize) -> bool;'
+Parser:   Normalized: 'fn query_state_matches_component_list(state: *const QueryStateCoreOpaque, components_ptr: *const u32, len: usize) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_state_matches_component_list(state: *const QueryStateCoreOpaque,
+components_ptr: *const u32, len: usize) -> bool;
+Parser:   With body: fn query_state_matches_component_list(state: *const QueryStateCoreOpaque, components_ptr: *const u32, len: usize) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_matches_component_list
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_state_add_required_component(state: *mut QueryStateCoreOpaque,
+component_id: u32) -> bool;'
+Parser:   Normalized: 'fn query_state_add_required_component(state: *mut QueryStateCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_state_add_required_component(state: *mut QueryStateCoreOpaque,
+component_id: u32) -> bool;
+Parser:   With body: fn query_state_add_required_component(state: *mut QueryStateCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_add_required_component
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+query_state_add_excluded_component(state: *mut QueryStateCoreOpaque,
+component_id: u32) -> bool;'
+Parser:   Normalized: 'fn query_state_add_excluded_component(state: *mut QueryStateCoreOpaque, component_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+query_state_add_excluded_component(state: *mut QueryStateCoreOpaque,
+component_id: u32) -> bool;
+Parser:   With body: fn query_state_add_excluded_component(state: *mut QueryStateCoreOpaque, component_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: query_state_add_excluded_component
+Parser: Successfully parsed file with 1 items
+Parser: Module has 5 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn schedule_create() -> * mut ScheduleOpaque;'
+Parser:   Normalized: 'fn schedule_create() -> * mut ScheduleOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn schedule_create() -> * mut ScheduleOpaque;
+Parser:   With body: fn schedule_create() -> * mut ScheduleOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn schedule_destroy(schedule: *mut ScheduleOpaque);'
+Parser:   Normalized: 'fn schedule_destroy(schedule: *mut ScheduleOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn schedule_destroy(schedule: *mut ScheduleOpaque);
+Parser:   With body: fn schedule_destroy(schedule: *mut ScheduleOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+schedule_add_system(schedule: *mut ScheduleOpaque, name_ptr: *const u8,
+name_len: usize, func: SystemFn) -> bool;'
+Parser:   Normalized: 'fn schedule_add_system(schedule: *mut ScheduleOpaque, name_ptr: *const u8, name_len: usize, func: SystemFn) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+schedule_add_system(schedule: *mut ScheduleOpaque, name_ptr: *const u8,
+name_len: usize, func: SystemFn) -> bool;
+Parser:   With body: fn schedule_add_system(schedule: *mut ScheduleOpaque, name_ptr: *const u8, name_len: usize, func: SystemFn) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_add_system
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+schedule_run(schedule: *mut ScheduleOpaque, world_ptr: *mut std::ffi::c_void);'
+Parser:   Normalized: 'fn schedule_run(schedule: *mut ScheduleOpaque, world_ptr: *mut std::ffi::c_void);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+schedule_run(schedule: *mut ScheduleOpaque, world_ptr: *mut std::ffi::c_void);
+Parser:   With body: fn schedule_run(schedule: *mut ScheduleOpaque, world_ptr: *mut std::ffi::c_void) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_run
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn schedule_system_count(schedule: *const ScheduleOpaque) -> usize;'
+Parser:   Normalized: 'fn schedule_system_count(schedule: *const ScheduleOpaque) -> usize;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn schedule_system_count(schedule: *const ScheduleOpaque) -> usize;
+Parser:   With body: fn schedule_system_count(schedule: *const ScheduleOpaque) -> usize { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_system_count
+Parser: Successfully parsed file with 1 items
+Parser: Module has 3 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn schedule_create() -> * mut u8;'
+Parser:   Normalized: 'fn schedule_create() -> * mut u8;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn schedule_create() -> * mut u8;
+Parser:   With body: fn schedule_create() -> * mut u8 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+schedule_add_system(schedule: *mut u8, name: *const u8, name_len: usize, func:
+*const u8);'
+Parser:   Normalized: 'fn schedule_add_system(schedule: *mut u8, name: *const u8, name_len: usize, func: *const u8);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+schedule_add_system(schedule: *mut u8, name: *const u8, name_len: usize, func:
+*const u8);
+Parser:   With body: fn schedule_add_system(schedule: *mut u8, name: *const u8, name_len: usize, func: *const u8) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_add_system
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn schedule_run(schedule: *mut u8, world: *mut u8);'
+Parser:   Normalized: 'fn schedule_run(schedule: *mut u8, world: *mut u8);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn schedule_run(schedule: *mut u8, world: *mut u8);
+Parser:   With body: fn schedule_run(schedule: *mut u8, world: *mut u8) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: schedule_run
+Parser: Successfully parsed file with 1 items
+Parser: Module has 6 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn resource_registry_create() -> * mut ResourceRegistryOpaque;'
+Parser:   Normalized: 'fn resource_registry_create() -> * mut ResourceRegistryOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn resource_registry_create() -> * mut ResourceRegistryOpaque;
+Parser:   With body: fn resource_registry_create() -> * mut ResourceRegistryOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn resource_registry_destroy(registry: *mut ResourceRegistryOpaque);'
+Parser:   Normalized: 'fn resource_registry_destroy(registry: *mut ResourceRegistryOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn resource_registry_destroy(registry: *mut ResourceRegistryOpaque);
+Parser:   With body: fn resource_registry_destroy(registry: *mut ResourceRegistryOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+resource_registry_insert(registry: *mut ResourceRegistryOpaque, type_id: u64,
+ptr: *mut std::ffi::c_void) -> bool;'
+Parser:   Normalized: 'fn resource_registry_insert(registry: *mut ResourceRegistryOpaque, type_id: u64, ptr: *mut std::ffi::c_void) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+resource_registry_insert(registry: *mut ResourceRegistryOpaque, type_id: u64,
+ptr: *mut std::ffi::c_void) -> bool;
+Parser:   With body: fn resource_registry_insert(registry: *mut ResourceRegistryOpaque, type_id: u64, ptr: *mut std::ffi::c_void) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_insert
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+resource_registry_get(registry: *const ResourceRegistryOpaque, type_id: u64)
+-> * mut std :: ffi :: c_void;'
+Parser:   Normalized: 'fn resource_registry_get(registry: *const ResourceRegistryOpaque, type_id: u64) -> * mut std :: ffi :: c_void;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+resource_registry_get(registry: *const ResourceRegistryOpaque, type_id: u64)
+-> * mut std :: ffi :: c_void;
+Parser:   With body: fn resource_registry_get(registry: *const ResourceRegistryOpaque, type_id: u64) -> * mut std :: ffi :: c_void { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_get
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64)
+-> bool;'
+Parser:   Normalized: 'fn resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64)
+-> bool;
+Parser:   With body: fn resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_remove
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+resource_registry_contains(registry: *const ResourceRegistryOpaque, type_id:
+u64) -> bool;'
+Parser:   Normalized: 'fn resource_registry_contains(registry: *const ResourceRegistryOpaque, type_id: u64) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+resource_registry_contains(registry: *const ResourceRegistryOpaque, type_id:
+u64) -> bool;
+Parser:   With body: fn resource_registry_contains(registry: *const ResourceRegistryOpaque, type_id: u64) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: resource_registry_contains
+Parser: Successfully parsed file with 1 items
+Parser: Module has 7 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_create(event_size: usize) -> * mut EventQueueOpaque;'
+Parser:   Normalized: 'fn event_queue_create(event_size: usize) -> * mut EventQueueOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_create(event_size: usize) -> * mut EventQueueOpaque;
+Parser:   With body: fn event_queue_create(event_size: usize) -> * mut EventQueueOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_destroy(queue: *mut EventQueueOpaque);'
+Parser:   Normalized: 'fn event_queue_destroy(queue: *mut EventQueueOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_destroy(queue: *mut EventQueueOpaque);
+Parser:   With body: fn event_queue_destroy(queue: *mut EventQueueOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_push(queue: *mut EventQueueOpaque, data_ptr: *const u8) ->
+bool;'
+Parser:   Normalized: 'fn event_queue_push(queue: *mut EventQueueOpaque, data_ptr: *const u8) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_push(queue: *mut EventQueueOpaque, data_ptr: *const u8) ->
+bool;
+Parser:   With body: fn event_queue_push(queue: *mut EventQueueOpaque, data_ptr: *const u8) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_push
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_swap(queue: *mut EventQueueOpaque);'
+Parser:   Normalized: 'fn event_queue_swap(queue: *mut EventQueueOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_swap(queue: *mut EventQueueOpaque);
+Parser:   With body: fn event_queue_swap(queue: *mut EventQueueOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_swap
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+event_queue_get_reader(queue: *const EventQueueOpaque, out_ptr: *mut *const
+u8, out_len: *mut usize);'
+Parser:   Normalized: 'fn event_queue_get_reader(queue: *const EventQueueOpaque, out_ptr: *mut *const u8, out_len: *mut usize);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+event_queue_get_reader(queue: *const EventQueueOpaque, out_ptr: *mut *const
+u8, out_len: *mut usize);
+Parser:   With body: fn event_queue_get_reader(queue: *const EventQueueOpaque, out_ptr: *mut *const u8, out_len: *mut usize) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_get_reader
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_get_event_count(queue: *const EventQueueOpaque) -> usize;'
+Parser:   Normalized: 'fn event_queue_get_event_count(queue: *const EventQueueOpaque) -> usize;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_get_event_count(queue: *const EventQueueOpaque) -> usize;
+Parser:   With body: fn event_queue_get_event_count(queue: *const EventQueueOpaque) -> usize { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_get_event_count
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn event_queue_clear(queue: *mut EventQueueOpaque);'
+Parser:   Normalized: 'fn event_queue_clear(queue: *mut EventQueueOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn event_queue_clear(queue: *mut EventQueueOpaque);
+Parser:   With body: fn event_queue_clear(queue: *mut EventQueueOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: event_queue_clear
+Parser: Successfully parsed file with 1 items
+Parser: Module has 10 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_create() -> * mut CommandBufferOpaque;'
+Parser:   Normalized: 'fn command_buffer_create() -> * mut CommandBufferOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_create() -> * mut CommandBufferOpaque;
+Parser:   With body: fn command_buffer_create() -> * mut CommandBufferOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_destroy(buffer: *mut CommandBufferOpaque);'
+Parser:   Normalized: 'fn command_buffer_destroy(buffer: *mut CommandBufferOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_destroy(buffer: *mut CommandBufferOpaque);
+Parser:   With body: fn command_buffer_destroy(buffer: *mut CommandBufferOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_write_spawn(buffer: *mut CommandBufferOpaque) -> bool;'
+Parser:   Normalized: 'fn command_buffer_write_spawn(buffer: *mut CommandBufferOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_write_spawn(buffer: *mut CommandBufferOpaque) -> bool;
+Parser:   With body: fn command_buffer_write_spawn(buffer: *mut CommandBufferOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_write_spawn
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+command_buffer_write_despawn(buffer: *mut CommandBufferOpaque, entity_idx:
+u32) -> bool;'
+Parser:   Normalized: 'fn command_buffer_write_despawn(buffer: *mut CommandBufferOpaque, entity_idx: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+command_buffer_write_despawn(buffer: *mut CommandBufferOpaque, entity_idx:
+u32) -> bool;
+Parser:   With body: fn command_buffer_write_despawn(buffer: *mut CommandBufferOpaque, entity_idx: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_write_despawn
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+command_buffer_write_insert(buffer: *mut CommandBufferOpaque, entity_idx: u32,
+component_id: u32, data_ptr: *const u8, data_len: usize,) -> bool;'
+Parser:   Normalized: 'fn command_buffer_write_insert(buffer: *mut CommandBufferOpaque, entity_idx: u32, component_id: u32, data_ptr: *const u8, data_len: usize,) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+command_buffer_write_insert(buffer: *mut CommandBufferOpaque, entity_idx: u32,
+component_id: u32, data_ptr: *const u8, data_len: usize,) -> bool;
+Parser:   With body: fn command_buffer_write_insert(buffer: *mut CommandBufferOpaque, entity_idx: u32, component_id: u32, data_ptr: *const u8, data_len: usize,) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_write_insert
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+command_buffer_write_remove(buffer: *mut CommandBufferOpaque, entity_idx: u32,
+component_id: u32,) -> bool;'
+Parser:   Normalized: 'fn command_buffer_write_remove(buffer: *mut CommandBufferOpaque, entity_idx: u32, component_id: u32,) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+command_buffer_write_remove(buffer: *mut CommandBufferOpaque, entity_idx: u32,
+component_id: u32,) -> bool;
+Parser:   With body: fn command_buffer_write_remove(buffer: *mut CommandBufferOpaque, entity_idx: u32, component_id: u32,) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_write_remove
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_clear(buffer: *mut CommandBufferOpaque);'
+Parser:   Normalized: 'fn command_buffer_clear(buffer: *mut CommandBufferOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_clear(buffer: *mut CommandBufferOpaque);
+Parser:   With body: fn command_buffer_clear(buffer: *mut CommandBufferOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_clear
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+command_buffer_get_stream(buffer: *const CommandBufferOpaque, out_ptr: *mut
+*const u8, out_len: *mut usize,);'
+Parser:   Normalized: 'fn command_buffer_get_stream(buffer: *const CommandBufferOpaque, out_ptr: *mut *const u8, out_len: *mut usize,);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+command_buffer_get_stream(buffer: *const CommandBufferOpaque, out_ptr: *mut
+*const u8, out_len: *mut usize,);
+Parser:   With body: fn command_buffer_get_stream(buffer: *const CommandBufferOpaque, out_ptr: *mut *const u8, out_len: *mut usize,) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_get_stream
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_is_empty(buffer: *const CommandBufferOpaque) -> bool;'
+Parser:   Normalized: 'fn command_buffer_is_empty(buffer: *const CommandBufferOpaque) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_is_empty(buffer: *const CommandBufferOpaque) -> bool;
+Parser:   With body: fn command_buffer_is_empty(buffer: *const CommandBufferOpaque) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_is_empty
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32;'
+Parser:   Normalized: 'fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32;
+Parser:   With body: fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: command_buffer_apply_simple
+Parser: Successfully parsed file with 1 items
+Parser: Module has 5 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn plugin_manager_create() -> * mut PluginManagerOpaque;'
+Parser:   Normalized: 'fn plugin_manager_create() -> * mut PluginManagerOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn plugin_manager_create() -> * mut PluginManagerOpaque;
+Parser:   With body: fn plugin_manager_create() -> * mut PluginManagerOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: plugin_manager_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn plugin_manager_destroy(manager: *mut PluginManagerOpaque);'
+Parser:   Normalized: 'fn plugin_manager_destroy(manager: *mut PluginManagerOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn plugin_manager_destroy(manager: *mut PluginManagerOpaque);
+Parser:   With body: fn plugin_manager_destroy(manager: *mut PluginManagerOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: plugin_manager_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+plugin_manager_add(manager: *mut PluginManagerOpaque, name_ptr: *const u8,
+name_len: usize, build_fn: PluginBuildFn,) -> bool;'
+Parser:   Normalized: 'fn plugin_manager_add(manager: *mut PluginManagerOpaque, name_ptr: *const u8, name_len: usize, build_fn: PluginBuildFn,) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+plugin_manager_add(manager: *mut PluginManagerOpaque, name_ptr: *const u8,
+name_len: usize, build_fn: PluginBuildFn,) -> bool;
+Parser:   With body: fn plugin_manager_add(manager: *mut PluginManagerOpaque, name_ptr: *const u8, name_len: usize, build_fn: PluginBuildFn,) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: plugin_manager_add
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+plugin_manager_run_all(manager: *mut PluginManagerOpaque, app_ptr: *mut
+std::ffi::c_void);'
+Parser:   Normalized: 'fn plugin_manager_run_all(manager: *mut PluginManagerOpaque, app_ptr: *mut std::ffi::c_void);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+plugin_manager_run_all(manager: *mut PluginManagerOpaque, app_ptr: *mut
+std::ffi::c_void);
+Parser:   With body: fn plugin_manager_run_all(manager: *mut PluginManagerOpaque, app_ptr: *mut std::ffi::c_void) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: plugin_manager_run_all
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn plugin_manager_count(manager: *const PluginManagerOpaque) -> usize;'
+Parser:   Normalized: 'fn plugin_manager_count(manager: *const PluginManagerOpaque) -> usize;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn plugin_manager_count(manager: *const PluginManagerOpaque) -> usize;
+Parser:   With body: fn plugin_manager_count(manager: *const PluginManagerOpaque) -> usize { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: plugin_manager_count
+Parser: Successfully parsed file with 1 items
+Parser: Module has 5 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn closure_registry_create() -> * mut ClosureRegistryOpaque;'
+Parser:   Normalized: 'fn closure_registry_create() -> * mut ClosureRegistryOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn closure_registry_create() -> * mut ClosureRegistryOpaque;
+Parser:   With body: fn closure_registry_create() -> * mut ClosureRegistryOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: closure_registry_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn closure_registry_destroy(registry: *mut ClosureRegistryOpaque);'
+Parser:   Normalized: 'fn closure_registry_destroy(registry: *mut ClosureRegistryOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn closure_registry_destroy(registry: *mut ClosureRegistryOpaque);
+Parser:   With body: fn closure_registry_destroy(registry: *mut ClosureRegistryOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: closure_registry_destroy
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+closure_registry_register(registry: *mut ClosureRegistryOpaque, name_ptr:
+*const u8, name_len: usize, data_ptr: *mut std::ffi::c_void, vtable_ptr: *mut
+std::ffi::c_void, trampoline: TrampolineFn, access_flags: u8,) -> bool;'
+Parser:   Normalized: 'fn closure_registry_register(registry: *mut ClosureRegistryOpaque, name_ptr: *const u8, name_len: usize, data_ptr: *mut std::ffi::c_void, vtable_ptr: *mut std::ffi::c_void, trampoline: TrampolineFn, access_flags: u8,) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+closure_registry_register(registry: *mut ClosureRegistryOpaque, name_ptr:
+*const u8, name_len: usize, data_ptr: *mut std::ffi::c_void, vtable_ptr: *mut
+std::ffi::c_void, trampoline: TrampolineFn, access_flags: u8,) -> bool;
+Parser:   With body: fn closure_registry_register(registry: *mut ClosureRegistryOpaque, name_ptr: *const u8, name_len: usize, data_ptr: *mut std::ffi::c_void, vtable_ptr: *mut std::ffi::c_void, trampoline: TrampolineFn, access_flags: u8,) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: closure_registry_register
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+closure_registry_run_all(registry: *mut ClosureRegistryOpaque, world: *mut
+std::ffi::c_void,);'
+Parser:   Normalized: 'fn closure_registry_run_all(registry: *mut ClosureRegistryOpaque, world: *mut std::ffi::c_void,);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+closure_registry_run_all(registry: *mut ClosureRegistryOpaque, world: *mut
+std::ffi::c_void,);
+Parser:   With body: fn closure_registry_run_all(registry: *mut ClosureRegistryOpaque, world: *mut std::ffi::c_void,) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: closure_registry_run_all
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn closure_registry_system_count(registry: *const ClosureRegistryOpaque) ->
+usize;'
+Parser:   Normalized: 'fn closure_registry_system_count(registry: *const ClosureRegistryOpaque) -> usize;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn closure_registry_system_count(registry: *const ClosureRegistryOpaque) ->
+usize;
+Parser:   With body: fn closure_registry_system_count(registry: *const ClosureRegistryOpaque) -> usize { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: closure_registry_system_count
+Parser: Successfully parsed file with 1 items
+Parser: Module has 11 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn tick_new(value: u32) -> ZigTick;'
+Parser:   Normalized: 'fn tick_new(value: u32) -> ZigTick;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn tick_new(value: u32) -> ZigTick;
+Parser:   With body: fn tick_new(value: u32) -> ZigTick { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: tick_new
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn tick_increment(tick_ptr: *mut ZigTick);'
+Parser:   Normalized: 'fn tick_increment(tick_ptr: *mut ZigTick);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn tick_increment(tick_ptr: *mut ZigTick);
+Parser:   With body: fn tick_increment(tick_ptr: *mut ZigTick) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: tick_increment
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn tick_is_newer_than(self_tick: ZigTick, other: ZigTick, wrap_threshold: u32)
+-> bool;'
+Parser:   Normalized: 'fn tick_is_newer_than(self_tick: ZigTick, other: ZigTick, wrap_threshold: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn tick_is_newer_than(self_tick: ZigTick, other: ZigTick, wrap_threshold: u32)
+-> bool;
+Parser:   With body: fn tick_is_newer_than(self_tick: ZigTick, other: ZigTick, wrap_threshold: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: tick_is_newer_than
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn component_ticks_new(tick: ZigTick) -> ZigComponentTicks;'
+Parser:   Normalized: 'fn component_ticks_new(tick: ZigTick) -> ZigComponentTicks;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn component_ticks_new(tick: ZigTick) -> ZigComponentTicks;
+Parser:   With body: fn component_ticks_new(tick: ZigTick) -> ZigComponentTicks { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: component_ticks_new
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+component_ticks_set_changed(ticks_ptr: *mut ZigComponentTicks, tick: ZigTick);'
+Parser:   Normalized: 'fn component_ticks_set_changed(ticks_ptr: *mut ZigComponentTicks, tick: ZigTick);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+component_ticks_set_changed(ticks_ptr: *mut ZigComponentTicks, tick: ZigTick);
+Parser:   With body: fn component_ticks_set_changed(ticks_ptr: *mut ZigComponentTicks, tick: ZigTick) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: component_ticks_set_changed
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+component_ticks_is_added(ticks: ZigComponentTicks, last_run: ZigTick,
+this_run: ZigTick) -> bool;'
+Parser:   Normalized: 'fn component_ticks_is_added(ticks: ZigComponentTicks, last_run: ZigTick, this_run: ZigTick) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+component_ticks_is_added(ticks: ZigComponentTicks, last_run: ZigTick,
+this_run: ZigTick) -> bool;
+Parser:   With body: fn component_ticks_is_added(ticks: ZigComponentTicks, last_run: ZigTick, this_run: ZigTick) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: component_ticks_is_added
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+component_ticks_is_changed(ticks: ZigComponentTicks, last_run: ZigTick,
+this_run: ZigTick) -> bool;'
+Parser:   Normalized: 'fn component_ticks_is_changed(ticks: ZigComponentTicks, last_run: ZigTick, this_run: ZigTick) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+component_ticks_is_changed(ticks: ZigComponentTicks, last_run: ZigTick,
+this_run: ZigTick) -> bool;
+Parser:   With body: fn component_ticks_is_changed(ticks: ZigComponentTicks, last_run: ZigTick, this_run: ZigTick) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: component_ticks_is_changed
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn change_detection_context_init() -> ZigChangeDetectionContext;'
+Parser:   Normalized: 'fn change_detection_context_init() -> ZigChangeDetectionContext;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn change_detection_context_init() -> ZigChangeDetectionContext;
+Parser:   With body: fn change_detection_context_init() -> ZigChangeDetectionContext { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: change_detection_context_init
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+change_detection_context_increment(ctx_ptr: *mut ZigChangeDetectionContext);'
+Parser:   Normalized: 'fn change_detection_context_increment(ctx_ptr: *mut ZigChangeDetectionContext);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+change_detection_context_increment(ctx_ptr: *mut ZigChangeDetectionContext);
+Parser:   With body: fn change_detection_context_increment(ctx_ptr: *mut ZigChangeDetectionContext) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: change_detection_context_increment
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+change_detection_context_check_if_added(ctx_ptr: *const
+ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;'
+Parser:   Normalized: 'fn change_detection_context_check_if_added(ctx_ptr: *const ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+change_detection_context_check_if_added(ctx_ptr: *const
+ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;
+Parser:   With body: fn change_detection_context_check_if_added(ctx_ptr: *const ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: change_detection_context_check_if_added
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+change_detection_context_check_if_changed(ctx_ptr: *const
+ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;'
+Parser:   Normalized: 'fn change_detection_context_check_if_changed(ctx_ptr: *const ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+change_detection_context_check_if_changed(ctx_ptr: *const
+ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool;
+Parser:   With body: fn change_detection_context_check_if_changed(ctx_ptr: *const ZigChangeDetectionContext, ticks: ZigComponentTicks) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: change_detection_context_check_if_changed
+Parser: Successfully parsed file with 1 items
+Parser: Module has 6 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn removed_components_init(component_id: u32) -> * mut
+ZigRemovedComponentsOpaque;'
+Parser:   Normalized: 'fn removed_components_init(component_id: u32) -> * mut ZigRemovedComponentsOpaque;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn removed_components_init(component_id: u32) -> * mut
+ZigRemovedComponentsOpaque;
+Parser:   With body: fn removed_components_init(component_id: u32) -> * mut ZigRemovedComponentsOpaque { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_init
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn removed_components_deinit(removed_ptr: *mut ZigRemovedComponentsOpaque);'
+Parser:   Normalized: 'fn removed_components_deinit(removed_ptr: *mut ZigRemovedComponentsOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn removed_components_deinit(removed_ptr: *mut ZigRemovedComponentsOpaque);
+Parser:   With body: fn removed_components_deinit(removed_ptr: *mut ZigRemovedComponentsOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_deinit
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+removed_components_record(removed_ptr: *mut ZigRemovedComponentsOpaque,
+entity_id: u32) -> bool;'
+Parser:   Normalized: 'fn removed_components_record(removed_ptr: *mut ZigRemovedComponentsOpaque, entity_id: u32) -> bool;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+removed_components_record(removed_ptr: *mut ZigRemovedComponentsOpaque,
+entity_id: u32) -> bool;
+Parser:   With body: fn removed_components_record(removed_ptr: *mut ZigRemovedComponentsOpaque, entity_id: u32) -> bool { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_record
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn removed_components_clear(removed_ptr: *mut ZigRemovedComponentsOpaque);'
+Parser:   Normalized: 'fn removed_components_clear(removed_ptr: *mut ZigRemovedComponentsOpaque);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn removed_components_clear(removed_ptr: *mut ZigRemovedComponentsOpaque);
+Parser:   With body: fn removed_components_clear(removed_ptr: *mut ZigRemovedComponentsOpaque) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_clear
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn removed_components_len(removed_ptr: *const ZigRemovedComponentsOpaque) ->
+usize;'
+Parser:   Normalized: 'fn removed_components_len(removed_ptr: *const ZigRemovedComponentsOpaque) -> usize;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn removed_components_len(removed_ptr: *const ZigRemovedComponentsOpaque) ->
+usize;
+Parser:   With body: fn removed_components_len(removed_ptr: *const ZigRemovedComponentsOpaque) -> usize { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_len
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn
+removed_components_get(removed_ptr: *const ZigRemovedComponentsOpaque, index:
+usize) -> u32;'
+Parser:   Normalized: 'fn removed_components_get(removed_ptr: *const ZigRemovedComponentsOpaque, index: usize) -> u32;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn
+removed_components_get(removed_ptr: *const ZigRemovedComponentsOpaque, index:
+usize) -> u32;
+Parser:   With body: fn removed_components_get(removed_ptr: *const ZigRemovedComponentsOpaque, index: usize) -> u32 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: removed_components_get
+Parser: Successfully parsed file with 1 items
+Parser: Module has 2 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn observer_create() -> * mut u8;'
+Parser:   Normalized: 'fn observer_create() -> * mut u8;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn observer_create() -> * mut u8;
+Parser:   With body: fn observer_create() -> * mut u8 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: observer_create
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn observer_trigger(observer: *mut u8, entity: Entity);'
+Parser:   Normalized: 'fn observer_trigger(observer: *mut u8, entity: Entity);'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn observer_trigger(observer: *mut u8, entity: Entity);
+Parser:   With body: fn observer_trigger(observer: *mut u8, entity: Entity) { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: observer_trigger
+Parser: Successfully parsed file with 1 items
+Parser: Module has 1 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn archetype_create() -> * mut u8;'
+Parser:   Normalized: 'fn archetype_create() -> * mut u8;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn archetype_create() -> * mut u8;
+Parser:   With body: fn archetype_create() -> * mut u8 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: archetype_create
+Parser: Successfully parsed file with 1 items
+Parser: Module has 1 items
+Parser: Total opaque types: 0
+Parser: Total trait impls collected: 0
+Parser: Processing item type: Verbatim
+Parser:   Verbatim content: 'fn table_create() -> * mut u8;'
+Parser:   Normalized: 'fn table_create() -> * mut u8;'
+Parser:   Starts with 'fn ': true
+Parser: Attempting to parse Verbatim function:
+Parser:   Original: fn table_create() -> * mut u8;
+Parser:   With body: fn table_create() -> * mut u8 { unimplemented!() }
+Parser:   ✓ SUCCESS: Parsed as ItemFn: table_create
+error[E0432]: unresolved imports `crate::query::Has`, `crate::query::Ref`, `crate::query::RefMut`
+  --> autozig-ecs/src/lib.rs:98:28
+   |
+98 |         With, Without, Or, Has,
+   |                            ^^^ no `Has` in `query`
+99 |         Ref, RefMut, OptionFetch, QueryParIter, BatchingStrategy
+   |         ^^^  ^^^^^^ no `RefMut` in `query`
+   |         |
+   |         no `Ref` in `query`
+   |
+   = help: consider importing one of these structs instead:
+           crate::change_detection::Ref
+           std::cell::Ref
+   = help: consider importing this struct instead:
+           std::cell::RefMut
+
+error[E0106]: missing lifetime specifier
+   --> autozig-ecs/src/query/mod.rs:121:20
+    |
+121 | pub type Read<T> = &T;
+    |                    ^ expected named lifetime parameter
+    |
+help: consider introducing a named lifetime parameter
+    |
+121 | pub type Read<'a, T> = &'a T;
+    |               +++       ++
+
+error[E0106]: missing lifetime specifier
+   --> autozig-ecs/src/query/mod.rs:122:21
+    |
+122 | pub type Write<T> = &mut T;
+    |                     ^ expected named lifetime parameter
+    |
+help: consider introducing a named lifetime parameter
+    |
+122 | pub type Write<'a, T> = &'a mut T;
+    |                +++       ++
+
+error[E0433]: failed to resolve: use of undeclared type `Tick`
+   --> autozig-ecs/src/query/state/mod.rs:560:17
+    |
+560 |                 Tick::new(0), // Placeholder
+    |                 ^^^^ use of undeclared type `Tick`
+    |
+help: consider importing one of these structs
+    |
+  7 + use crate::Tick;
+    |
+  7 + use crate::component_advanced::Tick;
+    |
+
+error[E0433]: failed to resolve: use of undeclared type `Tick`
+   --> autozig-ecs/src/query/state/mod.rs:561:17
+    |
+561 |                 Tick::new(0),
+    |                 ^^^^ use of undeclared type `Tick`
+    |
+help: consider importing one of these structs
+    |
+  7 + use crate::Tick;
+    |
+  7 + use crate::component_advanced::Tick;
+    |
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+  --> autozig-ecs/src/component/clone.rs:74:7
+   |
+74 | #[cfg(feature = "bevy_reflect")]
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `trace`
+   = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+   --> autozig-ecs/src/component/clone.rs:126:7
+    |
+126 | #[cfg(feature = "bevy_reflect")]
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default` and `trace`
+    = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+   --> autozig-ecs/src/component/clone.rs:135:7
+    |
+135 | #[cfg(feature = "bevy_reflect")]
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default` and `trace`
+    = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+  --> autozig-ecs/src/component/clone.rs:31:11
+   |
+31 |     #[cfg(feature = "bevy_reflect")]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `trace`
+   = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+  --> autozig-ecs/src/component/clone.rs:38:15
+   |
+38 |         #[cfg(feature = "bevy_reflect")]
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `trace`
+   = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `bevy_reflect`
+  --> autozig-ecs/src/component/clone.rs:40:19
+   |
+40 |         #[cfg(not(feature = "bevy_reflect"))]
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `default` and `trace`
+   = help: consider adding `bevy_reflect` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+error[E0119]: conflicting implementations of trait `ReadOnlyWorldQuery` for type `&_`
+   --> autozig-ecs/src/query/world_query.rs:184:1
+    |
+182 | impl<'a, T: Component> ReadOnlyWorldQuery for &'a T {}
+    | --------------------------------------------------- first implementation here
+183 |
+184 | impl<T: Component> ReadOnlyWorldQuery for &T {}
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `&_`
+
+error[E0277]: the trait bound `(): QueryData` is not satisfied
+   --> autozig-ecs/src/query/state/mod.rs:38:26
+    |
+ 38 | pub struct QueryState<Q: QueryData = (), F: QueryFilter = ()> {
+    |                          ^^^^^^^^^ the trait `world_query::WorldQuery` is not implemented for `()`
+    |
+help: the following other types implement trait `world_query::WorldQuery`
+   --> autozig-ecs/src/query/world_query.rs:77:1
+    |
+ 77 | impl WorldQuery for Entity {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^ `entity::Entity`
+...
+131 | impl<'a, T: Component> WorldQuery for &'a T {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a T`
+...
+187 | impl<'a, T: Component> WorldQuery for &'a mut T {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a mut T`
+...
+241 | impl<T: WorldQuery> WorldQuery for Option<T> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Option<T>`
+note: required for `()` to implement `QueryData`
+   --> autozig-ecs/src/query/world_query.rs:397:21
+    |
+397 | impl<T: WorldQuery> QueryData for T {}
+    |         ----------  ^^^^^^^^^     ^
+    |         |
+    |         unsatisfied trait bound introduced here
+note: required by a bound in `QueryState`
+   --> autozig-ecs/src/query/state/mod.rs:38:26
+    |
+ 38 | pub struct QueryState<Q: QueryData = (), F: QueryFilter = ()> {
+    |                          ^^^^^^^^^ required by this bound in `QueryState`
+
+error[E0046]: not all trait items implemented, missing: `State`, `init_state`, `matches_component_set`, `matches`
+   --> autozig-ecs/src/change_detection.rs:284:1
+    |
+284 | impl<T: Component> QueryFilter for Changed<T> {}
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `State`, `init_state`, `matches_component_set`, `matches` in implementation
+    |
+   ::: autozig-ecs/src/query/filter/mod.rs:179:5
+    |
+179 |     type State: Send + Sync + 'static;
+    |     --------------------------------- `State` from trait
+180 |     fn init_state(world: &crate::world::World) -> Self::State;
+    |     ---------------------------------------------------------- `init_state` from trait
+181 |     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;
+    |     --------------------------------------------------------------------------- `matches_component_set` from trait
+182 |     fn matches(&self, entity: crate::entity::Entity) -> bool;
+    |     --------------------------------------------------------- `matches` from trait
+
+error[E0046]: not all trait items implemented, missing: `State`, `init_state`, `matches_component_set`, `matches`
+   --> autozig-ecs/src/change_detection.rs:310:1
+    |
+310 | impl<T: Component> QueryFilter for Added<T> {}
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `State`, `init_state`, `matches_component_set`, `matches` in implementation
+    |
+   ::: autozig-ecs/src/query/filter/mod.rs:179:5
+    |
+179 |     type State: Send + Sync + 'static;
+    |     --------------------------------- `State` from trait
+180 |     fn init_state(world: &crate::world::World) -> Self::State;
+    |     ---------------------------------------------------------- `init_state` from trait
+181 |     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;
+    |     --------------------------------------------------------------------------- `matches_component_set` from trait
+182 |     fn matches(&self, entity: crate::entity::Entity) -> bool;
+    |     --------------------------------------------------------- `matches` from trait
+
+error[E0061]: this function takes 1 argument but 0 arguments were supplied
+  --> autozig-ecs/src/world/deferred_world.rs:57:9
+   |
+57 |         crate::query::QueryState::new()
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-- argument #1 of type `&world::World` is missing
+   |
+note: associated function defined here
+  --> autozig-ecs/src/query/state/mod.rs:48:12
+   |
+48 |     pub fn new(world: &World) -> Self {
+   |            ^^^ -------------
+help: provide the argument
+   |
+57 |         crate::query::QueryState::new(/* &world::World */)
+   |                                       +++++++++++++++++++
+
+error[E0277]: the trait bound `<T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_>` is not satisfied
+   --> autozig-ecs/src/query/world_query.rs:257:9
+    |
+257 |         OptionFetch::init(state, world, last_run, this_run)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Fetch<'_>` is not implemented for `<T as world_query::WorldQuery>::Fetch<'w>`
+    |
+note: required by a bound in `fetch::OptionFetch::<F>::init`
+   --> autozig-ecs/src/query/fetch/mod.rs:319:13
+    |
+319 | impl<'w, F: Fetch<'w>> OptionFetch<F> {
+    |             ^^^^^^^^^ required by this bound in `OptionFetch::<F>::init`
+...
+328 |     pub fn init(state: &F::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, t...
+    |            ---- required by a bound in this associated function
+help: consider further restricting the associated type
+    |
+256 |     ) -> Self::Fetch<'w> where <T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_> {
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0277]: the trait bound `<T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_>` is not satisfied
+   --> autozig-ecs/src/query/world_query.rs:257:27
+    |
+257 |         OptionFetch::init(state, world, last_run, this_run)
+    |                           ^^^^^ the trait `Fetch<'_>` is not implemented for `<T as world_query::WorldQuery>::Fetch<'w>`
+    |
+help: consider further restricting the associated type
+    |
+256 |     ) -> Self::Fetch<'w> where <T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_> {
+    |                          ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0599]: the method `set_archetype` exists for mutable reference `&mut fetch::OptionFetch<<T as world_query::WorldQuery>::Fetch<'w>>`, but its trait bounds were not satisfied
+   --> autozig-ecs/src/query/world_query.rs:266:15
+    |
+266 |         fetch.set_archetype(state, archetype, table);
+    |         ------^^^^^^^^^^^^^-------------------------
+    |         |     |
+    |         |     this is an associated function, not a method
+    |         help: use associated function syntax instead: `fetch::OptionFetch<<T as world_query::WorldQuery>::Fetch<'w>>::set_archetype(state, archetype, table)`
+    |
+    = note: found the following associated functions; to be used as methods, functions must have a `self` parameter
+note: the candidate is defined in the trait `world_query::WorldQuery`
+   --> autozig-ecs/src/query/world_query.rs:46:5
+    |
+ 46 | /     unsafe fn set_archetype<'w>(
+ 47 | |         fetch: &mut Self::Fetch<'w>,
+ 48 | |         state: &Self::State,
+ 49 | |         archetype: &crate::archetype::Archetype,
+ 50 | |         table: &crate::storage::Table,
+ 51 | |     );
+    | |______^
+note: trait bound `<T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_>` was not satisfied
+   --> autozig-ecs/src/query/fetch/mod.rs:319:13
+    |
+319 | impl<'w, F: Fetch<'w>> OptionFetch<F> {
+    |             ^^^^^^^^^  --------------
+    |             |
+    |             unsatisfied trait bound introduced here
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `Fetch` defines an item `set_archetype`, perhaps you need to implement it
+   --> autozig-ecs/src/query/fetch/mod.rs:448:1
+    |
+448 | pub trait Fetch<'w>: Sized {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: the method `set_table` exists for mutable reference `&mut fetch::OptionFetch<<T as world_query::WorldQuery>::Fetch<'w>>`, but its trait bounds were not satisfied
+   --> autozig-ecs/src/query/world_query.rs:274:15
+    |
+274 |         fetch.set_table(state, table);
+    |         ------^^^^^^^^^--------------
+    |         |     |
+    |         |     this is an associated function, not a method
+    |         help: use associated function syntax instead: `fetch::OptionFetch<<T as world_query::WorldQuery>::Fetch<'w>>::set_table(state, table)`
+    |
+    = note: found the following associated functions; to be used as methods, functions must have a `self` parameter
+note: the candidate is defined in the trait `world_query::WorldQuery`
+   --> autozig-ecs/src/query/world_query.rs:57:5
+    |
+ 57 | /     unsafe fn set_table<'w>(
+ 58 | |         fetch: &mut Self::Fetch<'w>,
+ 59 | |         state: &Self::State,
+ 60 | |         table: &crate::storage::Table,
+ 61 | |     );
+    | |______^
+note: trait bound `<T as world_query::WorldQuery>::Fetch<'w>: Fetch<'_>` was not satisfied
+   --> autozig-ecs/src/query/fetch/mod.rs:319:13
+    |
+319 | impl<'w, F: Fetch<'w>> OptionFetch<F> {
+    |             ^^^^^^^^^  --------------
+    |             |
+    |             unsatisfied trait bound introduced here
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `Fetch` defines an item `set_table`, perhaps you need to implement it
+   --> autozig-ecs/src/query/fetch/mod.rs:448:1
+    |
+448 | pub trait Fetch<'w>: Sized {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0063]: missing fields `fetch` and `state` in initializer of `QueryStateIter<'_, _, _>`
+   --> autozig-ecs/src/query/state/mod.rs:191:9
+    |
+191 |         QueryStateIter {
+    |         ^^^^^^^^^^^^^^ missing `fetch` and `state`
+
+error[E0063]: missing fields `filter_state` and `state` in initializer of `QueryState<_, _>`
+   --> autozig-ecs/src/query/state/mod.rs:281:9
+    |
+281 |         QueryState {
+    |         ^^^^^^^^^^ missing `filter_state` and `state`
+
+error[E0063]: missing fields `filter_state` and `state` in initializer of `QueryState<_, _>`
+   --> autozig-ecs/src/query/state/mod.rs:294:9
+    |
+294 |         QueryState {
+    |         ^^^^^^^^^^ missing `filter_state` and `state`
+
+error[E0063]: missing fields `state` and `world` in initializer of `QueryLens<'_, _, _>`
+   --> autozig-ecs/src/query/state/mod.rs:303:9
+    |
+303 |         QueryLens {
+    |         ^^^^^^^^^ missing `state` and `world`
+
+error[E0063]: missing fields `state` and `world` in initializer of `QueryLens<'_, _, _>`
+   --> autozig-ecs/src/query/state/mod.rs:313:9
+    |
+313 |         QueryLens {
+    |         ^^^^^^^^^ missing `state` and `world`
+
+error[E0599]: no method named `fetch` found for associated type `<Q as world_query::WorldQuery>::Fetch<'w>` in the current scope
+   --> autozig-ecs/src/query/state/mod.rs:400:29
+    |
+400 |             Some(self.fetch.fetch(entity, entity.index() as usize))
+    |                             ^^^^^ method not found in `<Q as world_query::WorldQuery>::Fetch<'w>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `fetch`, perhaps you need to implement one of them:
+            candidate #1: `ArchetypeQueryData`
+            candidate #2: `Fetch`
+            candidate #3: `SystemParam`
+            candidate #4: `query_advanced::WorldQuery`
+
+error[E0599]: no method named `fetch` found for associated type `<Q as world_query::WorldQuery>::Fetch<'w>` in the current scope
+   --> autozig-ecs/src/query/state/mod.rs:434:29
+    |
+434 |             Some(self.fetch.fetch(entity, entity.index() as usize))
+    |                             ^^^^^ method not found in `<Q as world_query::WorldQuery>::Fetch<'w>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `fetch`, perhaps you need to implement one of them:
+            candidate #1: `ArchetypeQueryData`
+            candidate #2: `Fetch`
+            candidate #3: `SystemParam`
+            candidate #4: `query_advanced::WorldQuery`
+
+error[E0308]: mismatched types
+   --> autozig-ecs/src/query/mod.rs:108:9
+    |
+ 74 | impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
+    |          - found this type parameter
+...
+107 |     pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
+    |                                                         ------------------------------------- expected `Result<<Q as world_query::WorldQuery>::Item<'_>, QueryEntityError>` because of return type
+108 |         self.state.get(self.world, entity)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<<Q as WorldQuery>::Item<'_>, ...>`, found `Result<Q, QueryEntityError>`
+    |
+    = note: expected enum `Result<<Q as world_query::WorldQuery>::Item<'_>, _>`
+               found enum `Result<Q, _>`
+help: consider further restricting this bound
+    |
+ 74 | impl<'w, Q: QueryData<Item<'_> = Q>, F: QueryFilter> Query<'w, Q, F> {
+    |                      ++++++++++++++
+
+error[E0308]: mismatched types
+   --> autozig-ecs/src/query/mod.rs:115:13
+    |
+ 74 | impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
+    |          - found this type parameter
+...
+112 |     pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
+    |                                                                 ------------------------------------- expected `Result<<Q as world_query::WorldQuery>::Item<'_>, QueryEntityError>` because of return type
+...
+115 |             self.state.get_mut(world_mut, entity)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Result<<Q as WorldQuery>::Item<'_>, ...>`, found `Result<Q, QueryEntityError>`
+    |
+    = note: expected enum `Result<<Q as world_query::WorldQuery>::Item<'_>, _>`
+               found enum `Result<Q, _>`
+help: consider further restricting this bound
+    |
+ 74 | impl<'w, Q: QueryData<Item<'_> = Q>, F: QueryFilter> Query<'w, Q, F> {
+    |                      ++++++++++++++
+
+warning: variable does not need to be mutable
+   --> autozig-ecs/src/entity/clone_entities.rs:185:30
+    |
+185 |     pub fn allow<T: 'static>(mut self) -> Self {
+    |                              ----^^^^
+    |                              |
+    |                              help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> autozig-ecs/src/entity/clone_entities.rs:191:29
+    |
+191 |     pub fn deny<T: 'static>(mut self) -> Self {
+    |                             ----^^^^
+    |                             |
+    |                             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> autozig-ecs/src/component/clone.rs:60:5
+   |
+60 |     mut destination: OwningPtr<'_>,
+   |     ----^^^^^^^^^^^
+   |     |
+   |     help: remove this `mut`
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/world/mod.rs:203:9
+    |
+203 |         unsafe { ComponentsQueuedRegistrator::new() }
+    |         ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/query/fetch/mod.rs:78:20
+   |
+78 |             inner: unsafe { fetch_create() },
+   |                    ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/fetch/mod.rs:114:9
+    |
+114 |         unsafe { fetch_destroy(self.inner) };
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/fetch/mod.rs:244:20
+    |
+244 |             inner: unsafe { fetch_create() },
+    |                    ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/fetch/mod.rs:280:9
+    |
+280 |         unsafe { fetch_destroy(self.inner) };
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/query/state/mod.rs:54:20
+   |
+54 |             inner: unsafe { query_state_create() },
+   |                    ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/query/state/mod.rs:62:9
+   |
+62 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/query/state/mod.rs:69:9
+   |
+69 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+error: lifetime may not live long enough
+   --> autozig-ecs/src/query/state/mod.rs:123:9
+    |
+113 |       pub fn iter<'w>(&self, world: &'w World) -> QueryStateIter<'w, Q, F> {
+    |                   --  - let's call the lifetime of this reference `'1`
+    |                   |
+    |                   lifetime `'w` defined here
+...
+123 | /         QueryStateIter {
+124 | |             _phantom: PhantomData,
+125 | |             entities: &self.matched_entities_cache,
+126 | |             index: 0,
+127 | |             fetch,
+128 | |             state: &self.state,
+129 | |         }
+    | |_________^ method was supposed to return data with lifetime `'w` but it is returning data with lifetime `'1`
+    |
+    = note: requirement occurs because of the type `QueryStateIter<'_, Q, F>`, which makes the generic argument `'_` invariant
+    = note: the struct `QueryStateIter<'w, Q, F>` is invariant over the parameter `'w`
+    = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+help: consider reusing a named lifetime parameter and update trait if needed
+    |
+113 |     pub fn iter<'w>(&'w self, world: &'w World) -> QueryStateIter<'w, Q, F> {
+    |                      ++
+
+error[E0502]: cannot borrow `*world` as immutable because it is also borrowed as mutable
+   --> autozig-ecs/src/query/state/mod.rs:139:17
+    |
+133 |       pub fn iter_mut<'w>(&mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> {
+    |                       -- lifetime `'w` defined here
+134 |           let cell = world.as_unsafe_world_cell();
+    |                      ----- mutable borrow occurs here
+...
+139 |                   world.last_change_tick(),
+    |                   ^^^^^ immutable borrow occurs here
+...
+143 | /         QueryStateIterMut {
+144 | |             _phantom: PhantomData,
+145 | |             entities: &self.matched_entities_cache,
+146 | |             index: 0,
+147 | |             fetch,
+148 | |             state: &self.state,
+149 | |         }
+    | |_________- returning this value requires that `*world` is borrowed for `'w`
+
+error[E0502]: cannot borrow `*world` as immutable because it is also borrowed as mutable
+   --> autozig-ecs/src/query/state/mod.rs:140:17
+    |
+133 |       pub fn iter_mut<'w>(&mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> {
+    |                       -- lifetime `'w` defined here
+134 |           let cell = world.as_unsafe_world_cell();
+    |                      ----- mutable borrow occurs here
+...
+140 |                   world.read_change_tick(),
+    |                   ^^^^^ immutable borrow occurs here
+...
+143 | /         QueryStateIterMut {
+144 | |             _phantom: PhantomData,
+145 | |             entities: &self.matched_entities_cache,
+146 | |             index: 0,
+147 | |             fetch,
+148 | |             state: &self.state,
+149 | |         }
+    | |_________- returning this value requires that `*world` is borrowed for `'w`
+
+error: lifetime may not live long enough
+   --> autozig-ecs/src/query/state/mod.rs:143:9
+    |
+133 |       pub fn iter_mut<'w>(&mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> {
+    |                       --  - let's call the lifetime of this reference `'1`
+    |                       |
+    |                       lifetime `'w` defined here
+...
+143 | /         QueryStateIterMut {
+144 | |             _phantom: PhantomData,
+145 | |             entities: &self.matched_entities_cache,
+146 | |             index: 0,
+147 | |             fetch,
+148 | |             state: &self.state,
+149 | |         }
+    | |_________^ method was supposed to return data with lifetime `'w` but it is returning data with lifetime `'1`
+    |
+    = note: requirement occurs because of the type `QueryStateIterMut<'_, Q, F>`, which makes the generic argument `'_` invariant
+    = note: the struct `QueryStateIterMut<'w, Q, F>` is invariant over the parameter `'w`
+    = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+help: consider reusing a named lifetime parameter and update trait if needed
+    |
+133 |     pub fn iter_mut<'w>(&'w mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> {
+    |                          ++
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/state/mod.rs:186:9
+    |
+186 |         unsafe { query_state_is_empty(self.inner) }
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/state/mod.rs:248:9
+    |
+248 |         unsafe { query_state_matched_entity_count(self.inner) as usize }
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/state/mod.rs:321:9
+    |
+321 |         unsafe { query_state_update_archetypes(self.inner) };
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/state/mod.rs:349:9
+    |
+349 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/query/state/mod.rs:376:9
+    |
+376 |         unsafe { query_state_destroy(self.inner) };
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/schedule.rs:25:9
+   |
+25 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/schedule.rs:48:9
+   |
+48 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> autozig-ecs/src/observer.rs:22:9
+   |
+22 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> autozig-ecs/src/observer.rs:120:13
+    |
+120 |             unsafe {
+    |             ^^^^^^ unnecessary `unsafe` block
+
+Some errors have detailed explanations: E0046, E0061, E0063, E0106, E0119, E0277, E0308, E0432, E0433...
+For more information about an error, try `rustc --explain E0046`.
+warning: `autozig-ecs` (lib) generated 26 warnings
+error: could not compile `autozig-ecs` (lib) due to 29 previous errors; 26 warnings emitted

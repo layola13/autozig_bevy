@@ -3,6 +3,8 @@
 use crate::component::Component;
 use crate::entity::Entity;
 
+use crate::world::World;
+
 /// Entry API for component access
 pub enum ComponentEntry<'a, T: Component> {
     Occupied(OccupiedComponentEntry<'a, T>),
@@ -35,22 +37,26 @@ impl<'a, T: Component> OccupiedComponentEntry<'a, T> {
 
 /// Vacant component entry
 pub struct VacantComponentEntry<'a, T: Component> {
+    world: &'a mut World,
     entity: Entity,
-    _marker: std::marker::PhantomData<&'a T>,
+    _marker: std::marker::PhantomData<T>,
 }
 
 impl<'a, T: Component> VacantComponentEntry<'a, T> {
-    pub fn new(entity: Entity) -> Self {
+    pub fn new(world: &'a mut World, entity: Entity) -> Self {
         Self {
+            world,
             entity,
             _marker: std::marker::PhantomData,
         }
     }
     
     pub fn insert(self, component: T) -> &'a mut T {
-        // This is a placeholder implementation
-        // In reality, would insert into world and return mutable reference
-        unimplemented!("VacantComponentEntry::insert requires full World integration")
+        self.world.entity_mut(self.entity).insert(component);
+        // Unwrap is safe because we just inserted it
+        self.world.get_mut::<T>(self.entity)
+            .expect("Component should exist after insertion")
+            .into_inner()
     }
 }
 

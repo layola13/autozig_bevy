@@ -22,6 +22,7 @@ impl Components {
             is_send_and_sync: descriptor.is_send_and_sync,
             mutable: descriptor.mutable,
             clone_behavior: descriptor.clone_behavior,
+            hooks: crate::component_advanced::ComponentHooks::new(),
         };
         info.id = id;
 
@@ -74,6 +75,7 @@ impl Components {
             is_send_and_sync: descriptor.is_send_and_sync,
             mutable: descriptor.mutable,
             clone_behavior: descriptor.clone_behavior,
+            hooks: crate::component_advanced::ComponentHooks::new(),
         };
         info.id = id;
 
@@ -114,6 +116,7 @@ impl Components {
                 is_send_and_sync: descriptor.is_send_and_sync,
                 mutable: descriptor.mutable,
                 clone_behavior: descriptor.clone_behavior,
+                hooks: crate::component_advanced::ComponentHooks::new(),
             };
             queued.components.insert(type_id, info);
         }
@@ -149,6 +152,7 @@ impl Components {
                 is_send_and_sync: descriptor.is_send_and_sync,
                 mutable: descriptor.mutable,
                 clone_behavior: descriptor.clone_behavior,
+                hooks: crate::component_advanced::ComponentHooks::new(),
             };
             queued.resources.insert(type_id, info);
         }

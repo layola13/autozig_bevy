@@ -348,7 +348,7 @@ impl World {
     /// Returns QueryState for the given filtered QueryData
     #[inline]
     pub fn query_filtered<D: QueryData, F: QueryFilter>(&mut self) -> QueryState<D, F> {
-        QueryState::new()
+        QueryState::new(self)
     }
     
     /// Clears the internal component tracker state
@@ -419,6 +419,18 @@ impl World {
         self
     }
     
+    /// Internal method to insert raw component data - used by EntityWorldMut to avoid recursion
+    pub(crate) fn insert_bundle_components_internal(&mut self, entity: Entity, components: Vec<(crate::component::ComponentId, *const u8, usize)>) {
+        // TODO: Implement actual storage insertion (archetype moves, table writes)
+        // This is where the core ECS logic happens.
+        // For now, we just acknowledge the data exists.
+    }
+
+    /// Internal method to remove component types - used by EntityWorldMut to avoid recursion
+    pub(crate) fn remove_bundle_components_internal(&mut self, entity: Entity, component_ids: Vec<crate::component::ComponentId>) {
+        // TODO: Implement actual storage removal (archetype moves, table writes)
+    }
+
     /// Removes a bundle of components from an entity
     #[inline]
     pub fn remove_bundle<B: Bundle>(&mut self, entity: Entity) -> &mut Self {

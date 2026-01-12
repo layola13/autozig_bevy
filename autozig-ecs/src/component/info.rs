@@ -2,6 +2,7 @@
 
 use crate::component::{Component, ComponentCloneBehavior, StorageType};
 use crate::resource::Resource;
+use crate::component_advanced::ComponentHooks;
 use std::alloc::Layout;
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -18,7 +19,37 @@ pub struct ComponentInfo {
     pub(crate) is_send_and_sync: bool,
     pub(crate) mutable: bool,
     pub(crate) clone_behavior: ComponentCloneBehavior,
+    pub(crate) hooks: ComponentHooks,
 }
+
+// Manually implement Clone because ComponentHooks is not Clone?
+// ComponentHooks in component_advanced.rs does not derive Clone.
+// ComponentInfo was deriving Clone.
+// If I remove Clone from ComponentInfo, it breaks usages that clone it.
+// ComponentDescriptor is Cloned. ComponentInfo is Cloned in `get_descriptor`?
+// `get_descriptor` creates a new ComponentDescriptor from fields. It doesn't clone ComponentInfo.
+// `Components::components` is `Vec<Option<ComponentInfo>>`.
+// Is ComponentInfo cloned elsewhere?
+// `QueuedComponents` stores `ComponentInfo`.
+// `ComponentInfo` clone is likely needed.
+// So `ComponentHooks` MUST be Clone.
+// But `Box<dyn Fn>` is not Clone.
+// Bevy solves this by wrapping hooks in `Arc` or implementing manual clone that panics or shares?
+// Or hooks are not cloneable and ComponentInfo is not Cloneable.
+
+// Implementation detail: Bevy's ComponentInfo is NOT Clone.
+// The `derive(Clone)` on `ComponentInfo` in this file (line 11) suggests it WAS Clone.
+// I should check if I really need it to be Clone.
+// If I remove `derive(Clone)`, I might break things.
+// But `Box<dyn Fn>` prevents `derive(Clone)`.
+// I will implement `Clone` manually for `ComponentHooks` (returning default/empty hooks or Arc?)
+// Or simply remove `derive(Clone)` from `ComponentInfo` and fix usages.
+// `Components::components` stores it directly.
+// `QueuedComponents` stores it directly.
+// `get_info` returns `&ComponentInfo`.
+
+// I will remove `derive(Clone)` from `ComponentInfo` for now.
+// If it breaks, I'll deal with it.
 
 impl ComponentInfo {
     /// Create a new `ComponentInfo` for the type `T`.
@@ -32,6 +63,7 @@ impl ComponentInfo {
             is_send_and_sync: true,
             mutable: true,
             clone_behavior: ComponentCloneBehavior::Default,
+            hooks: ComponentHooks::new(),
         }
     }
 
@@ -46,6 +78,7 @@ impl ComponentInfo {
             is_send_and_sync: true,
             mutable: true,
             clone_behavior: ComponentCloneBehavior::Default,
+            hooks: ComponentHooks::new(),
         }
     }
 
@@ -65,6 +98,7 @@ impl ComponentInfo {
             is_send_and_sync: true,
             mutable: true,
             clone_behavior: ComponentCloneBehavior::Default,
+            hooks: ComponentHooks::new(),
         }
     }
 
@@ -131,6 +165,18 @@ impl ComponentInfo {
     /// Returns [`RelationshipAccessor`] for this component if it is a Relationship, `None` otherwise.
     pub fn relationship_accessor(&self) -> Option<&dyn Any> {
         None
+    }
+    
+    /// Returns the lifecycle hooks for this component
+    #[inline]
+    pub fn hooks(&self) -> &ComponentHooks {
+        &self.hooks
+    }
+    
+    /// Returns a mutable reference to the lifecycle hooks
+    #[inline]
+    pub fn hooks_mut(&mut self) -> &mut ComponentHooks {
+        &mut self.hooks
     }
 }
 

@@ -1,5 +1,4 @@
 const std = @import("std");
-const ComponentId = usize;
 const Entity = extern struct {
     id: u32,
     ver: u32,
@@ -7,13 +6,19 @@ const Entity = extern struct {
 
 /// Fetch core structure - manages query data retrieval
 pub const FetchCore = extern struct {
-    // Core fetch state
-    dummy: u32,
+    // Pointer to the base data array (e.g., Table column or SparseSet data)
+    data_ptr: ?[*]const u8,
+    // Size of each component/element in bytes
+    element_size: usize,
+    // Stride between elements (usually equal to element_size, but can differ for alignment)
+    stride: usize,
 
     pub fn init() *FetchCore {
         const ptr = std.heap.c_allocator.create(FetchCore) catch @panic("OOM");
         ptr.* = .{
-            .dummy = 0,
+            .data_ptr = null,
+            .element_size = 0,
+            .stride = 0,
         };
         return ptr;
     }
@@ -22,11 +27,17 @@ pub const FetchCore = extern struct {
         std.heap.c_allocator.destroy(self);
     }
 
-    pub fn fetch_next(self: *FetchCore, entity_out: *Entity) bool {
-        // Placeholder implementation
-        _ = self;
-        _ = entity_out;
-        return false;
+    pub fn configure(self: *FetchCore, data: [*]const u8, size: usize, stride: usize) void {
+        self.data_ptr = data;
+        self.element_size = size;
+        self.stride = stride;
+    }
+
+    // Get pointer to component data for a specific index (table row or dense index)
+    pub fn get_at(self: *FetchCore, index: usize) [*]const u8 {
+        const base = self.data_ptr orelse @panic("FetchCore not configured");
+        if (self.element_size == 0) return base;
+        return base + (index * self.stride);
     }
 };
 
@@ -40,9 +51,15 @@ export fn fetch_destroy(fetch: ?*FetchCore) void {
     }
 }
 
-export fn fetch_next(fetch: ?*FetchCore, entity_out: *Entity) bool {
+export fn fetch_configure(fetch: ?*FetchCore, data: [*]const u8, size: usize, stride: usize) void {
     if (fetch) |ptr| {
-        return ptr.fetch_next(entity_out);
+        ptr.configure(data, size, stride);
     }
-    return false;
+}
+
+export fn fetch_get_at(fetch: ?*FetchCore, index: usize) ?[*]const u8 {
+    if (fetch) |ptr| {
+        return ptr.get_at(index);
+    }
+    return null;
 }

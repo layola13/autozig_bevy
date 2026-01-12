@@ -5,11 +5,39 @@ use std::marker::PhantomData;
 use crate::world::World;
 use crate::entity::Entity;
 use crate::component::ComponentId;
+use crate::into_system::RawClosure;
+use std::ffi::c_void;
 
 include_zig!("src/zig/system.zig", {
-    fn observer_create() -> *mut u8;
-    fn observer_trigger(observer: *mut u8, entity: Entity);
+    fn observer_create(
+        data: *mut c_void, 
+        vtable: *mut c_void, 
+        trampoline: unsafe extern "C" fn(*mut c_void, Entity, *mut c_void)
+    ) -> *mut u8;
+    fn observer_trigger(observer: *mut u8, entity: Entity, world: *mut c_void);
+    fn observer_destroy(observer: *mut u8);
 });
+
+unsafe extern "C" fn observer_trampoline<E: Default + TriggerEvent>(
+    closure_ptr: *mut c_void, 
+    entity: Entity, 
+    world_ptr: *mut c_void
+) {
+    let closure = closure_ptr as *mut RawClosure;
+    // We assume the stored closure is `Box<dyn ObserverSystem<Event=E>>`.
+    // Reconstructing trait object pointer
+    let system: *mut dyn ObserverSystem<Event=E> = std::mem::transmute(((*closure).data, (*closure).vtable));
+    let world = &mut *(world_ptr as *mut World);
+    
+    // Construct trigger
+    let trigger = Trigger {
+        entity,
+        event: E::default(),
+        _marker: PhantomData,
+    };
+    
+    (*system).run(trigger, world);
+}
 
 /// Observer that watches for specific events
 #[repr(C)]
@@ -18,12 +46,26 @@ pub struct Observer {
 }
 
 impl Observer {
-    pub fn new() -> Self {
+    pub fn new<E, S>(system: S) -> Self 
+    where 
+        E: TriggerEvent + Default,
+        S: ObserverSystem<Event = E> + 'static
+    {
+        let boxed_system: Box<dyn ObserverSystem<Event=E>> = Box::new(system);
+        let ptr = Box::into_raw(boxed_system);
+        let (data, vtable): (*mut c_void, *mut c_void) = unsafe { std::mem::transmute(ptr) };
+        
         unsafe {
             Self {
-                inner: observer_create(),
+                inner: observer_create(data, vtable, observer_trampoline::<E>),
             }
         }
+    }
+}
+
+impl Drop for Observer {
+    fn drop(&mut self) {
+        unsafe { observer_destroy(self.inner); }
     }
 }
 
@@ -115,10 +157,10 @@ impl ObserverRunner {
         self.observers.push(observer);
     }
     
-    pub fn trigger(&mut self, entity: Entity) {
+    pub fn trigger(&mut self, entity: Entity, world: &mut World) {
         for observer in &mut self.observers {
             unsafe {
-                observer_trigger(observer.inner, entity);
+                observer_trigger(observer.inner, entity, world as *mut World as *mut c_void);
             }
         }
     }
@@ -126,21 +168,25 @@ impl ObserverRunner {
 
 /// Marker for OnAdd events
 #[derive(Clone, Copy, Debug)]
+#[derive(Default)]
 pub struct OnAdd;
 impl TriggerEvent for OnAdd {}
 
 /// Marker for OnInsert events
 #[derive(Clone, Copy, Debug)]
+#[derive(Default)]
 pub struct OnInsert;
 impl TriggerEvent for OnInsert {}
 
 /// Marker for OnRemove events
 #[derive(Clone, Copy, Debug)]
+#[derive(Default)]
 pub struct OnRemove;
 impl TriggerEvent for OnRemove {}
 
 /// Marker for OnReplace events
 #[derive(Clone, Copy, Debug)]
+#[derive(Default)]
 pub struct OnReplace;
 impl TriggerEvent for OnReplace {}
 

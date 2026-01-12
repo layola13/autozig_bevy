@@ -20,7 +20,7 @@ pub use crate::entity_advanced::{
 };
 
 // Re-export from query_advanced module
-pub use crate::query_advanced::Access;
+pub use crate::query::access::Access;
 
 // Re-export from change_detection module
 pub use crate::change_detection::Tick;

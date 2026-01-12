@@ -54,7 +54,7 @@ impl<'w> DeferredWorld<'w> {
     where
         Q: crate::query::QueryData,
     {
-        crate::query::QueryState::new()
+        crate::query::QueryState::new(self.world)
     }
     
     /// 转换为完全延迟的World

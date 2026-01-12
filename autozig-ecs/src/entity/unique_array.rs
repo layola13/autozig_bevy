@@ -76,6 +76,35 @@ impl<const N: usize> UniqueEntityArray<N> {
     pub fn as_array(&self) -> &[Entity; N] {
         &self.entities
     }
+    
+    /// Returns a reference to the inner array
+    #[inline]
+    pub const fn as_inner(&self) -> &[Entity; N] {
+        &self.entities
+    }
+    
+    /// Returns a slice of the entities
+    #[inline]
+    pub fn as_slice(&self) -> &[Entity] {
+        &self.entities
+    }
+    
+    /// Returns a mutable slice of the entities
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [Entity] {
+        &mut self.entities
+    }
+    
+    /// Returns an array of references to each entity
+    #[inline]
+    pub fn each_ref(&self) -> [&Entity; N] {
+        // 创建引用数组的安全方式
+        let mut result: [&Entity; N] = unsafe { std::mem::zeroed() };
+        for (i, entity) in self.entities.iter().enumerate() {
+            result[i] = entity;
+        }
+        result
+    }
 
     /// Converts into the underlying array
     #[inline]
@@ -178,10 +207,92 @@ impl<T: EntityEquivalent + Clone, const N: usize> UniqueEntityEquivalentArray<T,
     pub fn as_array(&self) -> &[T; N] {
         &self.values
     }
+    
+    /// Returns a reference to the inner array
+    #[inline]
+    pub const fn as_inner(&self) -> &[T; N] {
+        &self.values
+    }
+    
+    /// Returns a slice of the values
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        &self.values
+    }
+    
+    /// Returns a mutable slice of the values
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        &mut self.values
+    }
+    
+    /// Creates from Arc<[T; N]> without checking
+    ///
+    /// # Safety
+    /// Caller must ensure no duplicate entities
+    #[inline]
+    pub unsafe fn from_arc_array_unchecked(values: std::sync::Arc<[T; N]>) -> Self
+    where T: Clone {
+        let array = (*values).clone();
+        Self { values: array }
+    }
+    
+    /// Creates from Box<[T; N]> without checking
+    ///
+    /// # Safety
+    /// Caller must ensure no duplicate entities
+    #[inline]
+    pub unsafe fn from_boxed_array_unchecked(values: Box<[T; N]>) -> Self {
+        Self { values: *values }
+    }
+    
+    /// Creates from Rc<[T; N]> without checking
+    ///
+    /// # Safety
+    /// Caller must ensure no duplicate entities
+    #[inline]
+    pub unsafe fn from_rc_array_unchecked(values: std::rc::Rc<[T; N]>) -> Self
+    where T: Clone {
+        let array = (*values).clone();
+        Self { values: array }
+    }
+    
+    /// Converts into Arc<[T; N]>
+    #[inline]
+    pub fn into_arc_inner(self) -> std::sync::Arc<[T; N]> {
+        std::sync::Arc::new(self.values)
+    }
+    
+    /// Converts into Box<[T; N]>
+    #[inline]
+    pub fn into_boxed_inner(self) -> Box<[T; N]> {
+        Box::new(self.values)
+    }
+    
+    /// Converts into Rc<[T; N]>
+    #[inline]
+    pub fn into_rc_inner(self) -> std::rc::Rc<[T; N]> {
+        std::rc::Rc::new(self.values)
+    }
+    
+    /// Creates from &[T; N] without checking
+    ///
+    /// # Safety
+    /// Caller must ensure no duplicate entities
+    #[inline]
+    pub const unsafe fn from_array_ref_unchecked(values: &[T; N]) -> &Self {
+        &*(values as *const [T; N] as *const Self)
+    }
 
     /// Converts into the underlying array
     #[inline]
     pub fn into_array(self) -> [T; N] {
+        self.values
+    }
+    
+    /// Returns the inner array
+    #[inline]
+    pub fn into_inner(self) -> [T; N] {
         self.values
     }
 }

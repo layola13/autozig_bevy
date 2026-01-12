@@ -203,11 +203,28 @@ impl std::error::Error for GetComponentReflectError {}
 // Component Hooks - 组件钩子
 // ============================================================================
 
+
+use crate::world::DeferredWorld;
+use crate::entity::Entity;
+use crate::component::ComponentId;
+use std::sync::Arc;
+
 /// ComponentHooks - 组件生命周期钩子
+#[derive(Clone)]
 pub struct ComponentHooks {
-    on_add: Option<Box<dyn Fn() + Send + Sync>>,
-    on_insert: Option<Box<dyn Fn() + Send + Sync>>,
-    on_remove: Option<Box<dyn Fn() + Send + Sync>>,
+    on_add: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
+    on_insert: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
+    on_remove: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
+}
+
+impl std::fmt::Debug for ComponentHooks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentHooks")
+            .field("on_add", &self.on_add.is_some())
+            .field("on_insert", &self.on_insert.is_some())
+            .field("on_remove", &self.on_remove.is_some())
+            .finish()
+    }
 }
 
 impl ComponentHooks {
@@ -219,42 +236,54 @@ impl ComponentHooks {
         }
     }
     
+    pub fn has_on_add(&self) -> bool {
+        self.on_add.is_some()
+    }
+    
+    pub fn has_on_insert(&self) -> bool {
+        self.on_insert.is_some()
+    }
+    
+    pub fn has_on_remove(&self) -> bool {
+        self.on_remove.is_some()
+    }
+    
     pub fn on_add<F>(&mut self, hook: F)
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
     {
-        self.on_add = Some(Box::new(hook));
+        self.on_add = Some(Arc::new(hook));
     }
     
     pub fn on_insert<F>(&mut self, hook: F)
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
     {
-        self.on_insert = Some(Box::new(hook));
+        self.on_insert = Some(Arc::new(hook));
     }
     
     pub fn on_remove<F>(&mut self, hook: F)
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
     {
-        self.on_remove = Some(Box::new(hook));
+        self.on_remove = Some(Arc::new(hook));
     }
     
-    pub fn trigger_add(&self) {
+    pub fn trigger_add(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
         if let Some(hook) = &self.on_add {
-            hook();
+            hook(world, entity, component_id);
         }
     }
     
-    pub fn trigger_insert(&self) {
+    pub fn trigger_insert(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
         if let Some(hook) = &self.on_insert {
-            hook();
+            hook(world, entity, component_id);
         }
     }
     
-    pub fn trigger_remove(&self) {
+    pub fn trigger_remove(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
         if let Some(hook) = &self.on_remove {
-            hook();
+            hook(world, entity, component_id);
         }
     }
 }

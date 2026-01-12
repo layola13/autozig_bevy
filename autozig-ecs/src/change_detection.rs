@@ -257,57 +257,7 @@ impl Iterator for RemovedComponentsIter {
 // Query Filters - 查询过滤器
 // ============================================================================
 
-/// Changed<T> - QueryFilter，检测组件是否在上次运行后变更
-/// 
-/// # Example
-/// ```
-/// use autozig_ecs::prelude::*;
-/// 
-/// fn system(query: Query<&Position, Changed<Position>>) {
-///     for pos in query.iter() {
-///         // 只处理变更的Position组件
-///     }
-/// }
-/// ```
-pub struct Changed<T: Component> {
-    _marker: PhantomData<T>,
-}
-
-impl<T: Component> Default for Changed<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T: Component> QueryFilter for Changed<T> {}
-
-/// Added<T> - QueryFilter，检测组件是否在上次运行后新增
-/// 
-/// # Example
-/// ```
-/// use autozig_ecs::prelude::*;
-/// 
-/// fn system(query: Query<&Position, Added<Position>>) {
-///     for pos in query.iter() {
-///         // 只处理新增的Position组件
-///     }
-/// }
-/// ```
-pub struct Added<T: Component> {
-    _marker: PhantomData<T>,
-}
-
-impl<T: Component> Default for Added<T> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T: Component> QueryFilter for Added<T> {}
+// Added/Changed filters moved to query::filter
 
 // ============================================================================
 // Tests - 测试
@@ -317,6 +267,7 @@ impl<T: Component> QueryFilter for Added<T> {}
 mod tests {
     use super::*;
     use std::sync::Once;
+    use crate::query::filter::{Added, Changed};
     
     static INIT: Once = Once::new();
     
@@ -648,6 +599,11 @@ impl<'a, T> Mut<'a, T> {
             last_run: self.last_run,
             this_run: self.this_run,
         }
+    }
+
+    pub fn into_inner(mut self) -> &'a mut T {
+        self.set_changed();
+        self.value
     }
 }
 

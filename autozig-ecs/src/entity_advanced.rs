@@ -82,11 +82,48 @@ impl EntityAllocator {
     pub fn reserve(&mut self, count: usize) -> Vec<Entity> {
         (0..count).map(|_| self.allocate()).collect()
     }
+
+    pub fn alloc_many(&mut self, count: usize) -> AllocEntitiesIterator {
+        let start_index = self.next_index;
+        self.next_index += count as u32;
+        AllocEntitiesIterator::new(start_index, count, self.generation)
+    }
 }
 
 impl Default for EntityAllocator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Iterator for allocating multiple entities
+pub struct AllocEntitiesIterator {
+    next_index: u32,
+    count: usize,
+    generation: u32,
+}
+
+impl AllocEntitiesIterator {
+    pub fn new(next_index: u32, count: usize, generation: u32) -> Self {
+        Self {
+            next_index,
+            count,
+            generation,
+        }
+    }
+}
+
+impl Iterator for AllocEntitiesIterator {
+    type Item = Entity;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.count == 0 {
+            return None;
+        }
+        self.count -= 1;
+        let index = self.next_index;
+        self.next_index += 1;
+        Some(Entity::new(index, self.generation))
     }
 }
 
@@ -374,6 +411,10 @@ impl std::error::Error for EntityMutableFetchError {}
 // Component Entry - 组件入口
 // ============================================================================
 
+
+// Import World for VacantEntry
+use crate::world::World;
+
 /// ComponentEntry - 组件入口（类似HashMap的Entry）
 pub enum ComponentEntry<'a, T: Component> {
     Occupied(OccupiedEntry<'a, T>),
@@ -381,28 +422,65 @@ pub enum ComponentEntry<'a, T: Component> {
 }
 
 pub struct OccupiedEntry<'a, T: Component> {
-    _phantom: PhantomData<&'a mut T>,
+    component: &'a mut T,
+}
+
+impl<'a, T: Component> OccupiedEntry<'a, T> {
+    pub fn new(component: &'a mut T) -> Self {
+        Self { component }
+    }
+
+    pub fn get(&self) -> &T {
+        self.component
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        self.component
+    }
+
+    pub fn into_mut(self) -> &'a mut T {
+        self.component
+    }
 }
 
 pub struct VacantEntry<'a, T: Component> {
-    _phantom: PhantomData<&'a mut T>,
+    world: &'a mut World,
+    entity: Entity,
+    _phantom: PhantomData<T>,
+}
+
+impl<'a, T: Component> VacantEntry<'a, T> {
+    pub fn new(world: &'a mut World, entity: Entity) -> Self {
+        Self {
+            world,
+            entity,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn insert(self, value: T) -> &'a mut T {
+        // Insert component using EntityWorldMut
+        self.world.entity_mut(self.entity).insert(value);
+        // Retrieve mutable reference (unwrap is safe because we just inserted it)
+        // Note: entity_mut returns EntityWorldMut which holds UnsafeWorldCell
+        // We need to re-borrow world to get the component.
+        // Since we have &'a mut World, we can just call get_mut
+        self.world.get_mut::<T>(self.entity).expect("Component should exist after insertion").into_inner()
+    }
 }
 
 impl<'a, T: Component> ComponentEntry<'a, T> {
     pub fn or_insert(self, default: T) -> &'a mut T {
         match self {
-            Self::Occupied(_) => unimplemented!("OccupiedEntry::get_mut"),
-            Self::Vacant(_) => unimplemented!("VacantEntry::insert"),
+            Self::Occupied(entry) => entry.into_mut(),
+            Self::Vacant(entry) => entry.insert(default),
         }
     }
     
     pub fn or_insert_with<F: FnOnce() -> T>(self, default: F) -> &'a mut T {
         match self {
-            Self::Occupied(_) => unimplemented!("OccupiedEntry::get_mut"),
-            Self::Vacant(_) => {
-                let _ = default();
-                unimplemented!("VacantEntry::insert")
-            }
+            Self::Occupied(entry) => entry.into_mut(),
+            Self::Vacant(entry) => entry.insert(default()),
         }
     }
 }

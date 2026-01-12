@@ -93,10 +93,9 @@ pub mod prelude {
     // ==================== Query Types ====================
     pub use crate::query::{
         Query, QueryState, QueryIter, QueryEntityError, QueryFilter, QueryData,
-        QuerySingleError, QueryManyIter, QueryCombinationIter,
-        QueryBuilder, FilteredAccess, ReadOnlyQueryData, WorldQuery,
-        With, Without, Or, Has,
-        Ref, RefMut, OptionFetch, QueryParIter, BatchingStrategy
+        QuerySingleError, QueryBuilder, FilteredAccess, ReadOnlyQueryData, WorldQuery,
+        With, Without, Or,
+        OptionFetch, BatchingStrategy
     };
     
     // ==================== System Types ====================
@@ -153,7 +152,7 @@ pub mod prelude {
     // ==================== Change Detection ====================
     pub use crate::change_detection::{
         Tick, ComponentTicks, ChangeDetectionContext, RemovedComponents,
-        Added, Changed, DetectChanges, DetectChangesMut,
+        DetectChanges, DetectChangesMut,
         Mut, MutUntyped, TickCells, LastTick
     };
     // pub use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponentReader};

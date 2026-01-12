@@ -4,14 +4,29 @@ use autozig_macro::include_zig;
 use std::marker::PhantomData;
 use crate::world::World;
 use crate::system::System;
-use crate::into_system::BoxedSystem;
+use crate::into_system::{BoxedSystem, RawClosure, SystemTrampolineFn};
 use crate::system_set::{SystemSet, SystemSetConfigs};
 
 include_zig!("src/zig/system.zig", {
     fn schedule_create() -> *mut u8;
-    fn schedule_add_system(schedule: *mut u8, name: *const u8, name_len: usize, func: *const u8);
+    fn schedule_add_system(
+        schedule: *mut u8, 
+        name: *const u8, 
+        name_len: usize, 
+        data: *mut std::ffi::c_void,
+        vtable: *mut std::ffi::c_void,
+        trampoline: SystemTrampolineFn,
+        access: u8
+    ) -> bool;
     fn schedule_run(schedule: *mut u8, world: *mut u8);
 });
+
+unsafe extern "C" fn run_system_trampoline(closure_ptr: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
+    let closure = closure_ptr as *mut RawClosure;
+    let ptr: *mut dyn System = std::mem::transmute(((*closure).data, (*closure).vtable));
+    let world = &mut *(world_ptr as *mut World);
+    (*ptr).run(world);
+}
 
 /// A collection of systems that run in a specific order
 #[repr(C)]
@@ -32,7 +47,26 @@ impl Schedule {
     
     pub fn add_systems<M>(&mut self, systems: impl IntoSystemConfigs<M>) -> &mut Self {
         let configs = systems.into_configs();
-        // Add each system
+        for system in configs.systems {
+            // system is Box<dyn System>
+            let ptr = Box::into_raw(system);
+            let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
+            
+            let name = "system\0"; // TODO: Use real name if possible
+            let access = 0; // TODO: usage tracking
+
+            unsafe {
+                schedule_add_system(
+                    self.inner,
+                    name.as_ptr(),
+                    name.len() - 1, // Exclude null terminator
+                    data,
+                    vtable,
+                    run_system_trampoline,
+                    access
+                );
+            }
+        }
         self
     }
     
