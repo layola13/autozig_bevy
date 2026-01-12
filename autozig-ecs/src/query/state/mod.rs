@@ -346,13 +346,11 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     /// Match archetype (internal helper for when we have the archetype)
     pub fn matches_archetype_ref(&self, archetype: &crate::archetype::Archetype) -> bool {
         let components = archetype.components();
-        unsafe {
-            query_state_matches_component_list(
-                self.inner, 
-                components.as_ptr().cast(), 
-                components.len()
-            )
-        }
+        query_state_matches_component_list(
+            self.inner, 
+            components.as_ptr().cast(), 
+            components.len()
+        )
     }
 
     /// Match component set

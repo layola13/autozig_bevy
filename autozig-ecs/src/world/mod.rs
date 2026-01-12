@@ -37,7 +37,7 @@ use crate::{
     },
     entity::{Entities, Entity, EntityAllocator},
     query::{QueryData, QueryFilter, QueryState},
-    resource::Resource,
+    resource::{Res, ResMut, Resource},
     schedule::{Schedule, ScheduleLabel, Schedules},
     storage::{ResourceData, Storages},
     system::CheckChangeTicks,
@@ -116,6 +116,7 @@ pub struct World {
     pub(crate) last_change_tick: Tick,
     pub(crate) last_check_tick: Tick,
     removed_components: HashMap<TypeId, Box<dyn std::any::Any>>,
+    pub(crate) resource_registry: crate::resource::ResourceRegistry,
 }
 
 impl Default for World {
@@ -145,7 +146,29 @@ impl World {
             last_change_tick: Tick::new(0),
             last_check_tick: Tick::new(0),
             removed_components: HashMap::new(),
+            resource_registry: crate::resource::ResourceRegistry::new(),
         }
+    }
+    
+    /// Gets a resource
+    pub fn resource<R: Resource>(&self) -> Res<'_, R> {
+        self.get_resource::<R>().expect("Resource not found")
+    }
+
+    /// Gets a resource mutably
+    pub fn resource_mut<R: Resource>(&mut self) -> ResMut<'_, R> {
+        self.get_resource_mut::<R>().expect("Resource not found")
+    }
+
+    /// Tries to get a resource
+    pub fn get_resource<R: Resource>(&self) -> Option<Res<'_, R>> {
+        self.resource_registry.get::<R>()
+    }
+
+    /// Tries to get a resource mutably
+    pub fn get_resource_mut<R: Resource>(&mut self) -> Option<ResMut<'_, R>> {
+        // Need to add get_mut to ResourceRegistry
+        self.resource_registry.get_mut::<R>()
     }
     
     /// Retrieves this World's unique ID
@@ -477,38 +500,6 @@ impl World {
             entity_mut.remove::<B>();
         }
         self
-    }
-    
-    /// Returns a mutable reference to the given Resource, if it exists
-    #[inline]
-    pub fn get_resource_mut<R: Resource>(&mut self) -> Option<crate::change_detection::Mut<'_, R>> {
-        let component_id = self.components.get_resource_id(std::any::TypeId::of::<R>())?;
-        let resource_data = self.storages.resources.get_mut(component_id)?;
-        
-        if !resource_data.is_present() {
-            return None;
-        }
-        
-        // TODO: 实现完整的Mut包装和变更检测
-        None
-    }
-    
-    /// Returns a mutable reference to the given Resource
-    ///
-    /// # Panics
-    ///
-    /// Panics if the resource does not exist
-    #[inline]
-    #[track_caller]
-    pub fn resource_mut<R: Resource>(&mut self) -> crate::change_detection::Mut<'_, R> {
-        match self.get_resource_mut::<R>() {
-            Some(resource) => resource,
-            None => panic!(
-                "Requested resource {} does not exist in the World.
-                Did you forget to add it using `world.insert_resource` / `world.init_resource`?",
-                std::any::type_name::<R>()
-            ),
-        }
     }
     
     /// Returns `true` if the entity has the given component type

@@ -1,4 +1,4 @@
-//! Query system - 泛型查询系统，支持类型安全的组件访问
+//! Query system - 泛型查询 system，支持类型安全的组件访问
 //!
 //! 实现类似 Bevy 的 Query<(&Transform, &mut Velocity), With<Player>> 语法
 
@@ -56,33 +56,33 @@ pub use self::access::{Access, FilteredAccess};
 // ============================================================================
 
 /// Query<Q, F> - 类型安全的 ECS 查询
-///
-/// # Type Parameters
-/// - `Q: QueryData` - 查询的数据类型
-/// - `F: QueryFilter` - 查询的过滤器，默认为 ()（无过滤）
 pub struct Query<'w, Q: QueryData, F: QueryFilter = ()> {
     world: &'w World,
-    state: QueryState<Q, F>,
+    state: *const QueryState<Q, F>,
 }
 
 /// QueryMut - 可变查询（需要可变World引用）
 pub struct QueryMut<'w, Q: QueryData, F: QueryFilter = ()> {
     world: &'w mut World,
-    state: QueryState<Q, F>,
+    state: *mut QueryState<Q, F>,
 }
 
 impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
     /// Create a new query
-    pub fn new(world: &'w World) -> Self {
+    pub unsafe fn new(world: &'w World, state: *const QueryState<Q, F>) -> Self {
         Self {
             world,
-            state: QueryState::new(world),
+            state,
         }
+    }
+
+    pub fn state(&self) -> &QueryState<Q, F> {
+        unsafe { &*self.state }
     }
 
     /// Iterate over query results
     pub fn iter(&self) -> QueryIter<'_, Q, F> {
-        self.state.iter(self.world)
+        self.state().iter(self.world)
     }
 
     /// Get single entity matching query
@@ -97,28 +97,37 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
 
     /// Get component data for a specific entity
     pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
-        self.state.get(self.world, entity)
+        self.state().get(self.world, entity)
     }
 }
 
 impl<'w, Q: QueryData, F: QueryFilter> QueryMut<'w, Q, F> {
     /// Create a new mutable query
-    pub fn new(world: &'w mut World) -> Self {
-        let state = QueryState::new(world);
+    pub unsafe fn new(world: &'w mut World, state: *mut QueryState<Q, F>) -> Self {
         Self {
             world,
             state,
         }
     }
+    
+    pub fn state(&self) -> &QueryState<Q, F> {
+        unsafe { &*self.state }
+    }
+    
+    pub fn state_mut(&mut self) -> &mut QueryState<Q, F> {
+        unsafe { &mut *self.state }
+    }
 
     /// Iterate mutably over query results
     pub fn iter_mut(&mut self) -> QueryIterMut<'_, Q, F> {
-        self.state.iter_mut(self.world)
+        let world_ptr = self.world as *const World as usize as *mut World;
+        self.state_mut().iter_mut(unsafe { &mut *world_ptr })
     }
 
     /// Get mutable component data for a specific entity
     pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
-        self.state.get_mut(self.world, entity)
+        let world_ptr = self.world as *const World as usize as *mut World;
+        self.state_mut().get_mut(unsafe { &mut *world_ptr }, entity)
     }
 }
 

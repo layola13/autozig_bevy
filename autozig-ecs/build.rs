@@ -9,7 +9,7 @@ fn main() {
     
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let zig_src = manifest_dir.join("src/zig");
+    let _zig_src = manifest_dir.join("src/zig");
     
     // Compile unified Zig entry point
     let zig_entry = manifest_dir.join("src/autozig_ecs.zig");
@@ -23,18 +23,19 @@ fn main() {
     println!("cargo:rerun-if-changed={}", zig_entry.display());
 
     let output = std::process::Command::new("zig")
-        .arg("build-obj") 
+        .arg("build-lib") 
         .arg("-lc")       
         .arg("-fPIC")     
         .arg("-target").arg("x86_64-linux") 
         .arg(format!("-O{}", opt_mode))
-        .arg(format!("-femit-bin={}", obj_path.display()))
+        .arg(format!("-femit-bin={}", out_dir.join("libautozig_ecs.a").display()))
         .arg(&zig_entry)
         .output();
 
     match output {
         Ok(o) if o.status.success() => {
-            println!("cargo:rustc-link-arg={}", obj_path.display());
+            println!("cargo:rustc-link-search=native={}", out_dir.display());
+            println!("cargo:rustc-link-lib=static=autozig_ecs");
         }
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);

@@ -55,17 +55,15 @@ impl Observer {
         let ptr = Box::into_raw(boxed_system);
         let (data, vtable): (*mut c_void, *mut c_void) = unsafe { std::mem::transmute(ptr) };
         
-        unsafe {
-            Self {
-                inner: observer_create(data, vtable, observer_trampoline::<E>),
-            }
+        Self {
+            inner: observer_create(data, vtable, observer_trampoline::<E>),
         }
     }
 }
 
 impl Drop for Observer {
     fn drop(&mut self) {
-        unsafe { observer_destroy(self.inner); }
+        observer_destroy(self.inner);
     }
 }
 
@@ -159,9 +157,7 @@ impl ObserverRunner {
     
     pub fn trigger(&mut self, entity: Entity, world: &mut World) {
         for observer in &mut self.observers {
-            unsafe {
-                observer_trigger(observer.inner, entity, world as *mut World as *mut c_void);
-            }
+            observer_trigger(observer.inner, entity, world as *mut World as *mut c_void);
         }
     }
 }

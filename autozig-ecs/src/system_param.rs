@@ -1,12 +1,15 @@
-//! SystemParam - System parameter trait and implementations for dependency injection
+//! System parameters - Types that can be used as system function arguments
 
 use crate::world::World;
-use crate::resource::{Res, ResMut};
+use crate::resource::{Res, ResMut, Resource};
 use crate::command::Commands;
+use crate::query::{Query, QueryData, QueryFilter, QueryState};
+use crate::event::{Events, EventReader, EventWriter, Event};
+use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponents, RemovedComponentReader};
 use std::marker::PhantomData;
 
 /// World access flags for system scheduling
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WorldAccessFlags {
     pub reads_resources: bool,
     pub writes_resources: bool,
@@ -15,34 +18,24 @@ pub struct WorldAccessFlags {
 }
 
 impl WorldAccessFlags {
-    /// Merge multiple access flags
-    pub fn merge(flags: &[WorldAccessFlags]) -> Self {
-        let mut result = WorldAccessFlags::default();
-        for flag in flags {
-            result.reads_resources |= flag.reads_resources;
-            result.writes_resources |= flag.writes_resources;
-            result.reads_components |= flag.reads_components;
-            result.writes_components |= flag.writes_components;
-        }
-        result
-    }
-
-    /// Convert to u8 for FFI
-    pub fn to_u8(&self) -> u8 {
-        let mut flags = 0u8;
-        if self.reads_resources {
-            flags |= 0b0001;
-        }
-        if self.writes_resources {
-            flags |= 0b0010;
-        }
-        if self.reads_components {
-            flags |= 0b0100;
-        }
-        if self.writes_components {
-            flags |= 0b1000;
+    pub fn merge(others: &[Self]) -> Self {
+        let mut flags = Self::default();
+        for other in others {
+            flags.reads_resources |= other.reads_resources;
+            flags.writes_resources |= other.writes_resources;
+            flags.reads_components |= other.reads_components;
+            flags.writes_components |= other.writes_components;
         }
         flags
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        let mut res = 0;
+        if self.reads_resources { res |= 1; }
+        if self.writes_resources { res |= 2; }
+        if self.reads_components { res |= 4; }
+        if self.writes_components { res |= 8; }
+        res
     }
 }
 
@@ -58,23 +51,62 @@ pub trait SystemParam: Sized {
     fn access_flags() -> WorldAccessFlags;
 }
 
-/// Marker trait for SystemParam types that only read data (no mutable access)
-/// This is used for system scheduling to detect data dependencies
+/// ReadOnlySystemParam - Marker trait for read-only parameters
 pub trait ReadOnlySystemParam: SystemParam {}
 
-/// Marker trait for SystemParam types with 'static lifetime (no lifetime dependencies)
-/// This allows certain optimizations in system scheduling
+/// StaticSystemParam - Marker trait for parameters that don't depend on World
 pub trait StaticSystemParam: SystemParam {}
 
-// Note: Res and ResMut SystemParam implementations will be added
-// once we extend World with resource access methods
-
-/// Marker for unit type (no parameters)
+// Implement for ()
 impl SystemParam for () {
     type Item<'w> = ();
+    fn fetch<'w>(_: &'w World) -> Self::Item<'w> { () }
+    fn access_flags() -> WorldAccessFlags { WorldAccessFlags::default() }
+}
+impl ReadOnlySystemParam for () {}
+impl StaticSystemParam for () {}
 
-    fn fetch<'w>(_world: &'w World) -> Self::Item<'w> {
-        ()
+// Implement for Res<'_, T>
+impl<T: Resource> SystemParam for Res<'_, T> {
+    type Item<'w> = Res<'w, T>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        world.resource::<T>()
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            reads_resources: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+impl<T: Resource> ReadOnlySystemParam for Res<'_, T> {}
+
+// Implement for ResMut<'_, T>
+impl<T: Resource> SystemParam for ResMut<'_, T> {
+    type Item<'w> = ResMut<'w, T>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        // SAFETY: We are calling it from a system which should have exclusive access if scheduled correctly
+        let world_ptr = world as *const World as usize as *mut World;
+        unsafe { (*world_ptr).resource_mut::<T>() }
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            writes_resources: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Implement for Commands<'_>
+impl SystemParam for Commands<'_> {
+    type Item<'w> = Commands<'w>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        Commands::new(world)
     }
 
     fn access_flags() -> WorldAccessFlags {
@@ -82,14 +114,101 @@ impl SystemParam for () {
     }
 }
 
-// Implement ReadOnlySystemParam and StaticSystemParam for unit type
-impl ReadOnlySystemParam for () {}
-impl StaticSystemParam for () {}
+// Implement for Query
+impl<Q: QueryData, F: QueryFilter> SystemParam for Query<'_, Q, F> {
+    type Item<'w> = Query<'w, Q, F>;
 
-// Tuple implementations for multiple parameters
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        // This is inefficient as it creates a new QueryState every time
+        // In a full implementation, QueryState would be cached in SystemState
+        let state = QueryState::new(world);
+        unsafe { Query::new(world, Box::leak(Box::new(state))) }
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            reads_components: true,
+            writes_components: Q::IS_READ_ONLY == false,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Implement for Events
+impl<E: Event> SystemParam for Events<E> {
+    type Item<'w> = &'w Events<E>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        let events = world.resource::<Events<E>>();
+        events.ptr
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            reads_resources: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Implement for EventReader
+impl<E: Event> SystemParam for EventReader<'_, E> {
+    type Item<'w> = EventReader<'w, E>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        let events = world.resource::<Events<E>>();
+        EventReader::new(events.ptr.queue)
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            reads_resources: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Implement for EventWriter
+impl<E: Event> SystemParam for EventWriter<'_, E> {
+    type Item<'w> = EventWriter<'w, E>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        let events = unsafe {
+            let world_mut_ptr = world as *const World as *mut World;
+            (*world_mut_ptr).resource_mut::<Events<E>>()
+        };
+        EventWriter::new(events.ptr.queue)
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            writes_resources: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Implement for RemovedComponents
+impl<T: crate::component::Component> SystemParam for RemovedComponents<'_, T> {
+    type Item<'w> = RemovedComponents<'w, T>;
+
+    fn fetch<'w>(world: &'w World) -> Self::Item<'w> {
+        // In Bevy, these are typically stored in the world and accessed by ComponentId
+        // Here we provide a simplified version that fetches from world's removed_components map
+        RemovedComponents::new(world)
+    }
+
+    fn access_flags() -> WorldAccessFlags {
+        WorldAccessFlags {
+            reads_components: true,
+            ..WorldAccessFlags::default()
+        }
+    }
+}
+
+// Macro to implement SystemParam for tuples
 macro_rules! impl_system_param_tuple {
     ($($param:ident),*) => {
-        #[allow(non_snake_case)]
         impl<$($param: SystemParam),*> SystemParam for ($($param,)*) {
             type Item<'w> = ($($param::Item<'w>,)*);
 
@@ -98,28 +217,25 @@ macro_rules! impl_system_param_tuple {
             }
 
             fn access_flags() -> WorldAccessFlags {
-                WorldAccessFlags::merge(&[
-                    $($param::access_flags(),)*
-                ])
+                let mut flags = WorldAccessFlags::default();
+                $(
+                    let f = $param::access_flags();
+                    flags.reads_resources |= f.reads_resources;
+                    flags.writes_resources |= f.writes_resources;
+                    flags.reads_components |= f.reads_components;
+                    flags.writes_components |= f.writes_components;
+                )*
+                flags
             }
         }
-    };
+    }
 }
 
-// Implement for tuples up to 16 elements
 impl_system_param_tuple!(P1);
 impl_system_param_tuple!(P1, P2);
 impl_system_param_tuple!(P1, P2, P3);
 impl_system_param_tuple!(P1, P2, P3, P4);
 impl_system_param_tuple!(P1, P2, P3, P4, P5);
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7);
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
-impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15);
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);

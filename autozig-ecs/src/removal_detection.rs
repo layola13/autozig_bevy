@@ -45,6 +45,15 @@ pub struct RemovedComponents<'w, T> {
 }
 
 impl<'w, T> RemovedComponents<'w, T> {
+    pub fn new(_world: &'w crate::world::World) -> Self {
+        // In a real implementation, this would look up the component id and fetch the readers.
+        // For now, return an empty reader placeholder.
+        Self {
+            reader: RemovedComponentReader { events: &[] },
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = Entity> + '_ {
         self.reader.iter().map(|e| e.entity)
     }

@@ -13,6 +13,7 @@ pub trait WorldQuery: Send + Sync {
     type Fetch<'w>: Fetch<'w, Item = Self::Item<'w>, State = Self::State>;
     type State: Send + Sync + 'static;
     type ReadOnly: ReadOnlyWorldQuery;
+    const IS_READ_ONLY: bool;
 
     fn init_state(world: &crate::world::World) -> Self::State;
 
@@ -51,6 +52,7 @@ impl WorldQuery for Entity {
     type Fetch<'w> = EntityFetch;
     type State = ();
     type ReadOnly = Entity;
+    const IS_READ_ONLY: bool = true;
     fn init_state(_world: &crate::world::World) -> Self::State { () }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { EntityFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
@@ -67,6 +69,7 @@ impl<'a, T: Component> WorldQuery for &'a T {
     type Fetch<'w> = ReadFetch<T>;
     type State = ComponentId;
     type ReadOnly = &'a T;
+    const IS_READ_ONLY: bool = true;
     fn init_state(world: &crate::world::World) -> Self::State { world.component_id::<T>().expect("Component not registered") }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { ReadFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
@@ -83,6 +86,7 @@ impl<'a, T: Component> WorldQuery for &'a mut T {
     type Fetch<'w> = WriteFetch<T>;
     type State = ComponentId;
     type ReadOnly = &'a T;
+    const IS_READ_ONLY: bool = false;
     fn init_state(world: &crate::world::World) -> Self::State { world.component_id::<T>().expect("Component not registered") }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { WriteFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
@@ -98,6 +102,7 @@ impl<T: WorldQuery> WorldQuery for Option<T> {
     type Fetch<'w> = OptionFetch<T::Fetch<'w>>;
     type State = T::State;
     type ReadOnly = Option<T::ReadOnly>;
+    const IS_READ_ONLY: bool = T::IS_READ_ONLY;
     fn init_state(world: &crate::world::World) -> Self::State { T::init_state(world) }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { OptionFetch::new(T::init_fetch(world, state, last_run, this_run)) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { T::set_archetype(&mut fetch.inner, state, archetype, table); }
@@ -113,6 +118,7 @@ impl WorldQuery for () {
     type Fetch<'w> = ();
     type State = ();
     type ReadOnly = ();
+    const IS_READ_ONLY: bool = true;
     fn init_state(_: &crate::world::World) -> Self::State { () }
     unsafe fn init_fetch<'w>(_: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: &Self::State, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> Self::Fetch<'w> { () }
     unsafe fn set_archetype<'w>(_: &mut Self::Fetch<'w>, _: &Self::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
@@ -129,6 +135,7 @@ impl<A: WorldQuery> WorldQuery for (A,) {
     type Fetch<'w> = (A::Fetch<'w>,);
     type State = (A::State,);
     type ReadOnly = (A::ReadOnly,);
+    const IS_READ_ONLY: bool = A::IS_READ_ONLY;
     fn init_state(world: &crate::world::World) -> Self::State { (A::init_state(world),) }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { (A::init_fetch(world, &state.0, last_run, this_run),) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { A::set_archetype(&mut fetch.0, &state.0, archetype, table); }
@@ -145,6 +152,7 @@ impl<A: WorldQuery, B: WorldQuery> WorldQuery for (A, B) {
     type Fetch<'w> = (A::Fetch<'w>, B::Fetch<'w>);
     type State = (A::State, B::State);
     type ReadOnly = (A::ReadOnly, B::ReadOnly);
+    const IS_READ_ONLY: bool = A::IS_READ_ONLY && B::IS_READ_ONLY;
     fn init_state(world: &crate::world::World) -> Self::State { (A::init_state(world), B::init_state(world)) }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { (A::init_fetch(world, &state.0, last_run, this_run), B::init_fetch(world, &state.1, last_run, this_run)) }
     unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { A::set_archetype(&mut fetch.0, &state.0, archetype, table); B::set_archetype(&mut fetch.1, &state.1, archetype, table); }

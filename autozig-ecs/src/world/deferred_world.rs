@@ -25,7 +25,7 @@ impl<'w> DeferredWorld<'w> {
     }
     
     /// 获取实体的可变访问
-    pub fn entity_mut(&mut self, entity: Entity) -> Option<crate::world::EntityWorldMut> {
+    pub fn entity_mut(&mut self, entity: Entity) -> Option<crate::world::EntityWorldMut<'_>> {
         if self.world.entities().contains(entity) {
             Some(crate::world::EntityWorldMut::new(entity, self.world))
         } else {
@@ -34,12 +34,12 @@ impl<'w> DeferredWorld<'w> {
     }
     
     /// 获取资源的可变引用
-    pub fn get_resource_mut<T: 'static + crate::resource::Resource>(&mut self) -> Option<crate::change_detection::Mut<'_, T>> {
+    pub fn get_resource_mut<T: 'static + crate::resource::Resource>(&mut self) -> Option<crate::resource::ResMut<'_, T>> {
         self.world.get_resource_mut::<T>()
     }
     
     /// 获取或初始化资源
-    pub fn resource_mut<T: 'static + Default + crate::resource::Resource>(&mut self) -> crate::change_detection::Mut<'_, T> {
+    pub fn resource_mut<T: 'static + Default + crate::resource::Resource>(&mut self) -> crate::resource::ResMut<'_, T> {
         self.world.resource_mut::<T>()
     }
     

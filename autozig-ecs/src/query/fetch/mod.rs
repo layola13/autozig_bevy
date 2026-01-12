@@ -64,7 +64,7 @@ pub struct ReadFetch<T: Component> {
 impl<T: Component> ReadFetch<T> {
     pub fn new(component_id: ComponentId) -> Self {
         Self {
-            inner: unsafe { fetch_create() },
+            inner: fetch_create(),
             component_id,
             _phantom: PhantomData,
         }
@@ -91,7 +91,7 @@ pub struct WriteFetch<T: Component> {
 impl<T: Component> WriteFetch<T> {
     pub fn new(component_id: ComponentId) -> Self {
         Self {
-            inner: unsafe { fetch_create() },
+            inner: fetch_create(),
             component_id,
             _phantom: PhantomData,
         }

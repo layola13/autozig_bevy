@@ -86,9 +86,8 @@ pub mod prelude {
     // ==================== Bundle Types ====================
     pub use crate::bundle::{Bundle, BundleInfo, BundleId, Bundles, DynamicBundle, BundleSpawner, BundleInserter};
     
-    // ==================== Resource Types ====================
-    // TODO: Uncomment when implemented:
-    // pub use crate::resource::{Resource, ResourceId, FromWorld, Res, ResMut, ResourceRegistry};
+    pub use crate::resource::{Resource, ResourceId, FromWorld, Res, ResMut, ResourceRegistry};
+    pub use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponents, RemovedComponentReader};
     
     // ==================== Query Types ====================
     pub use crate::query::{
@@ -115,30 +114,24 @@ pub mod prelude {
     // pub use crate::into_system::{SystemParamFunction, IntoSystemConfig, IntoSystemConfigs};
     
     // ==================== Schedule Types ====================
-    pub use crate::schedule::Schedule;
-    // TODO: Uncomment when implemented:
-    // pub use crate::schedule::{Schedules, ScheduleLabel, ScheduleBuildSettings,
-    //     ExecutorKind, LogLevel, ScheduleGraph, NodeId, NodeConfigs, SystemConfigs,
-    //     Stepping, SteppingState};
-    // pub use crate::system_set::{SystemSet, IntoSystemSet, SystemSetConfig, SystemSetConfigs,
-    //     IntoSystemSetConfig, IntoSystemSetConfigs, SystemTypeSet, AnonymousSet};
-    // pub use crate::condition::{Condition, IntoCondition, RunCriteria, ShouldRun, common_conditions};
-    // pub use crate::combinator::{NotSystem, AndThenSystem, OrElseSystem, ChainSystem, PipeSystem};
+    pub use crate::schedule::{Schedule, Schedules, ScheduleLabel, ScheduleBuildSettings,
+        ExecutorKind, LogLevel, ScheduleGraph, NodeId, NodeConfigs, SystemConfigs,
+        Stepping, SteppingState};
+    pub use crate::system_set::{SystemSet, IntoSystemSet, SystemSetConfig, SystemSetConfigs,
+        IntoSystemSetConfig, IntoSystemSetConfigs, SystemTypeSet, AnonymousSet};
+    pub use crate::condition::{Condition, IntoCondition, RunCriteria, ShouldRun};
+    pub use crate::combinator::{NotSystem, AndThenSystem, OrElseSystem, ChainSystem, PipeSystem};
     
     // ==================== Event Types ====================
     pub use crate::event::{
-        Event, Events, EventReader, EventWriter, EventIterator,
-        EventId, EventCursor, EventRegistry, EventUpdateSignal,
-        EventSequence, EventInstance, ManualEventReader, ManualEventIterator,
-        SendBatchIds, EventParIter
+        Event, Events, EventId, EventReader, EventWriter, EventIter as EventIterator,
+        EventCursor, EventRegistry, EventParIter,
     };
     
     // ==================== Observer Types ====================
-    pub use crate::observer::Observer;
-    // TODO: Uncomment when implemented:
-    // pub use crate::observer::{ObserverState, ObserverDescriptor, Trigger, TriggerEvent, TriggerTargets,
-    //     ObserverSystem, ObserverRunner, OnAdd, OnInsert, OnRemove, OnReplace,
-    //     EntityObserver, ComponentObserver};
+    pub use crate::observer::{Observer, ObserverState, ObserverDescriptor, Trigger, TriggerEvent, TriggerTargets,
+        ObserverSystem, ObserverRunner, OnAdd, OnInsert, OnRemove, OnReplace,
+        EntityObserver, ComponentObserver};
     
     // ==================== Storage Types ====================
     pub use crate::storage::{
@@ -151,11 +144,11 @@ pub mod prelude {
     
     // ==================== Change Detection ====================
     pub use crate::change_detection::{
-        Tick, ComponentTicks, ChangeDetectionContext, RemovedComponents,
+        Tick, ComponentTicks, ChangeDetectionContext, RemovedComponents as CD_RemovedComponents,
         DetectChanges, DetectChangesMut,
         Mut, MutUntyped, TickCells, LastTick
     };
-    // pub use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponentReader};
+    // Note: RemovedComponents is re-exported from removal_detection above
     
     // ==================== Plugin System ====================
     pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};

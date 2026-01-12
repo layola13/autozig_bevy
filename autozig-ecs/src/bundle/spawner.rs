@@ -148,7 +148,7 @@ impl<'w> BatchSpawner<'w> {
     }
 
     /// Spawn entities in batch across all spawners
-    pub fn spawn_batch(&mut self, entities_per_spawner: &[&[Entity]]) -> Vec<Vec<SpawnResult>> {
+    pub fn spawn_batch(&mut self, entities_per_spawner: &[&[Entity]]) -> Vec<Vec<SpawnResult<'_>>> {
         self.spawners
             .iter_mut()
             .zip(entities_per_spawner.iter())

@@ -90,7 +90,7 @@ impl<'w> FilteredResourcesMut<'w> {
         }
     }
 
-    pub fn as_readonly(&self) -> FilteredResources {
+    pub fn as_readonly(&self) -> FilteredResources<'_> {
         FilteredResources {
             world: self.world,
             _phantom: PhantomData,

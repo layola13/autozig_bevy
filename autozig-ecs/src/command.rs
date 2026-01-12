@@ -58,7 +58,7 @@ impl CommandBuffer {
     }
     
     /// Get Commands handle for writing
-    pub fn commands(&mut self) -> Commands {
+    pub fn commands(&mut self) -> Commands<'_> {
         Commands {
             buffer: self.inner,
             _marker: PhantomData,
@@ -98,6 +98,10 @@ pub struct Commands<'w> {
 }
 
 impl<'w> Commands<'w> {
+    pub fn new(world: &crate::world::World) -> Self {
+        unsafe { Self::new_from_entities(&world.allocator, &world.entities) }
+    }
+
     /// Creates a new Commands instance from entities storage
     ///
     /// # Safety
@@ -116,7 +120,7 @@ impl<'w> Commands<'w> {
     }
     
     /// Spawn a new entity (returns placeholder)
-    pub fn spawn_empty(&mut self) -> EntityCommands {
+    pub fn spawn_empty(&mut self) -> EntityCommands<'_> {
         command_buffer_write_spawn(self.buffer);
         EntityCommands {
             buffer: self.buffer,
@@ -125,7 +129,7 @@ impl<'w> Commands<'w> {
     }
     
     /// Spawn an entity with a bundle of components
-    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EntityCommands {
+    pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EntityCommands<'_> {
         // 先写入 spawn 命令
         command_buffer_write_spawn(self.buffer);
         
@@ -153,7 +157,7 @@ impl<'w> Commands<'w> {
     }
     
     /// Despawn an entity
-    pub fn entity(&mut self, entity_idx: u32) -> EntityCommands {
+    pub fn entity(&mut self, entity_idx: u32) -> EntityCommands<'_> {
         EntityCommands {
             buffer: self.buffer,
             _marker: PhantomData,

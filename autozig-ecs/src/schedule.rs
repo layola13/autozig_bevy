@@ -37,11 +37,9 @@ pub struct Schedule {
 
 impl Schedule {
     pub fn new(label: impl ScheduleLabel) -> Self {
-        unsafe {
-            Self {
-                inner: schedule_create(),
-                label: Box::new(label),
-            }
+        Self {
+            inner: schedule_create(),
+            label: Box::new(label),
         }
     }
     
@@ -55,17 +53,15 @@ impl Schedule {
             let name = "system\0"; // TODO: Use real name if possible
             let access = 0; // TODO: usage tracking
 
-            unsafe {
-                schedule_add_system(
-                    self.inner,
-                    name.as_ptr(),
-                    name.len() - 1, // Exclude null terminator
-                    data,
-                    vtable,
-                    run_system_trampoline,
-                    access
-                );
-            }
+            schedule_add_system(
+                self.inner,
+                name.as_ptr(),
+                name.len() - 1, // Exclude null terminator
+                data,
+                vtable,
+                run_system_trampoline,
+                access
+            );
         }
         self
     }
@@ -79,9 +75,7 @@ impl Schedule {
     }
     
     pub fn run(&mut self, world: &mut World) {
-        unsafe {
-            schedule_run(self.inner, world as *mut World as *mut u8);
-        }
+        schedule_run(self.inner, world as *mut World as *mut u8);
     }
 }
 
@@ -363,88 +357,8 @@ pub enum ShouldUpdateMessages {
 }
 
 // ============================================================================
-// World Advanced Types - World高级类型
+// World Advanced Types - World高级类型 (Moved to world module)
 // ============================================================================
-
-/// DeferredWorld - 延迟的World访问
-pub struct DeferredWorld<'w> {
-    world: &'w mut World,
-    commands: Vec<Box<dyn FnOnce(&mut World) + Send + Sync>>,
-}
-
-impl<'w> DeferredWorld<'w> {
-    pub fn new(world: &'w mut World) -> Self {
-        Self {
-            world,
-            commands: Vec::new(),
-        }
-    }
-    
-    pub fn defer<F>(&mut self, f: F)
-    where
-        F: FnOnce(&mut World) + Send + Sync + 'static,
-    {
-        self.commands.push(Box::new(f));
-    }
-    
-    pub fn apply(self) {
-        for cmd in self.commands {
-            cmd(self.world);
-        }
-    }
-    
-    pub fn world(&self) -> &World {
-        self.world
-    }
-}
-
-/// WorldId - World唯一标识符
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct WorldId(pub u64);
-
-impl WorldId {
-    pub fn new(id: u64) -> Self {
-        Self(id)
-    }
-}
-
-/// WorldCell - World的Cell类型访问
-pub struct WorldCell<'w> {
-    world: &'w World,
-}
-
-impl<'w> WorldCell<'w> {
-    pub fn new(world: &'w World) -> Self {
-        Self { world }
-    }
-    
-    pub fn world(&self) -> &World {
-        self.world
-    }
-}
-
-/// UnsafeWorldCell - 不安全的World Cell访问
-pub struct UnsafeWorldCell<'w> {
-    world: *mut World,
-    _phantom: PhantomData<&'w mut World>,
-}
-
-impl<'w> UnsafeWorldCell<'w> {
-    pub unsafe fn new(world: &'w mut World) -> Self {
-        Self {
-            world: world as *mut World,
-            _phantom: PhantomData,
-        }
-    }
-    
-    pub unsafe fn world(&self) -> &World {
-        &*self.world
-    }
-    
-    pub unsafe fn world_mut(&mut self) -> &mut World {
-        &mut *self.world
-    }
-}
 
 /// WorldChildBuilder - World子实体构建器
 pub struct WorldChildBuilder<'w> {
@@ -473,10 +387,6 @@ impl<'w> WorldChildBuilder<'w> {
         self.parent
     }
 }
-
-// ============================================================================
-// Schedule System Configuration Types - Schedule系统配置类型
-// ============================================================================
 
 /// AutoInsertApplyDeferredPass - 自动插入apply_deferred pass
 pub struct AutoInsertApplyDeferredPass {
