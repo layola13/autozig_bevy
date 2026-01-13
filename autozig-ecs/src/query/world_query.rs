@@ -85,7 +85,7 @@ impl<T: Component> ReadOnlyWorldQuery for &'static T {}
 
 // &mut T implementation
 impl<T: Component> QueryData for &'static mut T {
-    type Item<'w> = &'w mut T;
+    type Item<'w> = crate::change_detection::Mut<'w, T>;
     type Fetch<'w> = WriteFetch<T>;
     type State = ComponentId;
     type ReadOnly = &'static T;

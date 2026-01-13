@@ -18,11 +18,14 @@ pub struct FetchCoreOpaque {
 
 use autozig_macro::include_zig;
 
+use crate::change_detection::{Tick, ComponentTicks, Mut, Ref};
+
 include_zig!("src/query/fetch/zig/fetch.zig", {
     fn fetch_create() -> *mut FetchCoreOpaque;
     fn fetch_destroy(fetch: *mut FetchCoreOpaque);
-    fn fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, size: usize, stride: usize);
+    fn fetch_configure(fetch: *mut FetchCoreOpaque, data: *const u8, ticks: *const ComponentTicks, size: usize, stride: usize);
     fn fetch_get_at(fetch: *mut FetchCoreOpaque, index: usize) -> *const u8;
+    fn fetch_get_ticks_at(fetch: *mut FetchCoreOpaque, index: usize) -> *mut ComponentTicks;
     fn fetch_set_table(fetch: *mut FetchCoreOpaque, table: *mut crate::storage::table::TableOpaque, component_id: u32);
 });
 
@@ -56,16 +59,20 @@ impl Default for EntityFetch {
 
 /// Read fetch - fetches immutable component data
 pub struct ReadFetch<T: Component> {
-    inner: *mut FetchCoreOpaque,
+    pub(crate) inner: *mut FetchCoreOpaque,
     component_id: ComponentId,
+    pub(crate) last_run: Tick,
+    pub(crate) this_run: Tick,
     _phantom: PhantomData<T>,
 }
 
 impl<T: Component> ReadFetch<T> {
-    pub fn new(component_id: ComponentId) -> Self {
+    pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
         Self {
             inner: fetch_create(),
             component_id,
+            last_run,
+            this_run,
             _phantom: PhantomData,
         }
     }
@@ -83,16 +90,25 @@ impl<T: Component> Drop for ReadFetch<T> {
 
 /// Write fetch - fetches mutable component data
 pub struct WriteFetch<T: Component> {
-    inner: *mut FetchCoreOpaque,
+    pub(crate) inner: *mut FetchCoreOpaque,
     component_id: ComponentId,
+    pub(crate) last_run: Tick,
+    pub(crate) this_run: Tick,
     _phantom: PhantomData<T>,
 }
 
+unsafe impl<T: Component> Send for ReadFetch<T> {}
+unsafe impl<T: Component> Sync for ReadFetch<T> {}
+unsafe impl<T: Component> Send for WriteFetch<T> {}
+unsafe impl<T: Component> Sync for WriteFetch<T> {}
+
 impl<T: Component> WriteFetch<T> {
-    pub fn new(component_id: ComponentId) -> Self {
+    pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
         Self {
             inner: fetch_create(),
             component_id,
+            last_run,
+            this_run,
             _phantom: PhantomData,
         }
     }
@@ -148,6 +164,8 @@ pub trait Fetch<'w>: Sized {
     unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table);
     
     fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item;
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool;
 }
 
 impl<'w> Fetch<'w> for EntityFetch {
@@ -164,14 +182,18 @@ impl<'w> Fetch<'w> for EntityFetch {
     fn fetch(&mut self, entity: Entity, _index: usize) -> Self::Item {
         entity
     }
+
+    fn matches_archetype(_state: &Self::State, _archetype: &crate::archetype::Archetype) -> bool {
+        true
+    }
 }
 
 impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
     type Item = &'w T;
     type State = ComponentId;
 
-    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
-        Self::new(*state)
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state, last_run, this_run)
     }
 
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
@@ -188,14 +210,18 @@ impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
             &*(ptr as *const T)
         }
     }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
+    }
 }
 
 impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
-    type Item = &'w mut T;
+    type Item = Mut<'w, T>;
     type State = ComponentId;
 
-    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
-        Self::new(*state)
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state, last_run, this_run)
     }
 
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
@@ -209,8 +235,19 @@ impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
     fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
         unsafe {
             let ptr = fetch_get_at(self.inner, index);
-            &mut *(ptr as *mut T)
+            let ticks_ptr = fetch_get_ticks_at(self.inner, index);
+            Mut::new(
+                &mut *(ptr as *mut T),
+                &mut *ticks_ptr,
+                self.this_run, // current_tick
+                self.last_run,
+                self.this_run,
+            )
         }
+    }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
     }
 }
 
@@ -233,6 +270,10 @@ impl<'w, F: Fetch<'w>> Fetch<'w> for OptionFetch<F> {
     fn fetch(&mut self, entity: Entity, row: usize) -> Self::Item {
         Some(self.inner.fetch(entity, row))
     }
+
+    fn matches_archetype(_state: &Self::State, _archetype: &crate::archetype::Archetype) -> bool {
+        true
+    }
 }
 
 impl<'w> Fetch<'w> for () {
@@ -249,6 +290,10 @@ impl<'w> Fetch<'w> for () {
 
     fn fetch(&mut self, _entity: Entity, _index: usize) -> Self::Item {
         ()
+    }
+
+    fn matches_archetype(_state: &Self::State, _archetype: &crate::archetype::Archetype) -> bool {
+        true
     }
 }
 
@@ -276,6 +321,10 @@ impl<'w, A: Fetch<'w>> Fetch<'w> for (A,) {
     fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
         let (a,) = self;
         (a.fetch(entity, index),)
+    }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        A::matches_archetype(&state.0, archetype)
     }
 }
 
@@ -311,6 +360,10 @@ impl<'w, A: Fetch<'w>, B: Fetch<'w>> Fetch<'w> for (A, B) {
     fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
         let (a, b) = self;
         (a.fetch(entity, index), b.fetch(entity, index))
+    }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        A::matches_archetype(&state.0, archetype) && B::matches_archetype(&state.1, archetype)
     }
 }
 
@@ -352,6 +405,12 @@ macro_rules! impl_fetch_tuple {
                 #[allow(non_snake_case)]
                 let ($($name,)*) = self;
                 ($($name.fetch(entity, index),)*)
+            }
+
+            fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+                #[allow(non_snake_case)]
+                let ($($state,)*) = state;
+                true $(&& $name::matches_archetype($state, archetype))*
             }
         }
 

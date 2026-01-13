@@ -7,7 +7,7 @@ const g_allocator = common.g_allocator;
 pub const ResourceRegistry = struct {
     map: std.AutoHashMap(u64, *anyopaque),
     allocator: std.mem.Allocator,
-    
+
     pub fn init(allocator: std.mem.Allocator) !*ResourceRegistry {
         const registry = try allocator.create(ResourceRegistry);
         registry.* = ResourceRegistry{
@@ -16,24 +16,27 @@ pub const ResourceRegistry = struct {
         };
         return registry;
     }
-    
+
     pub fn deinit(self: *ResourceRegistry) void {
         self.map.deinit();
         self.allocator.destroy(self);
     }
-    
+
     pub fn insert(self: *ResourceRegistry, type_id: u64, ptr: *anyopaque) !void {
         try self.map.put(type_id, ptr);
     }
-    
+
     pub fn get(self: *const ResourceRegistry, type_id: u64) ?*anyopaque {
         return self.map.get(type_id);
     }
-    
-    pub fn remove(self: *ResourceRegistry, type_id: u64) bool {
-        return self.map.remove(type_id);
+
+    pub fn remove(self: *ResourceRegistry, type_id: u64) ?*anyopaque {
+        if (self.map.fetchRemove(type_id)) |kv| {
+            return kv.value;
+        }
+        return null;
     }
-    
+
     pub fn contains(self: *const ResourceRegistry, type_id: u64) bool {
         return self.map.contains(type_id);
     }
@@ -59,7 +62,7 @@ export fn resource_registry_get(registry: *const ResourceRegistry, type_id: u64)
     return registry.get(type_id);
 }
 
-export fn resource_registry_remove(registry: *ResourceRegistry, type_id: u64) bool {
+export fn resource_registry_remove(registry: *ResourceRegistry, type_id: u64) ?*anyopaque {
     return registry.remove(type_id);
 }
 

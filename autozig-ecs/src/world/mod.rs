@@ -37,7 +37,7 @@ use crate::{
     },
     entity::{Entities, Entity, EntityAllocator},
     query::{QueryData, QueryFilter, QueryState},
-    resource::{Res, ResMut, Resource},
+    resource::{Res, ResMut, Resource, FromWorld},
     schedule::{Schedule, ScheduleLabel, Schedules},
     storage::{ResourceData, Storages},
     system::CheckChangeTicks,
@@ -75,27 +75,18 @@ include_zig!("src/zig/world.zig", {
     fn world_despawn(world_ptr: *mut WorldOpaque, entity: Entity) -> bool;
     fn world_entity_count(world_ptr: *const WorldOpaque) -> u32;
     fn world_contains_entity(world_ptr: *const WorldOpaque, entity: Entity) -> bool;
-    fn world_input_components(world_ptr: *mut WorldOpaque, entity: Entity, ids_ptr: *const u32, sizes_ptr: *const usize, data_ptrs: *const *const u8, count: usize) -> bool;
+    fn world_insert_components(world_ptr: *mut WorldOpaque, entity: Entity, ids_ptr: *const u32, sizes_ptr: *const usize, data_ptrs: *const *const u8, count: usize) -> bool;
     fn world_get_table_for_archetype(world_ptr: *mut WorldOpaque, archetype_id: u32) -> *mut crate::storage::table::TableOpaque;
     fn world_clear_entities(world_ptr: *mut WorldOpaque);
+    fn world_archetype_count(world_ptr: *const WorldOpaque) -> usize;
+    fn world_get_archetype(world_ptr: *const WorldOpaque, index: usize) -> *mut u8;
+    fn world_set_tick(world_ptr: *mut WorldOpaque, tick: Tick);
 });
 
 // Opaque pointer to Zig World structure
 #[repr(C)]
 pub struct WorldOpaque {
     _private: u8,
-}
-
-// Manual binding until autozig macros support complex pointer args better if needed
-unsafe extern "C" {
-    fn world_insert_components(
-        world: *mut WorldOpaque, 
-        entity: Entity, 
-        ids_ptr: *const u32, 
-        sizes_ptr: *const usize, 
-        data_ptrs: *const *const u8, 
-        count: usize
-    ) -> bool;
 }
 
 /// Stores and exposes operations on entities, components, resources, and their metadata.
@@ -108,7 +99,6 @@ pub struct World {
     pub(crate) entities: Entities,
     pub(crate) allocator: EntityAllocator,
     pub(crate) components: Components,
-    pub(crate) archetypes: Archetypes,
     pub(crate) storages: Storages,
     pub(crate) bundles: Bundles,
     pub(crate) observers: Observers,
@@ -117,6 +107,7 @@ pub struct World {
     pub(crate) last_check_tick: Tick,
     removed_components: HashMap<TypeId, Box<dyn std::any::Any>>,
     pub(crate) resource_registry: crate::resource::ResourceRegistry,
+    pub(crate) archetypes: std::sync::RwLock<Archetypes>,
 }
 
 impl Default for World {
@@ -138,7 +129,6 @@ impl World {
             entities: Entities::new(),
             allocator: EntityAllocator::default(),
             components: Components::default(),
-            archetypes: Archetypes::new(),
             storages: Storages::default(),
             bundles: Bundles::default(),
             observers: Observers::default(),
@@ -147,9 +137,35 @@ impl World {
             last_check_tick: Tick::new(0),
             removed_components: HashMap::new(),
             resource_registry: crate::resource::ResourceRegistry::new(),
+            archetypes: std::sync::RwLock::new(Archetypes::new()),
         }
     }
     
+    /// Synchronizes archetypes from Zig backend
+    pub fn update_archetypes(&self) {
+        let zig_count = world_archetype_count(self.inner);
+        let mut archetypes = self.archetypes.write().unwrap();
+        while archetypes.archetypes.len() < zig_count {
+            let index = archetypes.archetypes.len();
+            let arch_ptr = world_get_archetype(self.inner, index);
+            if !arch_ptr.is_null() {
+                let count = crate::archetype::archetype_table_component_count(arch_ptr);
+                let mut component_ids = vec![0u32; count];
+                crate::archetype::archetype_get_table_components(arch_ptr, component_ids.as_mut_ptr(), count);
+                
+                let components: Vec<crate::component::ComponentId> = component_ids
+                    .into_iter()
+                    .map(|id| crate::component::ComponentId::new(id as usize))
+                    .collect();
+                
+                archetypes.archetypes.push(crate::archetype::Archetype::new(
+                    crate::archetype::ArchetypeId::new(index as u32),
+                    components
+                ));
+            }
+        }
+    }
+
     /// Gets a resource
     pub fn resource<R: Resource>(&self) -> Res<'_, R> {
         self.get_resource::<R>().expect("Resource not found")
@@ -229,8 +245,8 @@ impl World {
     
     /// Retrieves this world's Archetypes collection
     #[inline]
-    pub fn archetypes(&self) -> &Archetypes {
-        &self.archetypes
+    pub fn archetypes(&self) -> std::sync::RwLockReadGuard<Archetypes> {
+        self.archetypes.read().unwrap()
     }
     
     /// Retrieves this world's Components collection
@@ -282,6 +298,25 @@ impl World {
         self.components_registrator().register_component::<T>()
     }
     
+    /// Initializes a new resource and returns the ComponentId
+    pub fn init_resource<R: Resource + FromWorld>(&mut self) -> ComponentId {
+        if !self.resource_registry.contains::<R>() {
+            let resource = R::from_world(self);
+            self.insert_resource(resource);
+        }
+        self.components_registrator().register_resource::<R>()
+    }
+    
+    /// Removes a resource from the world
+    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
+        self.resource_registry.remove::<R>()
+    }
+    
+    /// Returns true if the world contains the resource
+    pub fn contains_resource<R: Resource>(&self) -> bool {
+        self.resource_registry.contains::<R>()
+    }
+    
     /// Registers a component type as "disabling"
     pub fn register_disabling_component<C: Component>(&mut self) {
         let _component_id = self.register_component::<C>();
@@ -314,9 +349,8 @@ impl World {
     /// Spawns a new Entity with a Bundle
     #[track_caller]
     pub fn spawn<B: Bundle>(&mut self, bundle: B) -> EntityWorldMut<'_> {
-        let mut entity_mut = self.spawn_empty();
-        entity_mut.insert(bundle);
-        entity_mut
+        let entity_mut = self.spawn_empty();
+        entity_mut.insert(bundle)
     }
     
     /// Despawns the given Entity if it exists
@@ -396,6 +430,7 @@ impl World {
     /// Clears the internal component tracker state
     pub fn clear_trackers(&mut self) {
         self.last_change_tick = self.increment_change_tick();
+        world_set_tick(self.inner, self.read_change_tick());
     }
     
     /// Reads the current change tick of this world
@@ -475,8 +510,9 @@ impl World {
         }
 
         let ids_u32: Vec<u32> = ids.iter().map(|&id| id as u32).collect();
+        println!("insert_bundle_components_internal: ids={:?}", ids_u32);
 
-        unsafe {
+            world_set_tick(self.inner, self.read_change_tick());
             world_insert_components(
                 self.inner,
                 entity,
@@ -485,7 +521,6 @@ impl World {
                 data_ptrs.as_ptr(),
                 count,
             );
-        }
     }
 
     /// Internal method to remove component types - used by EntityWorldMut to avoid recursion
@@ -534,10 +569,11 @@ unsafe impl Sync for World {}
 
 impl std::fmt::Debug for World {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let archetypes = self.archetypes.read().unwrap();
         f.debug_struct("World")
             .field("id", &self.id)
             .field("entity_count", &self.entity_count())
-            .field("archetype_count", &self.archetypes.len())
+            .field("archetype_count", &archetypes.len())
             .finish()
     }
 }

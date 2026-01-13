@@ -227,3 +227,9 @@ export fn archetype_get_entities(arch_ptr: *const Archetype, out_buffer: [*]u32,
 export fn archetype_clear(arch_ptr: *Archetype) void {
     arch_ptr.clear();
 }
+
+export fn archetype_get_table_components(arch_ptr: *const Archetype, out_buffer: [*]u32, buffer_len: usize) usize {
+    const count = @min(arch_ptr.table_components.items.len, buffer_len);
+    @memcpy(out_buffer[0..count], arch_ptr.table_components.items[0..count]);
+    return count;
+}

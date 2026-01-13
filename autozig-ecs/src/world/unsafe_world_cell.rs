@@ -83,8 +83,8 @@ impl<'w> UnsafeWorldCell<'w> {
     /// # Safety
     /// Caller must ensure no mutable access to archetypes exists
     #[inline]
-    pub unsafe fn archetypes(&self) -> &Archetypes {
-        &(*self.world).archetypes
+    pub unsafe fn archetypes(&self) -> std::sync::RwLockReadGuard<Archetypes> {
+        (*self.world).archetypes.read().unwrap()
     }
 
     /// Gets a reference to the World's Components collection
@@ -218,7 +218,7 @@ impl<'w> WorldCell<'w> {
 
     /// Gets a reference to Archetypes
     #[inline]
-    pub fn archetypes(&self) -> &Archetypes {
+    pub fn archetypes(&self) -> std::sync::RwLockReadGuard<Archetypes> {
         unsafe { self.world.archetypes() }
     }
 

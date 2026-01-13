@@ -139,10 +139,8 @@ where
     fn run(&mut self, world: &mut World) {
         let change_tick = world.change_tick().0;
         let state = self.state.as_mut().expect("System not initialized");
-        unsafe {
-            let params = F::Param::get_param(state, &self.meta, world, change_tick);
-            self.func.run(params);
-        }
+        let params = F::Param::get_param(state, &self.meta, world, change_tick);
+        self.func.run(params);
         self.meta.last_run = change_tick;
     }
 }

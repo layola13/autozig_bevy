@@ -8,52 +8,35 @@ use std::collections::HashSet;
 /// Bundle是一组组件的集合，可以一次性插入到实体中
 pub trait Bundle: Send + Sync + 'static {
     /// 获取此Bundle中的组件ID列表
-    fn component_ids() -> Vec<u32>;
+    fn component_ids() -> Vec<std::any::TypeId>;
     
     /// 获取组件数据
-    /// 返回(component_id, data_ptr, data_size)元组列表
-    fn get_components(&self) -> Vec<(u32, *const u8, usize)>;
+    /// 返回(type_id, data_ptr, data_size)元组列表
+    fn get_components(&self) -> Vec<(std::any::TypeId, *const u8, usize)>;
 }
 
 // Restore generic implementation for single component
 impl<T: Component> Bundle for T {
-    fn component_ids() -> Vec<u32> {
-        vec![0] // Stubbed
+    fn component_ids() -> Vec<std::any::TypeId> {
+        vec![std::any::TypeId::of::<T>()]
     }
     
-    fn get_components(&self) -> Vec<(u32, *const u8, usize)> {
-         vec![(0, self as *const T as *const u8, std::mem::size_of::<T>())]
+    fn get_components(&self) -> Vec<(std::any::TypeId, *const u8, usize)> {
+         vec![(std::any::TypeId::of::<T>(), self as *const T as *const u8, std::mem::size_of::<T>())]
     }
 }
 
 macro_rules! impl_bundle_tuple {
     ($($param:ident),*) => {
         impl<$($param: Component),*> Bundle for ($($param,)*) {
-            fn component_ids() -> Vec<u32> {
-                #[allow(unused_mut)]
-                let mut ids = Vec::new();
-                #[allow(unused_mut, unused_variables)]
-                let mut i = 0;
-                $(
-                    let _ = std::mem::size_of::<$param>(); // Verify usage
-                    ids.push(i);
-                    i += 1;
-                )*
-                ids
+            fn component_ids() -> Vec<std::any::TypeId> {
+                vec![ $( std::any::TypeId::of::<$param>() ),* ]
             }
             
-            fn get_components(&self) -> Vec<(u32, *const u8, usize)> {
+            fn get_components(&self) -> Vec<(std::any::TypeId, *const u8, usize)> {
                 #[allow(non_snake_case)]
                 let ($($param,)*) = self;
-                #[allow(unused_mut)]
-                let mut components = Vec::new();
-                #[allow(unused_mut, unused_variables)]
-                let mut i = 0;
-                $(
-                    components.push((i, $param as *const $param as *const u8, std::mem::size_of::<$param>()));
-                    i += 1;
-                )*
-                components
+                vec![ $( (std::any::TypeId::of::<$param>(), $param as *const $param as *const u8, std::mem::size_of::<$param>()) ),* ]
             }
         }
     }

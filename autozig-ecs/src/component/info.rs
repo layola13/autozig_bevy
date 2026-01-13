@@ -461,9 +461,23 @@ impl Components {
         }
         let info = ComponentInfo::new::<T>();
         let index = self.components.len();
-        self.components.push(Some(info));
         let id = ComponentId::new(index);
+        println!("Components::register: name={}, id={:?}", std::any::type_name::<T>(), id);
+        self.components.push(Some(info));
         self.indices.insert(type_id, id);
+        id
+    }
+    pub fn register_resource_type<T: Resource>(&mut self) -> ComponentId {
+        let type_id = TypeId::of::<T>();
+        if let Some(id) = self.resource_indices.get(&type_id) {
+            return *id;
+        }
+        let info = ComponentInfo::new_resource::<T>();
+        let index = self.components.len();
+        let id = ComponentId::new(index);
+        println!("Components::register_resource_type: name={}, id={:?}", std::any::type_name::<T>(), id);
+        self.components.push(Some(info));
+        self.resource_indices.insert(type_id, id);
         id
     }
 }

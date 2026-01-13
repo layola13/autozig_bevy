@@ -7,7 +7,7 @@
 use crate::{
     component::ComponentId,
     entity::Entity,
-    query::{QueryData, QueryFilter, QueryEntityError, QuerySingleError, Fetch},
+    query::{QueryData, QueryFilter, QueryEntityError, QuerySingleError, Fetch, filter::FilterFetch},
     world::World,
     change_detection::Tick,
 };
@@ -46,7 +46,7 @@ pub struct QueryStateInner<S: Send + Sync + 'static, FS: Send + Sync + 'static> 
     state: S,
     filter_state: FS,
     inner: *mut QueryStateCoreOpaque,
-    pub(crate) matched_archetypes: Vec<u32>,
+    pub(crate) matched_archetypes: std::sync::RwLock<Vec<u32>>,
     matched_entities_cache: Vec<Entity>, // Keeping for backward compatibility/legacy tests
     _phantom: PhantomData<(S, FS)>,
 }
@@ -67,7 +67,7 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             state,
             filter_state,
             inner: query_state_create(),
-            matched_archetypes: Vec::new(),
+            matched_archetypes: std::sync::RwLock::new(Vec::new()),
             matched_entities_cache: Vec::new(),
             _phantom: PhantomData,
         }
@@ -133,37 +133,29 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
     pub fn iter<'w, Q, F>(&'w self, world: &'w World) -> QueryStateIter<'w, Q, F> 
     where Q: QueryData<State=S>, F: QueryFilter<State=FS>
     {
-        let cell = world.as_unsafe_world_cell_readonly();
-        let fetch = unsafe {
-            Q::init_fetch(
-                cell,
-                &self.state,
-                world.last_change_tick(),
-                world.read_change_tick(),
-            )
-        };
-        QueryStateIter {
-            _phantom: PhantomData,
-            world,
-            matched_archetypes: &self.matched_archetypes,
-            archetype_index: 0,
-            row_index: 0,
-            current_table_len: 0,
-            fetch,
-            state: &self.state,
+        world.update_archetypes();
+
+        // Lazy match
+        {
+            let archetypes = world.archetypes.read().unwrap();
+            let mut matched = self.matched_archetypes.write().unwrap();
+            if matched.len() < archetypes.len() {
+                matched.clear();
+                for archetype in archetypes.iter() {
+                    if Q::Fetch::matches_archetype(&self.state, archetype) && 
+                       F::Fetch::matches_archetype(&self.filter_state, archetype) {
+                        matched.push(archetype.id().0);
+                    }
+                }
+            }
         }
-    }
-    
-    /// Iterate mutably over query results
-    pub fn iter_mut<'w, Q, F>(&'w mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
+        
         let last_run = world.last_change_tick();
         let this_run = world.read_change_tick();
-        let world_ptr = world.inner;
+        let world_ptr = world as *const crate::world::World; // Changed to *const
+        let cell = world.as_unsafe_world_cell_readonly(); // Kept readonly as iter is &self
         
         let fetch = unsafe {
-            let cell = world.as_unsafe_world_cell();
             Q::init_fetch(
                 cell,
                 &self.state,
@@ -171,253 +163,84 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
                 this_run,
             )
         };
-        QueryStateIterMut {
+        let filter_fetch = unsafe {
+            F::Fetch::init(
+                &self.filter_state,
+                cell,
+                last_run,
+                this_run,
+            )
+        };
+        let matched_archetypes = self.matched_archetypes.read().unwrap().clone();
+        QueryStateIter {
             _phantom: PhantomData,
-            world_ptr,
-            matched_archetypes: &self.matched_archetypes,
+            world,
+            matched_archetypes,
             archetype_index: 0,
             row_index: 0,
             current_table_len: 0,
             fetch,
+            filter_fetch,
             state: &self.state,
+            filter_state: &self.filter_state,
         }
     }
     
-    /// Iterate over combinations
-    pub fn iter_combinations<const N: usize, Q, F>(
-        &self,
-        _world: &World,
-    ) -> QueryCombinationIter<'_, Q, F, N> 
+    /// Iterate mutably over query results
+    pub fn iter_mut<'w, Q, F>(&'w mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> 
     where Q: QueryData<State=S>, F: QueryFilter<State=FS>
     {
-        QueryCombinationIter {
-            _phantom: PhantomData,
-            entities: &self.matched_entities_cache,
-            indices: [0; N],
-        }
-    }
-    
-    /// Get single entity matching query
-    pub fn single<Q>(&self, _world: &World) -> Result<Q::Item<'_>, QuerySingleError> 
-    where Q: QueryData<State=S>
-    {
-        let count = self.matched_entity_count();
-        match count {
-            0 => Err(QuerySingleError::NoEntities("No entities match query")),
-            1 => Err(QuerySingleError::NoEntities("Placeholder logic")),
-            _ => Err(QuerySingleError::MultipleEntities("Multiple entities")),
-        }
-    }
-    
-    /// Get single entity mutably
-    pub fn single_mut<Q>(&mut self, _world: &mut World) -> Result<Q::Item<'_>, QuerySingleError> 
-    where Q: QueryData<State=S>
-    {
-        self.single::<Q>(&World::new())
-    }
-    
-    /// Get single entity unchecked
-    pub unsafe fn single_unchecked<Q>(&self, _world: &World) -> Q::Item<'_> 
-    where Q: QueryData<State=S>
-    {
-        panic!("Single unchecked not implemented")
-    }
-    
-    /// Check if query is empty
-    pub fn is_empty(&self, _world: &World) -> bool {
-        query_state_is_empty(self.inner)
-    }
-    
-    /// Get query result count
-    // NOTE: iter_manual relies on Q, F
-    pub fn iter_manual<'w, 's, Q, F>(&'s self, _world: &'w World) -> QueryStateIter<'s, Q, F> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        panic!("iter_manual not implemented")
-    }
-    
-    /// Iterate many entities manually
-    pub fn iter_many<'w, 's, Q, F, EntityList: IntoIterator<Item = Entity>>(
-        &'s self,
-        _world: &'w World,
-        entities: EntityList,
-    ) -> QueryManyIter<'w, 's, Q, F, EntityList::IntoIter> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        QueryManyIter {
-            _phantom: PhantomData,
-            entity_iter: entities.into_iter(),
-        }
-    }
-    
-    /// Iterate many entities mutably
-    pub fn iter_many_mut<'w, 's, Q, F, EntityList: IntoIterator<Item = Entity>>(
-        &'s mut self,
-        _world: &'w mut World,
-        entities: EntityList,
-    ) -> QueryManyIterMut<'w, 's, Q, F, EntityList::IntoIter> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        QueryManyIterMut {
-            _phantom: PhantomData,
-            entity_iter: entities.into_iter(),
-        }
-    }
-    
-    /// Iterate combinations manually
-    pub fn iter_combinations_manual<'w, 's, const N: usize, Q, F>(
-        &'s self,
-        _world: &'w World,
-    ) -> QueryCombinationIter<'s, Q, F, N> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        QueryCombinationIter {
-            _phantom: PhantomData,
-            entities: &self.matched_entities_cache,
-            indices: [0; N],
-        }
-    }
-    
-    /// Get component count
-    pub fn component_count(&self) -> usize {
-        // This generally retrieves Q::match_component_count()
-        // For now placeholder
-        0
-    }
-    
-    /// Check if contains entity
-    pub fn contains(&self, entity: Entity) -> bool {
-        self.matched_entities_cache.contains(&entity)
-    }
-    
-    /// Get matched entity count
-    pub fn matched_entity_count(&self) -> usize {
-        query_state_matched_entity_count(self.inner) as usize
-    }
-    
-    /// Parallel iteration
-    pub fn par_iter<Q, F>(&self, _world: &World) -> QueryParIter<'_, Q, F> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        QueryParIter {
-            _phantom: PhantomData,
-            entities: &self.matched_entities_cache,
-        }
-    }
-    
-    /// Parallel mutable iteration
-    pub fn par_iter_mut<Q, F>(&mut self, _world: &mut World) -> QueryParIterMut<'_, Q, F> 
-    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
-    {
-        QueryParIterMut {
-            _phantom: PhantomData,
-            entities: &self.matched_entities_cache,
-        }
-    }
-    
-    /// Convert to readonly
-    pub fn as_readonly(&self) -> &QueryStateInner<S, FS>
-    {
-        // Actually this signature usually changes Q to Q::ReadOnly.
-        // But Q::ReadOnly::State == Q::State?
-        // Yes, likely.
-        unsafe { &*(self as *const _ as *const _) }
-    }
-    
-    /// Transmute to different query type
-    pub fn transmute<NewQ>(&self, _world: &World) -> QueryStateInner<NewQ::State, FS> 
-    where NewQ: QueryData
-    // We can't easily return QueryStateInner<NewQ::State> without re-checking state compatibility.
-    {
-        panic!("QueryState::transmute not implemented")
-    }
-    
-    /// Transmute with filtered
-    pub fn transmute_filtered<NewQ, NewF>(
-        &self,
-        _world: &World,
-    ) -> QueryStateInner<NewQ::State, NewF::State>
-    where NewQ: QueryData, NewF: QueryFilter 
-    {
-        panic!("QueryState::transmute_filtered not implemented")
-    }
-    
-    /// Transmute to lens
-    pub fn transmute_lens<NewQ>(&self) -> QueryLens<'_, NewQ, ()> // F = ()? Need NewF?
-    where NewQ: QueryData<State=S> // Constrained?
-    {
-        panic!("QueryState::transmute_lens not implemented")
-    }
-    
-    /// Transmute filtered lens
-    pub fn transmute_lens_filtered<NewQ, NewF>(
-        &self,
-    ) -> QueryLens<'_, NewQ, NewF> 
-    where NewQ: QueryData<State=S>, NewF: QueryFilter<State=FS>
-    {
-        panic!("QueryState::transmute_lens_filtered not implemented")
-    }
-    
-    /// Update archetypes
-    pub fn update_archetypes(&mut self, world: &World) {
-        unsafe {
-            query_state_update_archetypes(self.inner, world.inner);
-            
-            let mut count = 0;
-            let ptr = query_state_get_matched_archetypes(self.inner, &mut count);
-            if !ptr.is_null() && count > 0 {
-                self.matched_archetypes = std::slice::from_raw_parts(ptr, count).to_vec();
-            } else {
-                self.matched_archetypes.clear();
+        world.update_archetypes();
+
+        // Lazy match
+        {
+            let archetypes = world.archetypes.read().unwrap();
+            let mut matched = self.matched_archetypes.write().unwrap();
+            if matched.len() < archetypes.len() {
+                matched.clear();
+                for archetype in archetypes.iter() {
+                    if Q::Fetch::matches_archetype(&self.state, archetype) && 
+                       F::Fetch::matches_archetype(&self.filter_state, archetype) {
+                        matched.push(archetype.id().0);
+                    }
+                }
             }
         }
-    }
-    
-    /// Update archetype component access
-    pub fn update_archetype_component_access(&mut self, _archetype_id: u32, _access: &()) {
-        // Would update component access for archetype
-    }
-    
-    /// Validate world compatibility
-    pub fn validate_world(&self, _world: &World) -> bool {
-        true
-    }
-    
-    /// Create new archetype
-    pub fn new_archetype(&mut self, _archetype_id: u32) {
-        // Would register new archetype
-    }
-    
-    /// Match archetype
-    pub fn matches_archetype(&self, _archetype_id: u32) -> bool {
-        // Placeholder for legacy tests passing ID.
-        // Cannot check without World or Archetype ref.
-        true
-    }
-    
-    /// Match archetype (internal helper for when we have the archetype)
-    pub fn matches_archetype_ref(&self, archetype: &crate::archetype::Archetype) -> bool {
-        let components = archetype.components();
-        query_state_matches_component_list(
-            self.inner, 
-            components.as_ptr().cast(), 
-            components.len()
-        )
-    }
 
-    /// Match component set
-    pub fn matches_component_set(&self, _set: &()) -> bool {
-        true
-    }
-    
-    /// Get component access
-    pub fn component_access(&self) -> &() {
-        &()
-    }
-    
-    /// Get filtered access
-    pub fn filtered_access(&self) -> &() {
-        &()
+        let last_run = world.last_change_tick();
+        let this_run = world.read_change_tick();
+        let world_ptr = world.inner;
+        let cell = world.as_unsafe_world_cell();
+        
+        let fetch = unsafe {
+            Q::init_fetch(
+                cell,
+                &self.state,
+                last_run,
+                this_run,
+            )
+        };
+        let filter_fetch = unsafe {
+            F::Fetch::init(
+                &self.filter_state,
+                cell,
+                last_run,
+                this_run,
+            )
+        };
+        let matched_archetypes = self.matched_archetypes.read().unwrap().clone();
+        QueryStateIterMut {
+            _phantom: PhantomData,
+            world_ptr,
+            matched_archetypes,
+            archetype_index: 0,
+            row_index: 0,
+            current_table_len: 0,
+            fetch,
+            filter_fetch,
+            state: &self.state,
+            filter_state: &self.filter_state,
+        }
     }
 }
 
@@ -432,12 +255,14 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Drop for QueryStateInn
 /// Query state iterator
 pub struct QueryStateIter<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) world: &'w World,
-    pub(crate) matched_archetypes: &'w [u32],
+    pub(crate) matched_archetypes: Vec<u32>,
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
     pub(crate) fetch: Q::Fetch<'w>,
+    pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
+    pub(crate) filter_state: &'w F::State,
     pub(crate) _phantom: PhantomData<(Q, F)>,
 }
 
@@ -453,6 +278,13 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
                 let table = Table { inner: table_ptr };
                 
                 let entity = table.get_entity(self.row_index);
+                
+                // Runtime Filtering
+                if !self.filter_fetch.matches(entity, self.row_index) {
+                    self.row_index += 1;
+                    continue;
+                }
+
                 let result = Some(self.fetch.fetch(entity, self.row_index));
                 self.row_index += 1;
                 return result;
@@ -477,21 +309,15 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
             if self.current_table_len > 0 {
                 unsafe {
                     self.fetch.set_table(self.state, &table);
+                    self.filter_fetch.set_table(self.filter_state, &table);
                 }
             }
         }
-    }
-    
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        // Size hint is difficult with archetype iteration without pre-calculating total count
-        (0, None)
     }
 }
 
 impl<'w, Q: QueryData, F: QueryFilter> ExactSizeIterator for QueryStateIter<'w, Q, F> {
     fn len(&self) -> usize {
-        // This is inefficient but required for ExactSizeIterator
-        // In Bevy, this is pre-calculated or stored
         0 
     }
 }
@@ -499,12 +325,14 @@ impl<'w, Q: QueryData, F: QueryFilter> ExactSizeIterator for QueryStateIter<'w, 
 /// Mutable query state iterator
 pub struct QueryStateIterMut<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) world_ptr: *mut crate::world::WorldOpaque,
-    pub(crate) matched_archetypes: &'w [u32],
+    pub(crate) matched_archetypes: Vec<u32>,
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
     pub(crate) fetch: Q::Fetch<'w>,
+    pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
+    pub(crate) filter_state: &'w F::State,
     pub(crate) _phantom: PhantomData<(Q, F)>,
 }
 
@@ -519,6 +347,13 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
                 let table = Table { inner: table_ptr };
                 
                 let entity = table.get_entity(self.row_index);
+                
+                // Runtime Filtering
+                if !self.filter_fetch.matches(entity, self.row_index) {
+                    self.row_index += 1;
+                    continue;
+                }
+
                 let result = Some(self.fetch.fetch(entity, self.row_index));
                 self.row_index += 1;
                 return result;
@@ -543,6 +378,7 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
             if self.current_table_len > 0 {
                 unsafe {
                     self.fetch.set_table(self.state, &table);
+                    self.filter_fetch.set_table(self.filter_state, &table);
                 }
             }
         }

@@ -34,8 +34,8 @@ include_zig!("src/zig/resource.zig", {
     fn resource_registry_destroy(registry: *mut ResourceRegistryOpaque);
     fn resource_registry_insert(registry: *mut ResourceRegistryOpaque, type_id: u64, ptr: *mut std::ffi::c_void) -> bool;
     fn resource_registry_get(registry: *const ResourceRegistryOpaque, type_id: u64) -> *mut std::ffi::c_void;
-    fn resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64) -> bool;
     fn resource_registry_contains(registry: *const ResourceRegistryOpaque, type_id: u64) -> bool;
+    fn resource_registry_remove(registry: *mut ResourceRegistryOpaque, type_id: u64) -> *mut std::ffi::c_void;
 });
 
 /// 计算TypeId的Hash作为跨语言ID
@@ -91,9 +91,18 @@ impl ResourceRegistry {
         }
     }
 
-    pub fn remove<R: 'static>(&mut self) -> bool {
+    pub fn remove<R: 'static>(&mut self) -> Option<R> {
         let type_id = get_type_hash::<R>();
-        resource_registry_remove(self.inner, type_id)
+        let ptr = resource_registry_remove(self.inner, type_id);
+        if ptr.is_null() {
+            None
+        } else {
+            // Reconstruct Box from raw pointer to take ownership
+            unsafe {
+                let boxed = Box::from_raw(ptr as *mut R);
+                Some(*boxed)
+            }
+        }
     }
 
     pub fn contains<R: 'static>(&self) -> bool {

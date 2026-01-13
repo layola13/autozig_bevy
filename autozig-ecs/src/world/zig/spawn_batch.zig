@@ -37,7 +37,7 @@ export fn spawn_batch_alloc_entities(world_ptr: *anyopaque, count: usize) [*]Ent
 
             // Add to storage
             const row = arch0.addEntity(idx) catch @panic("Failed to add to archetype 0");
-            _ = table0.pushRow(idx) catch @panic("Failed to push to table 0");
+            _ = table0.pushRow(idx, world.current_tick) catch @panic("Failed to push to table 0");
 
             const meta = &world.entities.items[idx];
             meta.is_alive = true;
@@ -56,7 +56,7 @@ export fn spawn_batch_alloc_entities(world_ptr: *anyopaque, count: usize) [*]Ent
 
             // Add to storage
             const row = arch0.addEntity(idx) catch @panic("Failed to add to archetype 0");
-            _ = table0.pushRow(idx) catch @panic("Failed to push to table 0");
+            _ = table0.pushRow(idx, world.current_tick) catch @panic("Failed to push to table 0");
 
             world.entities.append(world.allocator, .{
                 .generation = 0,

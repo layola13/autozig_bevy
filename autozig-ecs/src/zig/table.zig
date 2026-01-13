@@ -1,12 +1,16 @@
 const std = @import("std");
 const common = @import("common.zig");
+const change_detection = @import("change_detection.zig");
 const Entity = common.Entity;
+const ComponentTicks = change_detection.ComponentTicks;
+const Tick = change_detection.Tick;
 const g_allocator = common.g_allocator;
 
 /// Column - 列式存储，每个组件类型一列
 pub const Column = struct {
     component_id: u32,
     data: std.ArrayList(u8), // 原始字节存储
+    ticks: std.ArrayList(ComponentTicks), // 变更检测周期
     item_size: usize,
     allocator: std.mem.Allocator,
 
@@ -14,6 +18,7 @@ pub const Column = struct {
         return Column{
             .component_id = component_id,
             .data = std.ArrayList(u8){},
+            .ticks = std.ArrayList(ComponentTicks){},
             .item_size = item_size,
             .allocator = allocator,
         };
@@ -21,13 +26,15 @@ pub const Column = struct {
 
     pub fn deinit(self: *Column) void {
         self.data.deinit(self.allocator);
+        self.ticks.deinit(self.allocator);
     }
 
     /// 添加一行数据（从指针复制）
-    pub fn pushFromPtr(self: *Column, data_ptr: [*]const u8) !void {
+    pub fn pushFromPtr(self: *Column, data_ptr: [*]const u8, tick: Tick) !void {
         const start = self.data.items.len;
         try self.data.resize(self.allocator, start + self.item_size);
         @memcpy(self.data.items[start..][0..self.item_size], data_ptr[0..self.item_size]);
+        try self.ticks.append(self.allocator, ComponentTicks.new(tick));
     }
 
     /// 获取指定行的数据指针
@@ -37,7 +44,13 @@ pub const Column = struct {
         return self.data.items[start..].ptr;
     }
 
-    /// 获取只读指针
+    /// 获取指定行的Ticks指针
+    pub fn getTicksPtr(self: *Column, row: usize) ?*ComponentTicks {
+        if (row >= self.ticks.items.len) return null;
+        return &self.ticks.items[row];
+    }
+
+    /// 获取只读数据指针
     pub fn getConstPtr(self: *const Column, row: usize) ?[*]const u8 {
         const start = row * self.item_size;
         if (start + self.item_size > self.data.items.len) return null;
@@ -46,12 +59,13 @@ pub const Column = struct {
 
     /// swap-remove：用最后一行替换指定行
     pub fn swapRemove(self: *Column, row: usize) bool {
-        const row_count = self.data.items.len / self.item_size;
+        const row_count = self.rowCount();
         if (row >= row_count) return false;
 
         if (row == row_count - 1) {
             // 如果是最后一行，直接删除
             self.data.shrinkRetainingCapacity(self.data.items.len - self.item_size);
+            _ = self.ticks.pop();
             return true;
         }
 
@@ -63,24 +77,28 @@ pub const Column = struct {
             self.data.items[last_start..][0..self.item_size],
         );
 
-        // 删除最后一行
+        // swap-remove ticks
+        self.ticks.items[row] = self.ticks.items[row_count - 1];
+        _ = self.ticks.pop();
+
+        // 删除最后一行数据
         self.data.shrinkRetainingCapacity(self.data.items.len - self.item_size);
         return true;
     }
 
     /// 获取行数
     pub fn rowCount(self: *const Column) usize {
-        return self.data.items.len / self.item_size;
+        return self.ticks.items.len;
     }
 
     /// 清空所有数据
     pub fn clear(self: *Column) void {
         self.data.clearRetainingCapacity();
+        self.ticks.clearRetainingCapacity();
     }
 };
 
 /// Table - 列式存储，适合频繁迭代的组件
-/// 每个组件类型一列，连续内存布局，Cache友好
 pub const Table = struct {
     columns: std.ArrayList(Column),
     entity_list: std.ArrayList(u32), // 每行对应的entity ID
@@ -116,6 +134,8 @@ pub const Table = struct {
         if (row_count > 0) {
             try column.data.resize(self.allocator, row_count * item_size);
             @memset(column.data.items, 0);
+            try column.ticks.resize(self.allocator, row_count);
+            @memset(column.ticks.items, ComponentTicks.new(Tick.new(0)));
         }
 
         try self.columns.append(self.allocator, column);
@@ -136,15 +156,16 @@ pub const Table = struct {
     }
 
     /// 添加一行（为entity添加数据）
-    pub fn pushRow(self: *Table, entity: u32) !usize {
+    pub fn pushRow(self: *Table, entity: u32, tick: Tick) !usize {
         const row = self.entityCount();
         try self.entity_list.append(self.allocator, entity);
 
-        // 为每列添加空数据
         for (self.columns.items) |*column| {
             const start = column.data.items.len;
             try column.data.resize(self.allocator, start + column.item_size);
             @memset(column.data.items[start..], 0);
+            try column.ticks.append(self.allocator, ComponentTicks.new(tick));
+            std.debug.print("Table.pushRow: table={}, col={}, row={}, ticks_ptr={*}\n", .{ @intFromPtr(self), column.component_id, column.ticks.items.len - 1, &column.ticks.items[column.ticks.items.len - 1] });
         }
 
         return row;
@@ -159,7 +180,6 @@ pub const Table = struct {
         self.entity_list.items[row] = self.entity_list.items[last_idx];
         _ = self.entity_list.pop();
 
-        // swap-remove 所有列的数据
         for (self.columns.items) |*column| {
             _ = column.swapRemove(row);
         }
@@ -206,8 +226,8 @@ export fn table_add_column(table_ptr: *Table, component_id: u32, item_size: usiz
     return true;
 }
 
-export fn table_push_row(table_ptr: *Table, entity: u32) usize {
-    return table_ptr.pushRow(entity) catch std.math.maxInt(usize);
+export fn table_push_row(table_ptr: *Table, entity: u32, tick: Tick) usize {
+    return table_ptr.pushRow(entity, tick) catch std.math.maxInt(usize);
 }
 
 export fn table_swap_remove(table_ptr: *Table, row: usize) bool {
@@ -229,6 +249,11 @@ export fn table_clear(table_ptr: *Table) void {
 export fn table_get_column_ptr(table_ptr: *Table, component_id: u32, row: usize) ?[*]u8 {
     const column = table_ptr.getColumn(component_id) orelse return null;
     return column.getPtr(row);
+}
+
+export fn table_get_column_ticks_ptr(table_ptr: *Table, component_id: u32, row: usize) ?*ComponentTicks {
+    const column = table_ptr.getColumn(component_id) orelse return null;
+    return column.getTicksPtr(row);
 }
 
 export fn table_get_entity(table_ptr: *const Table, row: usize) Entity {

@@ -7,6 +7,8 @@ use std::collections::HashMap;
 
 include_zig!("src/zig/archetype.zig", {
     fn archetype_create() -> *mut u8;
+    fn archetype_table_component_count(arch_ptr: *const u8) -> usize;
+    fn archetype_get_table_components(arch_ptr: *const u8, out_buffer: *mut u32, buffer_len: usize) -> usize;
 });
 
 /// Unique identifier for an archetype
@@ -86,8 +88,8 @@ impl Archetype {
 
 /// Container for all archetypes
 pub struct Archetypes {
-    archetypes: Vec<Archetype>,
-    archetype_component_count: usize,
+    pub(crate) archetypes: Vec<Archetype>,
+    pub(crate) archetype_component_count: usize,
 }
 
 impl Archetypes {

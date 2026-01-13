@@ -40,11 +40,15 @@ include_zig!("src/zig/command.zig", {
     fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32;
 });
 
+fn hash_type_id(type_id: TypeId) -> u32 {
+    let mut hasher = DefaultHasher::new();
+    type_id.hash(&mut hasher);
+    (hasher.finish() & 0xFFFFFFFF) as u32
+}
+
 /// 计算组件类型的Hash作为ID
 fn get_component_id<C: 'static>() -> u32 {
-    let mut hasher = DefaultHasher::new();
-    TypeId::of::<C>().hash(&mut hasher);
-    (hasher.finish() & 0xFFFFFFFF) as u32
+    hash_type_id(TypeId::of::<C>())
 }
 
 pub struct CommandBuffer {
@@ -146,11 +150,11 @@ impl<'w> Commands<'w> {
         
         let components = bundle.get_components();
         
-        for (component_id, data_ptr, data_size) in components.iter() {
+        for (type_id, data_ptr, data_size) in components.iter() {
             command_buffer_write_insert(
                 self.buffer,
                 u32::MAX, // Sentinel for "Latest Spawned"
-                *component_id,
+                hash_type_id(*type_id),
                 *data_ptr,
                 *data_size,
             );
@@ -282,7 +286,7 @@ impl<'w> EntityCommands<'w> {
         // Use sentinel for latest, or actual index
         let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
         
-        unsafe { command_buffer_write_insert(self.buffer, entity_idx, component_id, data, size); }
+        command_buffer_write_insert(self.buffer, entity_idx, component_id, data, size);
         std::mem::forget(component);
         
         self
@@ -293,16 +297,14 @@ impl<'w> EntityCommands<'w> {
         let components = bundle.get_components();
         let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
 
-        for (component_id, data_ptr, data_size) in components.iter() {
-            unsafe {
-                command_buffer_write_insert(
-                    self.buffer,
-                    entity_idx,
-                    *component_id,
-                    *data_ptr,
-                    *data_size,
-                );
-            }
+        for (type_id, data_ptr, data_size) in components.iter() {
+            command_buffer_write_insert(
+                self.buffer,
+                entity_idx,
+                hash_type_id(*type_id),
+                *data_ptr,
+                *data_size,
+            );
         }
         
         std::mem::forget(bundle);
@@ -313,7 +315,7 @@ impl<'w> EntityCommands<'w> {
     pub fn remove<C: 'static>(&mut self) -> &mut Self {
          let component_id = get_component_id::<C>();
          let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
-         unsafe { command_buffer_write_remove(self.buffer, entity_idx, component_id); }
+         command_buffer_write_remove(self.buffer, entity_idx, component_id);
          self
     }
     
@@ -321,7 +323,7 @@ impl<'w> EntityCommands<'w> {
         let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
         if entity_idx != u32::MAX { // Can only despawn known entity easily via OpCode? 
              // Logic for despawning sentinel target requires explicit support or just assume "Latest".
-             unsafe { command_buffer_write_despawn(self.buffer, entity_idx); }
+             command_buffer_write_despawn(self.buffer, entity_idx);
         }
     }
 

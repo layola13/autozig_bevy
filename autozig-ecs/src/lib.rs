@@ -97,7 +97,7 @@ pub mod prelude {
     pub use crate::query::{
         Query, QueryState, QueryIter, QueryEntityError, QueryFilter, QueryData,
         QuerySingleError, QueryBuilder, FilteredAccess, ReadOnlyQueryData, WorldQuery,
-        With, Without, Or,
+        With, Without, Or, Added, Changed,
         OptionFetch, BatchingStrategy
     };
     

@@ -1,0 +1,9 @@
+[package]
+name = "autozig_ecs_guide"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig-ecs = { path = "../../autozig-ecs" }
+rand = "0.8"
+log = "0.4"

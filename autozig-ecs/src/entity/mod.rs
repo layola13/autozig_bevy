@@ -238,73 +238,38 @@ impl<'w> EntityWorldMut<'w> {
     }
     
     /// 插入Bundle到此实体
-    pub fn insert<B: crate::bundle::Bundle>(&mut self, bundle: B) -> &mut Self {
-        // Collect component data for insertion
-        let ids = B::component_ids();
-        let components_data = bundle.get_components()
+    pub fn insert<B: crate::bundle::Bundle>(self, bundle: B) -> EntityWorldMut<'w> {
+        let EntityWorldMut { entity, world } = self;
+        let components_data: Vec<(crate::component::ComponentId, *const u8, usize)> = bundle.get_components()
             .into_iter()
-            .map(|(id, ptr, size)| (crate::component::ComponentId(id as usize), ptr, size))
-            .collect::<Vec<_>>();
+            .map(|(type_id, ptr, size)| {
+                let id = world.components().get_valid_id(type_id)
+                    .unwrap_or_else(|| panic!("Component not registered: {:?}", type_id));
+                (id, ptr, size)
+            })
+            .collect();
         
-        // 1. Insert components into storage (internal call to avoid recursion)
-        self.world.insert_bundle_components_internal(self.entity, components_data);
+        // 1. Insert components into storage
+        world.insert_bundle_components_internal(entity, components_data);
         
-        // 2. Trigger hooks (after insertion)
-        // Use UnsafeWorldCell to split borrow: read info (immut) + create DeferredWorld (mut)
-        let unsafe_world = self.world.as_unsafe_world_cell();
-        
-        for id in ids {
-            let component_id = crate::component::ComponentId(id as usize);
-            // Safety: We assume component registry is stable during hook execution
-            unsafe {
-                if let Some(info) = unsafe_world.components().get_info(component_id) {
-                    // Trigger on_add
-                    // Note: We create a fresh DeferredWorld for each hook call
-                    if info.hooks().has_on_add() {
-                         let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
-                         info.hooks().trigger_add(deferred_world, self.entity, component_id);
-                    }
-                    
-                    // Trigger on_insert
-                    if info.hooks().has_on_insert() {
-                         let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
-                         info.hooks().trigger_insert(deferred_world, self.entity, component_id);
-                    }
-                }
-            }
-        }
-        
-        self
+        EntityWorldMut { entity, world }
     }
     
     /// 从此实体移除Bundle
-    pub fn remove<B: crate::bundle::Bundle>(&mut self) -> &mut Self {
-        let ids = B::component_ids();
-        
-        // 1. Trigger hooks (before removal)
-        let unsafe_world = self.world.as_unsafe_world_cell();
-        
-        for id in ids {
-            let component_id = crate::component::ComponentId(id as usize);
-            // Safety: See above
-            unsafe {
-                if let Some(info) = unsafe_world.components().get_info(component_id) {
-                    if info.hooks().has_on_remove() {
-                        let deferred_world = crate::world::DeferredWorld::new(unsafe_world.world_mut());
-                        info.hooks().trigger_remove(deferred_world, self.entity, component_id);
-                    }
-                }
-            }
-        }
+    pub fn remove<B: crate::bundle::Bundle>(self) -> EntityWorldMut<'w> {
+        let EntityWorldMut { entity, world } = self;
         
         // 2. Remove components from storage
         let component_ids = B::component_ids()
             .into_iter()
-            .map(|id| crate::component::ComponentId(id as usize))
+            .map(|type_id| {
+                world.components().get_valid_id(type_id)
+                    .unwrap_or_else(|| panic!("Component not registered: {:?}", type_id))
+            })
             .collect();
 
-        self.world.remove_bundle_components_internal(self.entity, component_ids);
-        self
+        world.remove_bundle_components_internal(entity, component_ids);
+        EntityWorldMut { entity, world }
     }
     pub fn get_mut<T: crate::component::Component>(&mut self) -> Option<crate::change_detection::Mut<'w, T>> {
         // TODO: Implement storage access

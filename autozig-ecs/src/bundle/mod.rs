@@ -31,11 +31,11 @@ pub use spawner::{
 /// where component types may not be known at compile time.
 pub trait DynamicBundle: Send + Sync + 'static {
     /// Get the component IDs in this bundle
-    fn component_ids(&self) -> Vec<crate::component::ComponentId>;
+    fn component_ids(&self) -> Vec<std::any::TypeId>;
     
     /// Get the components as type-erased pointers
-    /// Returns (component_id, data_ptr, data_size) tuples
-    fn get_components(&self) -> Vec<(crate::component::ComponentId, *const u8, usize)>;
+    /// Returns (type_id, data_ptr, data_size) tuples
+    fn get_components(&self) -> Vec<(std::any::TypeId, *const u8, usize)>;
     
     /// Clone this dynamic bundle
     fn clone_dynamic(&self) -> Box<dyn DynamicBundle>;
@@ -43,20 +43,12 @@ pub trait DynamicBundle: Send + Sync + 'static {
 
 /// Implementation of DynamicBundle for static bundles
 impl<T: Bundle + Clone> DynamicBundle for T {
-    fn component_ids(&self) -> Vec<crate::component::ComponentId> {
-        // Convert u32 IDs to ComponentId
+    fn component_ids(&self) -> Vec<std::any::TypeId> {
         T::component_ids()
-            .into_iter()
-            .map(|id| crate::component::ComponentId(id as usize))
-            .collect()
     }
     
-    fn get_components(&self) -> Vec<(crate::component::ComponentId, *const u8, usize)> {
-        // Convert component data
+    fn get_components(&self) -> Vec<(std::any::TypeId, *const u8, usize)> {
         Bundle::get_components(self)
-            .into_iter()
-            .map(|(id, ptr, size)| (crate::component::ComponentId(id as usize), ptr, size))
-            .collect()
     }
     
     fn clone_dynamic(&self) -> Box<dyn DynamicBundle> {

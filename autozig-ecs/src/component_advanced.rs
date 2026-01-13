@@ -61,8 +61,8 @@ impl<'a> ComponentsRegistrator<'a> {
     }
     
     /// Registers a resource type and returns its ComponentId
-    pub fn register_resource<T: 'static + Send + Sync + crate::component::Component>(&mut self) -> crate::component::ComponentId {
-        self.components.register::<T>(StorageType::Table)
+    pub fn register_resource<T: 'static + Send + Sync + crate::resource::Resource>(&mut self) -> crate::component::ComponentId {
+        self.components.register_resource_type::<T>()
     }
     
     pub fn register<T: Component>(&mut self) {

@@ -8,21 +8,8 @@ use crate::{
     entity::Entity,
 };
 use std::marker::PhantomData;
-
-/// Zig core integration
-#[repr(C)]
-pub struct FilterCoreOpaque {
-    _private: [u8; 0],
-}
-
-use autozig_macro::include_zig;
-
-include_zig!("src/query/filter/zig/filter.zig", {
-    fn filter_create() -> *mut FilterCoreOpaque;
-    fn filter_destroy(filter: *mut FilterCoreOpaque);
-    fn filter_configure(filter: *mut FilterCoreOpaque, current: u32, last: u32, ticks: *const u32);
-    fn filter_matches(filter: *const FilterCoreOpaque, entity: Entity) -> bool;
-});
+use crate::change_detection::{Tick, ComponentTicks};
+use crate::query::fetch::{Fetch, FetchState};
 
 /// With filter - requires entity to have component
 pub struct With<T: Component>(PhantomData<T>);
@@ -55,7 +42,7 @@ impl<T: Component> Default for Without<T> {
 }
 
 /// Or filter - matches if any of the filters match
-pub struct Or<T>(PhantomData<T>);
+pub struct Or<T>(pub PhantomData<T>);
 
 impl<T> Or<T> {
     pub fn new() -> Self {
@@ -100,30 +87,13 @@ impl<T: Component> Default for Added<T> {
 }
 
 /// Allow filter - allows all entities (no-op filter)
-pub struct Allow {
-    inner: *mut FilterCoreOpaque,
-}
+pub struct Allow;
 
 impl Allow {
     pub fn new() -> Self {
-        Self {
-            inner: filter_create(),
-        }
-    }
-    
-    pub fn matches(&self, entity: Entity) -> bool {
-        filter_matches(self.inner, entity)
+        Self
     }
 }
-
-impl Drop for Allow {
-    fn drop(&mut self) {
-        filter_destroy(self.inner);
-    }
-}
-
-unsafe impl Send for Allow {}
-unsafe impl Sync for Allow {}
 
 impl Default for Allow {
     fn default() -> Self {
@@ -131,182 +101,318 @@ impl Default for Allow {
     }
 }
 
-/// OrFetch - fetch for Or filter
-pub struct OrFetch<T> {
-    _marker: PhantomData<T>,
-}
+/// Spawned filter - matches entities that were just spawned
+pub struct Spawned;
 
-impl<T> OrFetch<T> {
-    pub fn new() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Default for OrFetch<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// SpawnedFetch - fetch for entities that were just spawned
-pub struct SpawnedFetch {
-    _marker: PhantomData<()>,
-}
-
-impl SpawnedFetch {
-    pub fn new() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-    
-    pub fn matches(&self, _entity: Entity) -> bool {
-        // Placeholder - would check if entity was spawned in current frame
-        false
-    }
-}
-
-impl Default for SpawnedFetch {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// QueryFilter trait
+/// QueryFilter trait - marker trait for query filters
 pub trait QueryFilter: Send + Sync + 'static {
-    /// The state type used to maintain persistent data for this filter
-    type State: Send + Sync + 'static;
+    type State: FetchState;
+    type Fetch<'w>: FilterFetch<'w, State = Self::State>;
+
     fn init_state(world: &crate::world::World) -> Self::State;
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;
-    fn matches(&self, entity: crate::entity::Entity) -> bool;
+}
+
+/// FilterFetch trait - internal fetch for filters
+pub trait FilterFetch<'w>: Send + Sync {
+    type State;
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self;
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table);
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table);
+    fn matches(&mut self, entity: Entity, index: usize) -> bool;
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool;
 }
 
 impl QueryFilter for () {
     type State = ();
-    fn init_state(_world: &crate::world::World) -> Self::State { () }
-    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
-    fn matches(&self, _entity: Entity) -> bool { true }
+    type Fetch<'w> = ();
+    fn init_state(_: &crate::world::World) -> Self::State { () }
+    fn matches_component_set(_: &Self::State, _: &[ComponentId]) -> bool { true }
 }
 
-impl QueryFilter for Allow {
+impl<'w> FilterFetch<'w> for () {
     type State = ();
-    fn init_state(_world: &crate::world::World) -> Self::State { () }
-    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
-    fn matches(&self, _entity: Entity) -> bool {
-        true
-    }
+    fn init(_: &Self::State, _: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: Tick, _: Tick) -> Self { () }
+    unsafe fn set_table(&mut self, _: &Self::State, _: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _: &Self::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
+    fn matches(&mut self, _: Entity, _: usize) -> bool { true }
+    fn matches_archetype(_: &Self::State, _: &crate::archetype::Archetype) -> bool { true }
 }
 
+/// With filter implementation
 impl<T: Component> QueryFilter for With<T> {
     type State = ComponentId;
+    type Fetch<'w> = WithFetch;
     fn init_state(world: &crate::world::World) -> Self::State {
         world.component_id::<T>().expect("Component not registered")
     }
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
         set.contains(state)
     }
-    fn matches(&self, _entity: Entity) -> bool {
-        // Would check if entity has component T
-        true
+}
+
+pub struct WithFetch;
+impl<'w> FilterFetch<'w> for WithFetch {
+    type State = ComponentId;
+    fn init(_: &Self::State, _: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: Tick, _: Tick) -> Self { WithFetch }
+    unsafe fn set_table(&mut self, _: &Self::State, _: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _: &Self::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
+    fn matches(&mut self, _: Entity, _: usize) -> bool { true }
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
     }
 }
 
+/// Without filter implementation
 impl<T: Component> QueryFilter for Without<T> {
     type State = ComponentId;
+    type Fetch<'w> = WithoutFetch;
     fn init_state(world: &crate::world::World) -> Self::State {
         world.component_id::<T>().expect("Component not registered")
     }
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
         !set.contains(state)
     }
-    fn matches(&self, _entity: Entity) -> bool {
-        // Would check if entity does NOT have component T
-        true
+}
+
+pub struct WithoutFetch;
+impl<'w> FilterFetch<'w> for WithoutFetch {
+    type State = ComponentId;
+    fn init(_: &Self::State, _: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: Tick, _: Tick) -> Self { WithoutFetch }
+    unsafe fn set_table(&mut self, _: &Self::State, _: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _: &Self::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
+    fn matches(&mut self, _: Entity, _: usize) -> bool { true }
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        !archetype.components().contains(state)
     }
 }
 
+/// Marker component for tick tracking in filters
+pub(crate) struct TickMarker;
+impl crate::component::Component for TickMarker {}
+
+/// Changed filter implementation
 impl<T: Component> QueryFilter for Changed<T> {
     type State = ComponentId;
+    type Fetch<'w> = ChangedFetch;
     fn init_state(world: &crate::world::World) -> Self::State {
         world.component_id::<T>().expect("Component not registered")
     }
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
         set.contains(state)
     }
-    fn matches(&self, _entity: Entity) -> bool {
-        // Would check if component T has changed
-        false
+}
+
+pub struct ChangedFetch {
+    fetch: crate::query::fetch::ReadFetch<TickMarker>,
+}
+
+impl<'w> FilterFetch<'w> for ChangedFetch {
+    type State = ComponentId;
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
+        Self {
+            fetch: crate::query::fetch::ReadFetch::new(*state, last_run, this_run),
+        }
+    }
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        self.fetch.set_table(state, table);
+    }
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.fetch.set_archetype(state, archetype, table);
+    }
+    fn matches(&mut self, _entity: Entity, index: usize) -> bool {
+        let ticks_ptr = crate::query::fetch::fetch_get_ticks_at(self.fetch.inner, index);
+        if ticks_ptr.is_null() { return false; }
+        unsafe { (*ticks_ptr).is_changed(self.fetch.last_run, self.fetch.this_run) }
+    }
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
     }
 }
 
+/// Added filter implementation
 impl<T: Component> QueryFilter for Added<T> {
     type State = ComponentId;
+    type Fetch<'w> = AddedFetch;
     fn init_state(world: &crate::world::World) -> Self::State {
         world.component_id::<T>().expect("Component not registered")
     }
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
         set.contains(state)
     }
-    fn matches(&self, _entity: Entity) -> bool {
-        // Would check if component T was just added
-        false
+}
+
+pub struct AddedFetch {
+    fetch: crate::query::fetch::ReadFetch<TickMarker>,
+}
+
+impl<'w> FilterFetch<'w> for AddedFetch {
+    type State = ComponentId;
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
+        Self {
+            fetch: crate::query::fetch::ReadFetch::new(*state, last_run, this_run),
+        }
+    }
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        self.fetch.set_table(state, table);
+    }
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.fetch.set_archetype(state, archetype, table);
+    }
+    fn matches(&mut self, _entity: Entity, index: usize) -> bool {
+        let ticks_ptr = crate::query::fetch::fetch_get_ticks_at(self.fetch.inner, index);
+        if ticks_ptr.is_null() { return false; }
+        unsafe { (*ticks_ptr).is_added(self.fetch.last_run, self.fetch.this_run) }
+    }
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
     }
 }
 
-// Tuple implementations for QueryFilter
-macro_rules! impl_query_filter_tuple {
-    ($($name:ident),*) => {
-        impl<$($name: QueryFilter),*> QueryFilter for ($($name,)*) {
-            type State = ($($name::State,)*);
-            fn init_state(world: &crate::world::World) -> Self::State {
-                ($($name::init_state(world),)*)
-            }
-            fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
-                #[allow(non_snake_case)]
-                let ($($name,)*) = state;
-                $($name::matches_component_set($name, set) &&)* true
-            }
-            fn matches(&self, entity: Entity) -> bool {
-                #[allow(non_snake_case)]
-                let ($($name,)*) = self;
-                $($name.matches(entity) &&)* true
-            }
-        }
-    };
+unsafe impl Send for ChangedFetch {}
+unsafe impl Sync for ChangedFetch {}
+unsafe impl Send for AddedFetch {}
+unsafe impl Sync for AddedFetch {}
+
+/// Allow filter implementation
+impl QueryFilter for Allow {
+    type State = ();
+    type Fetch<'w> = AllowFetch;
+    fn init_state(_world: &crate::world::World) -> Self::State { () }
+    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
 }
 
-impl_query_filter_tuple!(A);
-impl_query_filter_tuple!(A, B);
-impl_query_filter_tuple!(A, B, C);
-impl_query_filter_tuple!(A, B, C, D);
+pub struct AllowFetch;
 
+impl<'w> FilterFetch<'w> for AllowFetch {
+    type State = ();
+    fn init(_state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: Tick, _this_run: Tick) -> Self {
+        Self
+    }
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _state: &Self::State, _archetype: &crate::archetype::Archetype, _table: &crate::storage::Table) {}
+    fn matches(&mut self, _entity: Entity, _index: usize) -> bool { true }
+    fn matches_archetype(_: &Self::State, _: &crate::archetype::Archetype) -> bool { true }
+}
+
+/// Spawned filter implementation
+impl QueryFilter for Spawned {
+    type State = ();
+    type Fetch<'w> = SpawnedFetch;
+    fn init_state(_world: &crate::world::World) -> Self::State { () }
+    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
+}
+
+pub struct SpawnedFetch;
+
+impl<'w> FilterFetch<'w> for SpawnedFetch {
+    type State = ();
+    fn init(_state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: Tick, _this_run: Tick) -> Self {
+        Self
+    }
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &crate::storage::Table) {}
+    unsafe fn set_archetype(&mut self, _state: &Self::State, _archetype: &crate::archetype::Archetype, _table: &crate::storage::Table) {}
+    fn matches(&mut self, _entity: Entity, _index: usize) -> bool {
+        true
+    }
+    fn matches_archetype(_: &Self::State, _: &crate::archetype::Archetype) -> bool { true }
+}
+
+/// Or filter implementation
 impl<A: QueryFilter, B: QueryFilter> QueryFilter for Or<(A, B)> {
     type State = (A::State, B::State);
+    type Fetch<'w> = OrFetch<A::Fetch<'w>, B::Fetch<'w>>;
     fn init_state(world: &crate::world::World) -> Self::State {
         (A::init_state(world), B::init_state(world))
     }
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
         A::matches_component_set(&state.0, set) || B::matches_component_set(&state.1, set)
     }
-    fn matches(&self, _entity: Entity) -> bool {
-        false // Placeholder
+}
+
+pub struct OrFetch<AF, BF> {
+    a: AF,
+    b: BF,
+}
+
+impl<'w, AF: FilterFetch<'w>, BF: FilterFetch<'w>> FilterFetch<'w> for OrFetch<AF, BF> {
+    type State = (AF::State, BF::State);
+    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
+        Self {
+            a: AF::init(&state.0, world, last_run, this_run),
+            b: BF::init(&state.1, world, last_run, this_run),
+        }
+    }
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        self.a.set_table(&state.0, table);
+        self.b.set_table(&state.1, table);
+    }
+    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.a.set_archetype(&state.0, archetype, table);
+        self.b.set_archetype(&state.1, archetype, table);
+    }
+    fn matches(&mut self, entity: Entity, index: usize) -> bool {
+        self.a.matches(entity, index) || self.b.matches(entity, index)
+    }
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        AF::matches_archetype(&state.0, archetype) || BF::matches_archetype(&state.1, archetype)
     }
 }
 
-impl<A: QueryFilter, B: QueryFilter, C: QueryFilter> QueryFilter for Or<(A, B, C)> {
-    type State = (A::State, B::State, C::State);
-    fn init_state(world: &crate::world::World) -> Self::State {
-        (A::init_state(world), B::init_state(world), C::init_state(world))
-    }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
-        A::matches_component_set(&state.0, set) || B::matches_component_set(&state.1, set) || C::matches_component_set(&state.2, set)
-    }
-    fn matches(&self, _entity: Entity) -> bool {
-        false // Placeholder
-    }
+macro_rules! impl_query_filter_tuple {
+    ($(($name:ident, $state_var:ident, $fetch_var:ident)),*) => {
+        impl<$($name: QueryFilter),*> QueryFilter for ($($name,)*) {
+            type State = ($($name::State,)*);
+            type Fetch<'w> = ($($name::Fetch<'w>,)*);
+
+            fn init_state(world: &crate::world::World) -> Self::State {
+                ($($name::init_state(world),)*)
+            }
+
+            fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+                let ($($state_var,)*) = state;
+                true $(&& $name::matches_component_set($state_var, set))*
+            }
+        }
+
+        impl<'w, $($name: FilterFetch<'w>),*> FilterFetch<'w> for ($($name,)*) {
+            type State = ($($name::State,)*);
+
+            fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
+                let ($($state_var,)*) = state;
+                ($($name::init($state_var, world, last_run, this_run),)*)
+            }
+
+            unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+                let ($($state_var,)*) = state;
+                let ($($fetch_var,)*) = self;
+                $($fetch_var.set_table($state_var, table);)*
+            }
+
+            unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+                let ($($state_var,)*) = state;
+                let ($($fetch_var,)*) = self;
+                $($fetch_var.set_archetype($state_var, archetype, table);)*
+            }
+
+            fn matches(&mut self, entity: Entity, index: usize) -> bool {
+                let ($($fetch_var,)*) = self;
+                true $(&& $fetch_var.matches(entity, index))*
+            }
+
+            fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+                let ($($state_var,)*) = state;
+                true $(&& $name::matches_archetype($state_var, archetype))*
+            }
+        }
+    };
 }
+
+impl_query_filter_tuple!((A, sa, fa));
+impl_query_filter_tuple!((A, sa, fa), (B, sb, fb));
+impl_query_filter_tuple!((A, sa, fa), (B, sb, fb), (C, sc, fc));
+impl_query_filter_tuple!((A, sa, fa), (B, sb, fb), (C, sc, fc), (D, sd, fd));
+impl_query_filter_tuple!((A, sa, fa), (B, sb, fb), (C, sc, fc), (D, sd, fd), (E, se, fe));
 
 #[cfg(test)]
 mod tests {
@@ -314,48 +420,34 @@ mod tests {
 
     #[derive(Debug, Clone, Copy)]
     struct Position { x: f32, y: f32 }
-    impl Component for Position {}
+    impl crate::component::Component for Position {}
 
     #[derive(Debug, Clone, Copy)]
     struct Velocity { x: f32, y: f32 }
-    impl Component for Velocity {}
+    impl crate::component::Component for Velocity {}
 
     #[test]
     fn test_with_filter() {
-        let _filter: With<Position> = With::default();
+        let _filter: With<Position> = With::new();
     }
 
     #[test]
     fn test_without_filter() {
-        let _filter: Without<Velocity> = Without::default();
+        let _filter: Without<Velocity> = Without::new();
     }
 
     #[test]
     fn test_or_filter() {
-        let _filter: Or<(With<Position>, With<Velocity>)> = Or::default();
+        let _filter: Or<(With<Position>, With<Velocity>)> = Or::new();
     }
 
     #[test]
     fn test_changed_filter() {
-        let _filter: Changed<Position> = Changed::default();
+        let _filter: Changed<Position> = Changed::new();
     }
 
     #[test]
     fn test_added_filter() {
-        let _filter: Added<Position> = Added::default();
-    }
-
-    #[test]
-    fn test_allow_filter() {
-        let filter = Allow::new();
-        let entity = Entity::from_raw(42);
-        assert!(filter.matches(entity));
-    }
-
-    #[test]
-    fn test_spawned_fetch() {
-        let fetch = SpawnedFetch::new();
-        let entity = Entity::from_raw(42);
-        assert!(!fetch.matches(entity));
+        let _filter: Added<Position> = Added::new();
     }
 }
