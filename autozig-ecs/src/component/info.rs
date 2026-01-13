@@ -8,6 +8,14 @@ use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+pub(crate) fn hash_type_id(type_id: TypeId) -> u32 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    type_id.hash(&mut hasher);
+    (hasher.finish() & 0xFFFFFFFF) as u32
+}
+
 /// Stores metadata for a type of component or resource stored in a specific [`World`].
 #[derive(Debug, Clone)]
 pub struct ComponentInfo {
@@ -282,9 +290,9 @@ impl ComponentDescriptor {
 /// Stores metadata associated with each kind of [`Component`] in a given World.
 #[derive(Debug, Default)]
 pub struct Components {
-    pub(crate) components: Vec<Option<ComponentInfo>>,
-    pub(crate) indices: HashMap<TypeId, ComponentId>,
-    pub(crate) resource_indices: HashMap<TypeId, ComponentId>,
+    pub(crate) components: RwLock<HashMap<ComponentId, ComponentInfo>>,
+    pub(crate) indices: RwLock<HashMap<TypeId, ComponentId>>,
+    pub(crate) resource_indices: RwLock<HashMap<TypeId, ComponentId>>,
     pub(crate) queued: Arc<RwLock<QueuedComponents>>,
 }
 
@@ -310,7 +318,7 @@ impl Components {
     /// Returns `true` if there are no components registered or queued.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.num_queued() == 0 && self.components.read().unwrap().is_empty()
     }
 
     /// Returns the number of components queued for registration.
@@ -342,7 +350,7 @@ impl Components {
     /// Returns the number of components registered with this instance.
     #[inline]
     pub fn num_registered(&self) -> usize {
-        self.components.iter().filter(|c| c.is_some()).count()
+        self.components.read().unwrap().len()
     }
 
     /// Returns `true` if there are any components registered.
@@ -353,8 +361,9 @@ impl Components {
 
     /// Gets the metadata associated with the given component, if it is registered.
     #[inline]
-    pub fn get_info(&self, id: ComponentId) -> Option<&ComponentInfo> {
-        self.components.get(id.0).and_then(|info| info.as_ref())
+    // Note: Returns a CLONE since we can't return a reference through a RwLock easily without returning a guard
+    pub fn get_info(&self, id: ComponentId) -> Option<ComponentInfo> {
+        self.components.read().unwrap().get(&id).cloned()
     }
 
     /// Gets the [`ComponentDescriptor`] of the component with this [`ComponentId`].
@@ -381,23 +390,23 @@ impl Components {
     /// # Safety
     /// `id` must be a valid and fully registered [`ComponentId`].
     #[inline]
-    pub unsafe fn get_info_unchecked(&self, id: ComponentId) -> &ComponentInfo {
-        self.components
-            .get(id.0)
-            .and_then(|info| info.as_ref())
+    pub unsafe fn get_info_unchecked(&self, id: ComponentId) -> ComponentInfo {
+        self.components.read().unwrap()
+            .get(&id)
+            .cloned()
             .expect("Component not registered")
     }
 
     /// Returns true if the [`ComponentId`] is fully registered and valid.
     #[inline]
     pub fn is_id_valid(&self, id: ComponentId) -> bool {
-        self.components.get(id.0).is_some_and(Option::is_some)
+        self.components.read().unwrap().contains_key(&id)
     }
 
     /// Type-erased equivalent of [`Components::valid_component_id()`].
     #[inline]
     pub fn get_valid_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.indices.get(&type_id).copied()
+        self.indices.read().unwrap().get(&type_id).copied()
     }
 
     /// Returns the [`ComponentId`] of the given [`Component`] type `T` if it is fully registered.
@@ -409,7 +418,7 @@ impl Components {
     /// Type-erased equivalent of [`Components::valid_resource_id()`].
     #[inline]
     pub fn get_valid_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.resource_indices.get(&type_id).copied()
+        self.resource_indices.read().unwrap().get(&type_id).copied()
     }
 
     /// Returns the [`ComponentId`] of the given [`Resource`] type `T` if it is fully registered.
@@ -421,7 +430,7 @@ impl Components {
     /// Type-erased equivalent of [`Components::resource_id()`].
     #[inline]
     pub fn get_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.resource_indices.get(&type_id).copied().or_else(|| {
+        self.resource_indices.read().unwrap().get(&type_id).copied().or_else(|| {
             let queued = self.queued.read().unwrap();
             queued.resources.get(&type_id).map(|info| info.id)
         })
@@ -439,45 +448,43 @@ impl Components {
         id // In this implementation, they're the same
     }
 
-    /// Gets an iterator over all components fully registered with this instance.
-    pub fn iter_registered(&self) -> impl Iterator<Item = &ComponentInfo> + '_ {
-        self.components.iter().filter_map(Option::as_ref)
+    /// Gets all components fully registered with this instance.
+    pub fn iter_registered(&self) -> Vec<ComponentInfo> {
+        self.components.read().unwrap().values().cloned().collect()
     }
 
     /// Get mutable access to component info (first overload - by ID)
-    pub fn get_info_mut(&mut self, id: ComponentId) -> Option<&mut ComponentInfo> {
-        self.components.get_mut(id.0).and_then(|info| info.as_mut())
+    /// Note: Must be called carefully as it locks the components
+    pub fn get_info_mut(&self, id: ComponentId) -> Option<ComponentInfo> {
+        self.components.read().unwrap().get(&id).cloned()
     }
 
-    /// Get mutable access to component info (second overload - direct)
-    pub fn mutable(&mut self, id: ComponentId) -> Option<&mut ComponentInfo> {
-        self.get_info_mut(id)
-    }
-
-    pub fn register<T: Component>(&mut self, _storage_type: StorageType) -> ComponentId {
+    pub fn register<T: Component>(&self, _storage_type: StorageType) -> ComponentId {
         let type_id = TypeId::of::<T>();
-        if let Some(id) = self.indices.get(&type_id) {
+        if let Some(id) = self.indices.read().unwrap().get(&type_id) {
             return *id;
         }
-        let info = ComponentInfo::new::<T>();
-        let index = self.components.len();
-        let id = ComponentId::new(index);
+        let id = ComponentId::new(hash_type_id(type_id) as usize);
+        let mut info = ComponentInfo::new::<T>();
+        info.id = id;
+        
         println!("Components::register: name={}, id={:?}", std::any::type_name::<T>(), id);
-        self.components.push(Some(info));
-        self.indices.insert(type_id, id);
+        self.components.write().unwrap().insert(id, info);
+        self.indices.write().unwrap().insert(type_id, id);
         id
     }
-    pub fn register_resource_type<T: Resource>(&mut self) -> ComponentId {
+    pub fn register_resource_type<T: Resource>(&self) -> ComponentId {
         let type_id = TypeId::of::<T>();
-        if let Some(id) = self.resource_indices.get(&type_id) {
+        if let Some(id) = self.resource_indices.read().unwrap().get(&type_id) {
             return *id;
         }
-        let info = ComponentInfo::new_resource::<T>();
-        let index = self.components.len();
-        let id = ComponentId::new(index);
+        let id = ComponentId::new(hash_type_id(type_id) as usize);
+        let mut info = ComponentInfo::new_resource::<T>();
+        info.id = id;
+
         println!("Components::register_resource_type: name={}, id={:?}", std::any::type_name::<T>(), id);
-        self.components.push(Some(info));
-        self.resource_indices.insert(type_id, id);
+        self.components.write().unwrap().insert(id, info);
+        self.resource_indices.write().unwrap().insert(type_id, id);
         id
     }
 }

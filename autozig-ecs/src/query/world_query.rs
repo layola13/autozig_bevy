@@ -16,7 +16,7 @@ pub trait QueryData: Send + Sync + 'static {
     type ReadOnly: ReadOnlyWorldQuery;
     const IS_READ_ONLY: bool;
 
-    fn init_state(world: &crate::world::World) -> Self::State;
+    fn init_state(world: &mut crate::world::World) -> Self::State;
 
     unsafe fn init_fetch<'w>(
         world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>,
@@ -56,7 +56,7 @@ impl QueryData for Entity {
     type State = ();
     type ReadOnly = Entity;
     const IS_READ_ONLY: bool = true;
-    fn init_state(_world: &crate::world::World) -> <Self as QueryData>::State { () }
+    fn init_state(_world: &mut crate::world::World) -> <Self as QueryData>::State { () }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { EntityFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
     unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
@@ -73,7 +73,7 @@ impl<T: Component> QueryData for &'static T {
     type State = ComponentId;
     type ReadOnly = &'static T;
     const IS_READ_ONLY: bool = true;
-    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { world.component_id::<T>().expect("Component not registered") }
+    fn init_state(world: &mut crate::world::World) -> <Self as QueryData>::State { world.register_component::<T>() }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { ReadFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
     unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
@@ -90,7 +90,7 @@ impl<T: Component> QueryData for &'static mut T {
     type State = ComponentId;
     type ReadOnly = &'static T;
     const IS_READ_ONLY: bool = false;
-    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { world.component_id::<T>().expect("Component not registered") }
+    fn init_state(world: &mut crate::world::World) -> <Self as QueryData>::State { world.register_component::<T>() }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { WriteFetch::init(state, world, last_run, this_run) }
     unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
     unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
@@ -106,7 +106,7 @@ impl<T: QueryData> QueryData for Option<T> {
     type State = T::State;
     type ReadOnly = Option<T::ReadOnly>;
     const IS_READ_ONLY: bool = T::IS_READ_ONLY;
-    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { T::init_state(world) }
+    fn init_state(world: &mut crate::world::World) -> <Self as QueryData>::State { T::init_state(world) }
     unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { OptionFetch::new(T::init_fetch(world, state, last_run, this_run)) }
     unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { T::set_archetype(&mut fetch.inner, state, archetype, table); }
     unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { T::set_table(&mut fetch.inner, state, table); }
@@ -122,7 +122,7 @@ impl QueryData for () {
     type State = ();
     type ReadOnly = ();
     const IS_READ_ONLY: bool = true;
-    fn init_state(_: &crate::world::World) -> <Self as QueryData>::State { () }
+    fn init_state(_: &mut crate::world::World) -> <Self as QueryData>::State { () }
     unsafe fn init_fetch<'w>(_: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: &<Self as QueryData>::State, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { () }
     unsafe fn set_archetype<'w>(_: &mut <Self as QueryData>::Fetch<'w>, _: &<Self as QueryData>::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
     unsafe fn set_table<'w>(_: &mut <Self as QueryData>::Fetch<'w>, _: &<Self as QueryData>::State, _: &crate::storage::Table) {}
@@ -132,72 +132,7 @@ impl QueryData for () {
 }
 impl ReadOnlyWorldQuery for () {}
 
-macro_rules! impl_tuple_world_query {
-    ($(($name:ident, $var:ident)),*) => {
-        #[allow(non_snake_case)]
-        impl<$($name: WorldQuery),*> WorldQuery for ($($name,)*) {
-            type Item<'w> = ($($name::Item<'w>,)*);
-            type Fetch<'w> = ($($name::Fetch<'w>,)*);
-            type State = ($($name::State,)*);
-            type ReadOnly = ($($name::ReadOnly,)*);
-            const IS_READ_ONLY: bool = true $(&& $name::IS_READ_ONLY)*;
-
-            fn init_state(world: &crate::world::World) -> Self::State {
-                ($($name::init_state(world),)*)
-            }
-
-            unsafe fn init_fetch<'w>(
-                world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>,
-                state: &Self::State,
-                last_run: crate::change_detection::Tick,
-                this_run: crate::change_detection::Tick,
-            ) -> Self::Fetch<'w> {
-                let ($($var,)*) = state;
-                ($($name::init_fetch(world, $var, last_run, this_run),)*)
-            }
-
-            unsafe fn set_archetype<'w>(
-                fetch: &mut Self::Fetch<'w>,
-                state: &Self::State,
-                archetype: &crate::archetype::Archetype,
-                table: &crate::storage::Table,
-            ) {
-                let ($($var,)*) = state;
-                let ($($name,)*) = fetch; // Shadowing here is fine if we use $var for state and $name for fetch vars? 
-                // No, better to use distinct names for fetch vars too or just index?
-                // Tuple destructuring: let (a_fetch, b_fetch) = fetch;
-                // Let's reuse $var with a suffix? Macro hygiene makes this hard.
-                // But we can just shadow $name here if we don't use $name as type anymore?
-                // Wait, we DO use $name as type: $name::set_archetype.
-                // So we CANNOT shadow $name.
-                // We need TWO variable names? Or just reuse $var for both and do it in steps?
-                // No, state and fetch are both tuples matching ($name...).
-                
-                // Let's use `fetch.0`, `fetch.1` via standard index? Can't easy loop with index.
-                // WE NEED another set of identifiers for fetch variables.
-                // OR we can just access by pattern match in the loop? No.
-                
-                // Solution: Use `state` destructuring into `$var`.
-                // Use `fetch` destructuring into something else?
-                // We can use a recursive macro to generate the tuple indices?
-                // Or just provide specific names for everything?
-                // `impl_tuple_world_query!((A, a, a_fetch), ...)`
-                
-                // Let's try to use `fetch` pattern matching in the function call?
-                // `let (ref mut f0, ref mut f1, ...) = fetch;`
-                // But we can't generate `f0`, `f1` without input.
-                
-                // Let's add a 3rd identifier for fetch variable.
-            }
-        }
-    }
-}
-// RESTARTING REPLACEMENT CONTENT TO FIX LOGIC above
-// Correct approach:
-// We need to destructure `fetch` (mutable) and `state` (immutable).
-// We cannot shadow `$name` because we need it for `$name::set_archetype`.
-// So we need unique variable names for the destructured parts.
-// I will require TWO variable names: one for state_field, one for fetch_field.
+// Tuple implementations follow using the correct macro with 3 identifiers
 // (A, s_a, f_a)
 
 macro_rules! impl_tuple_world_query {
@@ -210,7 +145,7 @@ macro_rules! impl_tuple_world_query {
             type ReadOnly = ($($name::ReadOnly,)*);
             const IS_READ_ONLY: bool = true $(&& $name::IS_READ_ONLY)*;
 
-            fn init_state(world: &crate::world::World) -> <Self as QueryData>::State {
+            fn init_state(world: &mut crate::world::World) -> <Self as QueryData>::State {
                 ($($name::init_state(world),)*)
             }
 

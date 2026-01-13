@@ -60,6 +60,8 @@ pub use self::access::{Access, FilteredAccess};
 pub struct Query<'w, Q: QueryData, F: QueryFilter = ()> {
     world: &'w World,
     state: *const QueryState<Q, F>,
+    _marker: PhantomData<Q>,
+    _filter: PhantomData<F>,
 }
 
 /// QueryMut - 可变查询（需要可变World引用）
@@ -74,6 +76,8 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
         Self {
             world,
             state,
+            _marker: PhantomData,
+            _filter: PhantomData,
         }
     }
 
@@ -82,12 +86,12 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
     }
 
     /// Iterate over query results
-    pub fn iter(&self) -> QueryIter<'_, Q, F> {
-        self.state().iter(self.world)
+    pub fn iter(&self) -> QueryIter<'w, Q, F> {
+        unsafe { (*self.state).iter(self.world) }
     }
 
     /// Get single entity matching query
-    pub fn single(&self) -> Result<Q::Item<'_>, QuerySingleError> {
+    pub fn single(&self) -> Result<Q::Item<'w>, QuerySingleError> {
         let mut iter = self.iter();
         let first = iter.next().ok_or(QuerySingleError::NoEntities("No entities match query"))?;
         if iter.next().is_some() {
@@ -97,8 +101,8 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
     }
 
     /// Get component data for a specific entity
-    pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
-        self.state().get::<Q>(self.world, entity)
+    pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'w>, QueryEntityError> {
+        unsafe { (*self.state).get::<Q>(self.world, entity) }
     }
 }
 
@@ -120,15 +124,15 @@ impl<'w, Q: QueryData, F: QueryFilter> QueryMut<'w, Q, F> {
     }
 
     /// Iterate mutably over query results
-    pub fn iter_mut(&mut self) -> QueryIterMut<'_, Q, F> {
-        let world_ptr = self.world as *const World as usize as *mut World;
-        self.state_mut().iter_mut(unsafe { &mut *world_ptr })
+    pub fn iter_mut(&mut self) -> QueryIterMut<'w, Q, F> {
+        let world_ptr = self.world as *mut World;
+        unsafe { (*self.state).iter_mut(&mut *world_ptr) }
     }
 
     /// Get mutable component data for a specific entity
-    pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
-        let world_ptr = self.world as *const World as usize as *mut World;
-        self.state_mut().get_mut::<Q>(unsafe { &mut *world_ptr }, entity)
+    pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'w>, QueryEntityError> {
+        let world_ptr = self.world as *mut World;
+        unsafe { (*self.state).get_mut::<Q>(&mut *world_ptr, entity) }
     }
 }
 
@@ -143,8 +147,8 @@ pub type Read<'a, T> = &'a T;
 pub type Write<'a, T> = &'a mut T;
 
 impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a Query<'w, Q, F> {
-    type Item = Q::Item<'a>;
-    type IntoIter = QueryIter<'a, Q, F>;
+    type Item = Q::Item<'w>;
+    type IntoIter = QueryIter<'w, Q, F>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -152,8 +156,8 @@ impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a Query<'w, Q, F> 
 }
 
 impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a mut Query<'w, Q, F> {
-    type Item = Q::Item<'a>;
-    type IntoIter = QueryIter<'a, Q, F>;
+    type Item = Q::Item<'w>;
+    type IntoIter = QueryIter<'w, Q, F>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -161,8 +165,8 @@ impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a mut Query<'w, Q,
 }
 
 impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a mut QueryMut<'w, Q, F> {
-    type Item = Q::Item<'a>;
-    type IntoIter = QueryIterMut<'a, Q, F>;
+    type Item = Q::Item<'w>;
+    type IntoIter = QueryIterMut<'w, Q, F>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()

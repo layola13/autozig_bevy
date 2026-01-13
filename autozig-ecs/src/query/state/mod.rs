@@ -60,7 +60,7 @@ unsafe impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Sync for QueryS
 
 impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS> {
     /// Create a new query state
-    pub fn new<Q: QueryData<State=S>, F: QueryFilter<State=FS>>(world: &World) -> Self {
+    pub fn new<Q: QueryData<State=S>, F: QueryFilter<State=FS>>(world: &mut World) -> Self {
         let state = Q::init_state(world);
         let filter_state = F::init_state(world);
         Self {

@@ -246,11 +246,22 @@ pub struct RawClosure {
 pub type SystemTrampolineFn = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void);
 
 unsafe extern "C" fn system_trampoline(closure: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
-    let closure = closure as *mut RawClosure;
-    let ptr: *mut (dyn System) = std::mem::transmute(((*closure).data, (*closure).vtable));
-    // Check if world pointer is null or invalid before dereferencing?
-    // Assuming framework guarantees valid world pointer.
-    let world = &mut *(world_ptr as *mut crate::world::World);
+    use std::io::Write;
+    let closure_ptr = closure as *mut RawClosure;
+    if closure_ptr.is_null() {
+        let _ = writeln!(std::io::stderr(), "ERROR: Closure pointer is null");
+        return;
+    }
+
+    let data = unsafe { (*closure_ptr).data };
+    let vtable = unsafe { (*closure_ptr).vtable };
+    
+    let _ = writeln!(std::io::stderr(), "DEBUG: Trampoline - data: {:p}, vtable: {:p}", data, vtable);
+    let _ = std::io::stderr().flush();
+
+    let ptr: *mut dyn System = unsafe { std::mem::transmute((data, vtable)) };
+    
+    let world = unsafe { &mut *(world_ptr as *mut crate::world::World) };
     (*ptr).run(world);
 }
 
@@ -279,6 +290,9 @@ impl BoxedSystem {
     pub fn into_raw_parts(self) -> (*mut std::ffi::c_void, *mut std::ffi::c_void, SystemTrampolineFn) {
         let ptr = Box::into_raw(self.inner);
         let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
+        use std::io::Write;
+        let _ = writeln!(std::io::stderr(), "DEBUG: into_raw_parts - data: {:p}, vtable: {:p}", data, vtable);
+        let _ = std::io::stderr().flush();
         (data, vtable, system_trampoline)
     }
 }

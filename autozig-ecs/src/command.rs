@@ -40,11 +40,7 @@ include_zig!("src/zig/command.zig", {
     fn command_buffer_apply_simple(buffer: *mut CommandBufferOpaque) -> u32;
 });
 
-fn hash_type_id(type_id: TypeId) -> u32 {
-    let mut hasher = DefaultHasher::new();
-    type_id.hash(&mut hasher);
-    (hasher.finish() & 0xFFFFFFFF) as u32
-}
+use crate::component::info::hash_type_id;
 
 /// 计算组件类型的Hash作为ID
 fn get_component_id<C: 'static>() -> u32 {
@@ -54,6 +50,10 @@ fn get_component_id<C: 'static>() -> u32 {
 pub struct CommandBuffer {
     inner: *mut CommandBufferOpaque,
 }
+
+// SAFETY: CommandBuffer is designed to be used across threads
+unsafe impl Send for CommandBuffer {}
+unsafe impl Sync for CommandBuffer {}
 
 impl CommandBuffer {
     pub fn new() -> Self {
@@ -70,9 +70,14 @@ impl CommandBuffer {
         }
     }
     
-    /// Apply all commands (简化版，实际需要World)
+    /// Apply all commands
     pub fn apply(&mut self) -> u32 {
         command_buffer_apply_simple(self.inner)
+    }
+
+    pub fn apply_with_world(&mut self, world: &mut crate::world::World) {
+        let mut cmds = self.commands();
+        cmds.apply(world);
     }
     
     pub fn clear(&mut self) {

@@ -71,7 +71,7 @@ impl<'a> ComponentsRegistrator<'a> {
     }
     
     pub fn is_registered<T: Component>(&self) -> bool {
-        self.components.indices.contains_key(&TypeId::of::<T>())
+        self.components.indices.read().unwrap().contains_key(&TypeId::of::<T>())
     }
     
     pub fn len(&self) -> usize {

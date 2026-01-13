@@ -41,13 +41,13 @@ include_zig!("src/query/builder/zig/query_builder.zig", {
 /// Allows building queries at runtime by adding components and filters dynamically.
 /// This is a thin Rust wrapper around Zig core implementation.
 pub struct QueryBuilder<'w> {
-    world: &'w World,
+    world: &'w mut World,
     inner: *mut QueryBuilderCoreOpaque,
 }
 
 impl<'w> QueryBuilder<'w> {
     /// Create a new query builder
-    pub fn new(world: &'w World) -> Self {
+    pub fn new(world: &'w mut World) -> Self {
         Self {
             world,
             inner: query_builder_create(),
@@ -156,26 +156,14 @@ impl<'w> QueryBuilder<'w> {
     }
 
     /// Build a typed query
-    pub fn build<Q: QueryData, F: QueryFilter>(&self) -> crate::query::Query<'w, Q, F> {
-        unsafe { crate::query::Query::new(self.world, Box::leak(Box::new(crate::query::QueryStateInner::new::<Q, F>(self.world)))) }
-    }
-
-    /// Transmute to a different query type (type-level cast)
-    pub fn transmute<Q: QueryData>(&self) -> QueryBuilder<'w> {
-        // Create a new builder with same state
-        QueryBuilder {
-            world: self.world,
-            inner: query_builder_create(),
-        }
-    }
-
-    /// Transmute with filtered access
-    pub fn transmute_filtered<Q: QueryData, F: QueryFilter>(&self) -> QueryBuilder<'w> {
-        self.transmute::<Q>()
+    pub fn build<Q: QueryData, F: QueryFilter>(&mut self) -> crate::query::Query<'_, Q, F> {
+        let state = Box::leak(Box::new(crate::query::QueryStateInner::new::<Q, F>(self.world)));
+        // SAFETY: Query construction from state is safe given proper world access
+        unsafe { crate::query::Query::new(self.world, state) }
     }
 
     /// Get the world reference
-    pub fn world(&self) -> &'w World {
+    pub fn world(&self) -> &World {
         self.world
     }
 }

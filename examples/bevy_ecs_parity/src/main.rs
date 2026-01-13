@@ -32,14 +32,14 @@ impl fmt::Display for PlayerStreak {
 }
 
 // RESOURCES
-#[derive(Default)]
+#[derive(Default, Debug, Resource)]
 struct GameState {
     current_round: usize,
     total_players: usize,
     winning_player: Option<String>,
 }
 
-#[derive(Component)] // Not deriving Resource to avoid conflict blanket impl. Actually it is just struct.
+#[derive(Debug, Resource)]
 struct GameRules {
     winning_score: usize,
     max_rounds: usize,
@@ -47,7 +47,7 @@ struct GameRules {
 }
 
 // Helper for "Local" replacement (as requested previously)
-#[derive(Default)]
+#[derive(Default, Debug, Resource)]
 struct PrintCounter(u32);
 
 // SYSTEMS
@@ -64,7 +64,7 @@ fn new_round_system(game_rules: Res<GameRules>, mut game_state: ResMut<GameState
 }
 
 fn score_system(mut query: Query<(&'static Player, &'static mut Score, &'static mut PlayerStreak)>) {
-    for (player, mut score, mut streak) in &mut query {
+    for (player, mut score, mut streak) in query.iter() {
         let scored_a_point = random::<bool>();
         if scored_a_point {
             score.value += 1;
@@ -95,12 +95,13 @@ fn score_check_system(
     mut game_state: ResMut<GameState>,
     query: Query<(&'static Player, &'static Score)>,
 ) {
-    for (player, score) in &query {
-        if score.value == game_rules.winning_score {
+    for (player, score) in query.iter() {
+        if score.value >= game_rules.winning_score {
             game_state.winning_player = Some(player.name.clone());
         }
     }
 }
+
 
 // Note: Using EventWriter directly from autozig-ecs
 fn game_over_system(
@@ -111,133 +112,65 @@ fn game_over_system(
     if let Some(ref player) = game_state.winning_player {
         println!("{player} won the game!");
         app_exit_writer.send(AppExit::Success);
-    } else if game_state.current_round == game_rules.max_rounds {
+    } else if game_state.current_round >= game_rules.max_rounds {
         println!("Ran out of rounds. Nobody wins!");
         app_exit_writer.send(AppExit::Success);
     }
 }
 
-fn startup_system(/*mut commands: Commands,*/ mut game_state: ResMut<GameState>) {
-    /*
-    commands.insert_resource(GameRules {
-        max_rounds: 10,
-        winning_score: 4,
-        max_players: 4,
-    });
-
-    commands.spawn_batch(vec![
-        (
-            Player {
-                name: "Alice".to_string(),
-            },
-            Score { value: 0 },
-            PlayerStreak::None,
-        ),
-        (
-            Player {
-                name: "Bob".to_string(),
-            },
-            Score { value: 0 },
-            PlayerStreak::None,
-        ),
-    ]);
-    */
+fn startup_system(mut commands: Commands, mut game_state: ResMut<GameState>) {
+    commands.spawn((
+        Player {
+            name: "Alice".to_string(),
+        },
+        Score { value: 0 },
+        PlayerStreak::None,
+    ));
+    commands.spawn((
+        Player {
+            name: "Bob".to_string(),
+        },
+        Score { value: 0 },
+        PlayerStreak::None,
+    ));
 
     game_state.total_players = 2;
-}
-
-fn new_player_system(
-    mut commands: Commands,
-    game_rules: Res<GameRules>,
-    mut game_state: ResMut<GameState>,
-) {
-    let add_new_player = random::<bool>();
-    if add_new_player && game_state.total_players < game_rules.max_players {
-        game_state.total_players += 1;
-        commands.spawn((
-            Player {
-                name: format!("Player {}", game_state.total_players),
-            },
-            Score { value: 0 },
-            PlayerStreak::None,
-        ));
-
-        println!("Player {} joined the game!", game_state.total_players);
-    }
-}
-
-fn exclusive_player_system(world: &mut World) {
-    // Note: API parity check usually needed here. 
-    // Assuming autozig World has resource<T>()
-    // If resource() is not available, we need to check autozig-ecs API.
-    // Based on previous viewing, we implemented `resource` and `resource_mut`.
-    let total_players = world.resource::<GameState>().total_players;
-    
-    let should_add_player = {
-        let game_rules = world.resource::<GameRules>();
-        let add_new_player = random::<bool>();
-        add_new_player && total_players < game_rules.max_players
-    };
-    
-    if should_add_player {
-        println!("Player {} has joined the game!", total_players + 1);
-        world.spawn((
-            Player {
-                name: format!("Player {}", total_players + 1),
-            },
-            Score { value: 0 },
-            PlayerStreak::None,
-        ));
-
-        let mut game_state = world.resource_mut::<GameState>();
-        game_state.total_players += 1;
-    }
+    println!("Spawned initial players: Alice and Bob");
 }
 
 fn print_at_end_round(mut counter: ResMut<PrintCounter>) {
     counter.0 += 1;
-    println!("In set 'Last' for the {}th time", counter.0);
-    println!();
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-enum MySystems {
-    BeforeRound,
-    Round,
-    AfterRound,
-}
-
-impl SystemSet for MySystems {
-    fn as_str(&self) -> &str {
-        match self {
-            MySystems::BeforeRound => "BeforeRound",
-            MySystems::Round => "Round",
-            MySystems::AfterRound => "AfterRound",
-        }
-    }
+    println!("End of frame counter: {}", counter.0);
+    println!("----------------------------------");
 }
 
 fn main() {
-    fn assert_component<T: autozig_ecs::component::Component>() {}
-    fn assert_resource<T: autozig_ecs::resource::Resource>() {}
-    
-    assert_component::<Player>();
-    assert_component::<Score>();
-    assert_component::<PlayerStreak>();
-    assert_resource::<GameState>();
-
+    println!("DEBUG: Entered main");
     let mut app = App::new();
     
     app.init_resource::<GameState>();
     app.init_resource::<PrintCounter>();
+    app.insert_resource(GameRules {
+        winning_score: 4,
+        max_rounds: 5,
+        max_players: 4,
+    });
     
-    app.add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f32(0.1)));
+    app.add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_millis(50)));
     
-    app.add_systems::<((ResMut<'static, GameState>),)>(Startup, startup_system);
-    app.add_systems(Update, print_message_system);
-    app.add_systems::<((Res<'static, GameRules>, ResMut<'static, GameState>),)>(Update, new_round_system);
-    app.add_systems::<((Query<'static, (&'static Player, &'static mut Score, &'static mut PlayerStreak)>,),)>(Update, score_system);
-    app.add_systems::<((ResMut<'static, PrintCounter>),)>(Last, print_at_end_round);
+    app.add_systems(Startup, IntoSystem::<(Commands<'static>, ResMut<'static, GameState>)>::into_system(startup_system));
+    app.add_systems(Update, (
+        IntoSystem::<(Res<'static, GameRules>, ResMut<'static, GameState>)>::into_system(new_round_system),
+        IntoSystem::<(Query<'static, (&Player, &mut Score, &mut PlayerStreak)>,)>::into_system(score_system),
+        IntoSystem::<(Res<'static, GameRules>, ResMut<'static, GameState>, Query<'static, (&Player, &Score)>)>::into_system(score_check_system),
+        IntoSystem::<(Res<'static, GameRules>, Res<'static, GameState>, EventWriter<'static, AppExit>)>::into_system(game_over_system),
+    ).chain());
     
-    app.run();
+    app.add_systems(Last, IntoSystem::<(ResMut<'static, PrintCounter>,)>::into_system(print_at_end_round));
+    
+    println!("Starting Bevy ECS Parity Demo...");
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    app.update();
+    println!("Update finished.");
 }

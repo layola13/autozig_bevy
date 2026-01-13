@@ -132,4 +132,16 @@ macro_rules! impl_system_configs_tuple {
 impl_system_configs_tuple!((P1, M1), (P2, M2));
 impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3));
 impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11), (P12, M12));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11), (P12, M12), (P13, M13));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11), (P12, M12), (P13, M13), (P14, M14));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11), (P12, M12), (P13, M13), (P14, M14), (P15, M15));
+impl_system_configs_tuple!((P1, M1), (P2, M2), (P3, M3), (P4, M4), (P5, M5), (P6, M6), (P7, M7), (P8, M8), (P9, M9), (P10, M10), (P11, M11), (P12, M12), (P13, M13), (P14, M14), (P15, M15), (P16, M16));
 // Add more as needed...

@@ -54,6 +54,8 @@ impl Schedule {
     
     pub fn add_systems<M>(&mut self, systems: impl IntoSystemConfigs<M>) -> &mut Self {
         let configs = systems.into_configs();
+        let mut prev_name: Option<String> = None;
+
         for config in configs.configs {
             let system = config.system;
             let name = system.name().to_string();
@@ -99,6 +101,15 @@ impl Schedule {
             for target in config.after {
                 let target_end = format!("end.{}", target);
                 self.add_dependency(&target_end, &start_node);
+            }
+
+            // Handle chaining
+            if configs.chained {
+                if let Some(ref prev) = prev_name {
+                    let prev_end = format!("end.{}", prev);
+                    self.add_dependency(&prev_end, &start_node);
+                }
+                prev_name = Some(name);
             }
         }
         self
@@ -633,6 +644,12 @@ impl Plugin for ScheduleRunnerPlugin {
                         if let Some(update) = app.schedules.get_mut(Update) {
                             update.run(&mut app.world);
                         }
+                        
+                        // Update event queues (especially AppExit)
+                        if let Some(mut events) = app.world.get_resource_mut::<Events<AppExit>>() {
+                            events.update();
+                        }
+
                         if let Some(last) = app.schedules.get_mut(Last) {
                             last.run(&mut app.world);
                         }

@@ -145,7 +145,8 @@ where
         let state = self.state.as_mut().unwrap();
         let params = F::Param::get_param(state, &self.meta, world, change_tick);
         self.func.run(params);
-        self.meta.last_run = change_tick;
+        F::Param::apply(state, &self.meta, world);
+        self.meta.last_run = crate::change_detection::Tick::new(change_tick);
     }
 }
 

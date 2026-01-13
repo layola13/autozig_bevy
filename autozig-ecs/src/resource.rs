@@ -5,9 +5,6 @@ use crate::world::World;
 /// Resource trait - 标记为资源的trait
 pub trait Resource: Send + Sync + 'static {}
 
-/// 自动为满足条件的类型实现Resource
-impl<T: Send + Sync + 'static> Resource for T {}
-
 /// ResourceId - 资源唯一标识
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ResourceId(u64);

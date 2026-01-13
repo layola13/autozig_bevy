@@ -218,3 +218,30 @@ export fn world_get_archetype(world: *const World, index: usize) ?*const Archety
     if (index >= world.archetypes.items.len) return null;
     return &world.archetypes.items[index];
 }
+
+export fn world_entity_count(world: *const World) u32 {
+    var count: u32 = 0;
+    for (world.entities.items) |meta| {
+        if (meta.is_alive) count += 1;
+    }
+    return count;
+}
+
+export fn world_despawn(world: *World, entity: Entity) bool {
+    if (entity.index >= world.entities.items.len) return false;
+    var meta = &world.entities.items[entity.index];
+    if (!meta.is_alive or meta.generation != entity.generation) return false;
+
+    // Mark entity as dead
+    meta.is_alive = false;
+
+    // Remove from archetype
+    if (meta.archetype_id < world.archetypes.items.len) {
+        _ = world.archetypes.items[meta.archetype_id].removeEntity(entity.index);
+    }
+
+    // Add to free list
+    world.free_list.append(world.allocator, entity.index) catch {};
+
+    return true;
+}

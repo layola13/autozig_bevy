@@ -63,13 +63,7 @@ pub trait Plugin: Send + Sync {
     }
 }
 
-/// Event sent when the application should exit
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum AppExit {
-    #[default]
-    Success,
-    Error(u8),
-}
+use crate::event::{Events, AppExit};
 
 /// Application builder
 pub struct App {
@@ -82,7 +76,6 @@ pub struct App {
 use crate::system_config::{IntoSystemConfigs, SystemConfigs};
 use crate::system_set::IntoSystemSetConfigs;
 
-use crate::event::Events;
 
 impl App {
     pub fn new() -> Self {
@@ -159,8 +152,13 @@ impl App {
         self
     }
     
-    pub fn configure_sets(&mut self, _schedule: impl crate::schedule::ScheduleLabel, _sets: impl IntoSystemSetConfigs) -> &mut Self {
-        // Placeholder: we implicitly respect sets by order in this simple implementation
+    pub fn configure_sets(&mut self, schedule: impl crate::schedule::ScheduleLabel, sets: impl IntoSystemSetConfigs) -> &mut Self {
+        let label_str = schedule.as_str().to_string();
+        if let Some(sched) = self.schedules.get_mut(schedule) {
+            sched.configure_sets(sets);
+        } else {
+            panic!("Schedule not found: {}", label_str);
+        }
         self
     }
     

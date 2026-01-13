@@ -1,6 +1,7 @@
 //! Component registration system
 
 use crate::component::{Component, ComponentDescriptor, ComponentId, ComponentInfo, Components, QueuedComponents};
+use crate::component::info::hash_type_id;
 use crate::resource::Resource;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -9,10 +10,11 @@ use std::sync::{Arc, RwLock};
 impl Components {
     /// Register a component with a descriptor
     pub fn register_component_with_descriptor(
-        &mut self,
+        &self,
         descriptor: ComponentDescriptor,
     ) -> ComponentId {
-        let id = ComponentId(self.components.len());
+        let type_id = descriptor.type_id.unwrap();
+        let id = ComponentId(hash_type_id(type_id) as usize);
         let mut info = ComponentInfo {
             id,
             name: descriptor.name,
@@ -24,22 +26,21 @@ impl Components {
             clone_behavior: descriptor.clone_behavior,
             hooks: crate::component_advanced::ComponentHooks::new(),
         };
-        info.id = id;
 
         if let Some(type_id) = descriptor.type_id {
-            self.indices.insert(type_id, id);
+            self.indices.write().unwrap().insert(type_id, id);
         }
 
-        self.components.push(Some(info));
+        self.components.write().unwrap().insert(id, info);
         id
     }
 
     /// Register a component type
-    pub fn register_component<T: Component>(&mut self) -> ComponentId {
+    pub fn register_component<T: Component>(&self) -> ComponentId {
         let type_id = TypeId::of::<T>();
         
         // Check if already registered
-        if let Some(&id) = self.indices.get(&type_id) {
+        if let Some(&id) = self.indices.read().unwrap().get(&type_id) {
             return id;
         }
 
@@ -48,10 +49,10 @@ impl Components {
     }
 
     /// Register a non-Send component
-    pub fn register_non_send<T: Component>(&mut self) -> ComponentId {
+    pub fn register_non_send<T: Component>(&self) -> ComponentId {
         let type_id = TypeId::of::<T>();
         
-        if let Some(&id) = self.indices.get(&type_id) {
+        if let Some(&id) = self.indices.read().unwrap().get(&type_id) {
             return id;
         }
 
@@ -62,10 +63,11 @@ impl Components {
 
     /// Register a resource with a descriptor
     pub fn register_resource_with_descriptor(
-        &mut self,
+        &self,
         descriptor: ComponentDescriptor,
     ) -> ComponentId {
-        let id = ComponentId(self.components.len());
+        let type_id = descriptor.type_id.unwrap();
+        let id = ComponentId(hash_type_id(type_id) as usize);
         let mut info = ComponentInfo {
             id,
             name: descriptor.name,
@@ -77,21 +79,20 @@ impl Components {
             clone_behavior: descriptor.clone_behavior,
             hooks: crate::component_advanced::ComponentHooks::new(),
         };
-        info.id = id;
 
         if let Some(type_id) = descriptor.type_id {
-            self.resource_indices.insert(type_id, id);
+            self.resource_indices.write().unwrap().insert(type_id, id);
         }
 
-        self.components.push(Some(info));
+        self.components.write().unwrap().insert(id, info);
         id
     }
 
     /// Register a resource type
-    pub fn register_resource<T: Resource>(&mut self) -> ComponentId {
+    pub fn register_resource<T: Resource>(&self) -> ComponentId {
         let type_id = TypeId::of::<T>();
         
-        if let Some(&id) = self.resource_indices.get(&type_id) {
+        if let Some(&id) = self.resource_indices.read().unwrap().get(&type_id) {
             return id;
         }
 
@@ -165,23 +166,23 @@ impl Components {
     }
 
     /// Apply all queued registrations
-    pub fn apply_queued_registrations(&mut self) {
+    pub fn apply_queued_registrations(&self) {
         let mut queued = self.queued.write().unwrap();
 
         // Register queued components
         for (type_id, mut info) in queued.components.drain() {
-            let id = ComponentId(self.components.len());
+            let id = ComponentId(hash_type_id(type_id) as usize);
             info.id = id;
-            self.indices.insert(type_id, id);
-            self.components.push(Some(info));
+            self.indices.write().unwrap().insert(type_id, id);
+            self.components.write().unwrap().insert(id, info);
         }
 
         // Register queued resources
         for (type_id, mut info) in queued.resources.drain() {
-            let id = ComponentId(self.components.len());
+            let id = ComponentId(hash_type_id(type_id) as usize);
             info.id = id;
-            self.resource_indices.insert(type_id, id);
-            self.components.push(Some(info));
+            self.resource_indices.write().unwrap().insert(type_id, id);
+            self.components.write().unwrap().insert(id, info);
         }
     }
 
@@ -198,14 +199,14 @@ impl Components {
     }
 
     /// Peek at the next queued component (mutable version)
-    pub fn peek_mut(&mut self) -> Option<ComponentInfo> {
+    pub fn peek_mut(&self) -> Option<ComponentInfo> {
         let queued = self.queued.write().unwrap();
         queued.components.values().next().cloned()
             .or_else(|| queued.resources.values().next().cloned())
     }
 
     /// Get and remove the next queued component
-    pub fn next_mut(&mut self) -> Option<(TypeId, ComponentInfo)> {
+    pub fn next_mut(&self) -> Option<(TypeId, ComponentInfo)> {
         let mut queued = self.queued.write().unwrap();
         
         if let Some((&type_id, _)) = queued.components.iter().next() {

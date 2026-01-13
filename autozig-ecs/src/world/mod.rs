@@ -326,7 +326,7 @@ impl World {
     /// Returns the ComponentId of the given Component type T
     #[inline]
     pub fn component_id<T: Component>(&self) -> Option<ComponentId> {
-        self.components.valid_component_id::<T>()
+        Some(self.components.register::<T>(T::STORAGE_TYPE))
     }
     
     /// Registers a new Resource type and returns the ComponentId

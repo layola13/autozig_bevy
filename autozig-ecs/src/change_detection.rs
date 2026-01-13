@@ -73,6 +73,10 @@ impl Tick {
         Tick(value)
     }
 
+    pub fn get(&self) -> u32 {
+        self.0
+    }
+
     pub fn increment(&mut self) {
         let mut zig_tick = tick_new(self.0);
         tick_increment(&mut zig_tick);

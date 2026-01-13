@@ -187,3 +187,4 @@ mod tests {
         assert!(world.get_entity(id).is_ok());
     }
 }
+mod fat_ptr_test;

@@ -67,6 +67,9 @@ pub trait SystemParam: Sized {
         world: &'w World,
         change_tick: u32,
     ) -> Self::Item<'w>;
+
+    /// Apply any deferred operations from this parameter
+    fn apply(_state: &mut Self::State, _system_meta: &SystemMeta, _world: &mut World) {}
 }
 
 /// ReadOnlySystemParam - Marker trait for read-only parameters
@@ -139,20 +142,25 @@ impl<T: Resource> SystemParam for ResMut<'static, T> {
 
 // Implement for Commands<'static>
 impl SystemParam for Commands<'static> {
-    type State = (); // Placeholder for CommandQueue
+    type State = crate::command::CommandBuffer; 
     type Item<'w> = Commands<'w>;
 
     fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
-        ()
+        crate::command::CommandBuffer::new()
     }
 
     fn get_param<'w, 's>(
-        _state: &'s mut Self::State,
+        state: &'s mut Self::State,
         _system_meta: &SystemMeta,
-        world: &'w World,
+        _world: &'w World,
         _change_tick: u32,
     ) -> Self::Item<'w> {
-        Commands::new(world)
+        // SAFETY: The Commands lifetime is tied to the state which lives beyond this call
+        unsafe { std::mem::transmute::<Commands<'s>, Commands<'w>>(state.commands()) }
+    }
+
+    fn apply(state: &mut Self::State, _system_meta: &SystemMeta, world: &mut World) {
+        state.apply_with_world(world);
     }
 }
 
@@ -178,7 +186,7 @@ impl<Q: QueryData, F: QueryFilter> SystemParam for Query<'static, Q, F> {
 // Implement for Events
 impl<E: Event> SystemParam for Events<E> {
     type State = ();
-    type Item<'w> = &'w Events<E>;
+    type Item<'w> = Res<'w, Events<E>>;
 
     fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
         ()
@@ -190,8 +198,7 @@ impl<E: Event> SystemParam for Events<E> {
         world: &'w World,
         _change_tick: u32,
     ) -> Self::Item<'w> {
-         let events = world.resource::<Events<E>>();
-         events.ptr
+         world.resource::<Events<E>>()
     }
 }
 
@@ -211,7 +218,7 @@ impl<E: Event> SystemParam for EventReader<'static, E> {
         _change_tick: u32,
     ) -> Self::Item<'w> {
         let events = world.resource::<Events<E>>();
-        EventReader::new(events.ptr.queue)
+        EventReader::new(events.queue)
     }
 }
 
@@ -234,7 +241,7 @@ impl<E: Event> SystemParam for EventWriter<'static, E> {
             let world_mut_ptr = world as *const World as *mut World;
             (*world_mut_ptr).resource_mut::<Events<E>>()
         };
-        EventWriter::new(events.ptr.queue)
+        EventWriter::new(events.queue)
     }
 }
 
@@ -278,6 +285,12 @@ macro_rules! impl_system_param_tuple {
                 let ($($param,)*) = state;
                 ($($param::get_param($param, system_meta, world, change_tick),)*)
             }
+
+            fn apply(state: &mut Self::State, system_meta: &SystemMeta, world: &mut World) {
+                #[allow(non_snake_case)]
+                let ($($param,)*) = state;
+                ($($param::apply($param, system_meta, world),)*);
+            }
         }
     }
 }
@@ -298,3 +311,140 @@ impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13)
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15);
 impl_system_param_tuple!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);
+
+// ============================================================================
+// P3 Advanced Features
+// ============================================================================
+
+/// Local<T> - System-local state that persists across runs
+/// Each system instance gets its own copy of T
+pub struct Local<'s, T: Default + Send + Sync + 'static> {
+    pub inner: &'s mut T,
+}
+
+impl<'s, T: Default + Send + Sync + 'static> std::ops::Deref for Local<'s, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        self.inner
+    }
+}
+
+impl<'s, T: Default + Send + Sync + 'static> std::ops::DerefMut for Local<'s, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.inner
+    }
+}
+
+impl<T: Default + Send + Sync + 'static> SystemParam for Local<'static, T> {
+    type State = T;
+    type Item<'w> = Local<'w, T>;
+
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        T::default()
+    }
+
+    fn get_param<'w, 's>(
+        state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        _world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        // SAFETY: State lifetime outlives the function call
+        let state_ptr = state as *mut T;
+        Local { inner: unsafe { &mut *state_ptr } }
+    }
+}
+
+/// ParCommands - Parallel-safe command buffers for use in parallel iteration
+pub struct ParCommands<'w> {
+    inner: crate::command::CommandBuffer,
+    _marker: PhantomData<&'w ()>,
+}
+
+impl<'w> ParCommands<'w> {
+    pub fn commands(&mut self) -> Commands<'_> {
+        self.inner.commands()
+    }
+}
+
+impl SystemParam for ParCommands<'static> {
+    type State = crate::command::CommandBuffer;
+    type Item<'w> = ParCommands<'w>;
+
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        crate::command::CommandBuffer::new()
+    }
+
+    fn get_param<'w, 's>(
+        state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        _world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        ParCommands {
+            inner: crate::command::CommandBuffer::new(), // Each parallel scope gets its own buffer
+            _marker: PhantomData,
+        }
+    }
+
+    fn apply(state: &mut Self::State, _system_meta: &SystemMeta, world: &mut World) {
+        state.apply_with_world(world);
+    }
+}
+
+/// SystemChangeTick - Access to change detection ticks
+pub struct SystemChangeTick {
+    pub last_run: u32,
+    pub this_run: u32,
+}
+
+impl SystemParam for SystemChangeTick {
+    type State = ();
+    type Item<'w> = SystemChangeTick;
+
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        ()
+    }
+
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        system_meta: &SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        SystemChangeTick {
+            last_run: system_meta.last_run().get(),
+            this_run: world.read_change_tick().get(),
+        }
+    }
+}
+
+/// SystemName - Access to the current system's name
+pub struct SystemName<'s>(pub &'s str);
+
+impl<'s> std::ops::Deref for SystemName<'s> {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl SystemParam for SystemName<'static> {
+    type State = String;
+    type Item<'w> = SystemName<'w>;
+
+    fn init_state(_world: &mut World, system_meta: &mut SystemMeta) -> Self::State {
+        system_meta.name().to_string()
+    }
+
+    fn get_param<'w, 's>(
+        state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        _world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        // SAFETY: State lifetime outlives the function call  
+        let state_ptr = state as *const String;
+        unsafe { SystemName((*state_ptr).as_str()) }
+    }
+}
