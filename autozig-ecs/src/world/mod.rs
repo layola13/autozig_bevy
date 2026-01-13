@@ -490,7 +490,7 @@ impl World {
     /// Inserts a bundle of components to an entity
     #[inline]
     pub fn insert_bundle<B: Bundle>(&mut self, entity: Entity, bundle: B) -> &mut Self {
-        if let Ok(mut entity_mut) = self.get_entity_mut(entity) {
+        if let Ok(entity_mut) = self.get_entity_mut(entity) {
             entity_mut.insert(bundle);
         }
         self
@@ -536,7 +536,7 @@ impl World {
     /// Removes a bundle of components from an entity
     #[inline]
     pub fn remove_bundle<B: Bundle>(&mut self, entity: Entity) -> &mut Self {
-        if let Ok(mut entity_mut) = self.get_entity_mut(entity) {
+        if let Ok(entity_mut) = self.get_entity_mut(entity) {
             entity_mut.remove::<B>();
         }
         self

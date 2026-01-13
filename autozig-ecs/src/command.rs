@@ -105,6 +105,9 @@ pub struct Commands<'w> {
     _marker: PhantomData<&'w mut ()>,
 }
 
+unsafe impl<'w> Send for Commands<'w> {}
+unsafe impl<'w> Sync for Commands<'w> {}
+
 impl<'w> Commands<'w> {
     pub fn new(world: &crate::world::World) -> Self {
         unsafe { Self::new_from_entities(&world.allocator, &world.entities) }

@@ -28,13 +28,27 @@ pub trait IntoSystemSet {
 
 /// Configuration for a system set
 pub struct SystemSetConfig {
-    set: Box<dyn SystemSet>,
+    pub(crate) set: Box<dyn SystemSet>,
+    pub(crate) before: Vec<String>,
+    pub(crate) after: Vec<String>,
+    pub(crate) in_sets: Vec<String>,
+}
+
+impl SystemSetConfig {
+    pub fn new(set: Box<dyn SystemSet>) -> Self {
+        Self {
+            set,
+            before: Vec::new(),
+            after: Vec::new(),
+            in_sets: Vec::new(),
+        }
+    }
 }
 
 /// Multiple system set configs
 pub struct SystemSetConfigs {
-    configs: Vec<SystemSetConfig>,
-    chained: bool,
+    pub(crate) configs: Vec<SystemSetConfig>,
+    pub(crate) chained: bool,
 }
 
 /// Trait for converting into system set config
@@ -44,9 +58,7 @@ pub trait IntoSystemSetConfig {
 
 impl<S: IntoSystemSet> IntoSystemSetConfig for S {
     fn into_config(self) -> SystemSetConfig {
-        SystemSetConfig {
-            set: Box::new(self.into_system_set()),
-        }
+        SystemSetConfig::new(Box::new(self.into_system_set()))
     }
 }
 
@@ -59,6 +71,45 @@ pub trait IntoSystemSetConfigs {
     {
         let mut configs = self.into_configs();
         configs.chained = true;
+        configs
+    }
+
+    fn in_set(self, set: impl SystemSet) -> SystemSetConfigs 
+    where Self: Sized 
+    {
+        let mut configs = self.into_configs();
+        let name = set.as_str().to_string();
+        for config in &mut configs.configs {
+            config.in_sets.push(name.clone());
+        }
+        configs
+    }
+
+    fn before<S>(self, set: S) -> SystemSetConfigs 
+    where 
+        Self: Sized,
+        S: IntoSystemSet,
+    {
+        let mut configs = self.into_configs();
+        let set = set.into_system_set();
+        let name = set.as_str().to_string();
+        for config in &mut configs.configs {
+            config.before.push(name.clone());
+        }
+        configs
+    }
+
+    fn after<S>(self, set: S) -> SystemSetConfigs 
+    where 
+        Self: Sized,
+        S: IntoSystemSet,
+    {
+        let mut configs = self.into_configs();
+        let set = set.into_system_set();
+        let name = set.as_str().to_string();
+        for config in &mut configs.configs {
+            config.after.push(name.clone());
+        }
         configs
     }
 }

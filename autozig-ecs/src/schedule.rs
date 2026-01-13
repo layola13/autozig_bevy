@@ -19,6 +19,15 @@ include_zig!("src/zig/system.zig", {
         access: u8
     ) -> bool;
     fn schedule_run(schedule: *mut u8, world: *mut u8);
+    fn schedule_system_count(schedule: *const u8) -> usize;
+    fn schedule_add_dependency(
+        schedule: *mut u8,
+        from: *const u8,
+        from_len: usize,
+        to: *const u8,
+        to_len: usize
+    ) -> bool;
+    fn schedule_build(schedule: *mut u8) -> bool;
 });
 
 unsafe extern "C" fn run_system_trampoline(closure_ptr: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
@@ -43,21 +52,124 @@ impl Schedule {
         }
     }
     
-    pub fn add_systems<M>(&mut self, _systems: impl IntoSystemConfigs<M>) -> &mut Self {
-        // Stub: Actual scheduling handled by App struct in plugin.rs for now
+    pub fn add_systems<M>(&mut self, systems: impl IntoSystemConfigs<M>) -> &mut Self {
+        let configs = systems.into_configs();
+        for config in configs.configs {
+            let system = config.system;
+            let name = system.name().to_string();
+            let (data, vtable, trampoline) = system.into_raw_parts();
+            
+            // Register system node
+            schedule_add_system(
+                self.inner,
+                name.as_ptr(),
+                name.len(),
+                data,
+                vtable,
+                trampoline,
+                0 // TODO: Access flags
+            );
+            
+            // Create backbone: start.name -> name -> end.name
+            let start_node = format!("start.{}", name);
+            let end_node = format!("end.{}", name);
+            
+            self.add_dependency(&start_node, &name);
+            self.add_dependency(&name, &end_node);
+
+            // Process sets (Containment)
+            for set in config.in_sets {
+                let set_start = format!("start.{}", set);
+                let set_end = format!("end.{}", set);
+                // set_start -> sys_start
+                self.add_dependency(&set_start, &start_node);
+                // sys_end -> set_end
+                self.add_dependency(&end_node, &set_end);
+            }
+
+            // Process before (this runs before target)
+            // end.this -> start.target
+            for target in config.before {
+                let target_start = format!("start.{}", target);
+                self.add_dependency(&end_node, &target_start);
+            }
+            
+            // Process after (this runs after target)
+            // end.target -> start.this
+            for target in config.after {
+                let target_end = format!("end.{}", target);
+                self.add_dependency(&target_end, &start_node);
+            }
+        }
         self
+    }
+    
+    pub fn add_dependency(&mut self, from: &str, to: &str) {
+        schedule_add_dependency(
+            self.inner,
+            from.as_ptr(),
+            from.len(),
+            to.as_ptr(),
+            to.len()
+        );
     }
     
     pub fn configure_sets(&mut self, sets: impl IntoSystemSetConfigs) -> &mut Self {
+        let configs = sets.into_configs();
+        for config in configs.configs {
+            let set_name = config.set.as_str().to_string();
+            let start_node = format!("start.{}", set_name);
+            let end_node = format!("end.{}", set_name);
+            
+            // Create backbone for set: start -> end
+            self.add_dependency(&start_node, &end_node);
+            
+            // Process containment: MySet in ParentSet
+            for parent in config.in_sets {
+                let parent_start = format!("start.{}", parent);
+                let parent_end = format!("end.{}", parent);
+                // parent_start -> my_start
+                self.add_dependency(&parent_start, &start_node);
+                // my_end -> parent_end
+                self.add_dependency(&end_node, &parent_end);
+            }
+            
+            // Process before: MySet runs before Target
+            for target in config.before {
+                let target_start = format!("start.{}", target);
+                // my_end -> target_start
+                self.add_dependency(&end_node, &target_start);
+            }
+            
+            // Process after: MySet runs after Target
+            for target in config.after {
+                let target_end = format!("end.{}", target);
+                // target_end -> my_start
+                self.add_dependency(&target_end, &start_node);
+            }
+        }
         self
     }
     
-    pub fn set_build_settings(&mut self, settings: ScheduleBuildSettings) -> &mut Self {
-        self
+    pub fn build(&mut self) -> Result<(), ScheduleBuildError> {
+        if schedule_build(self.inner) {
+            Ok(())
+        } else {
+            // TODO: Extract cycle info from Zig
+            Err(ScheduleBuildError::DependencyCycle(vec!["Unknown cycle".to_string()]))
+        }
     }
-    
+
     pub fn run(&mut self, world: &mut World) {
+        if self.build().is_err() {
+            // Panic or log depending on requirements, Bevy usually panics on cycle during build
+            panic!("Failed to build schedule: dependency cycle detected");
+        }
         schedule_run(self.inner, world as *mut World as *mut u8);
+    }
+    
+    pub fn system_count(&self) -> usize {
+         schedule_system_count(self.inner)
     }
 }
 
@@ -77,11 +189,13 @@ impl Schedules {
     }
     
     pub fn get(&self, label: impl ScheduleLabel) -> Option<&Schedule> {
-        self.schedules.first()
+        let label_str = label.as_str();
+        self.schedules.iter().find(|s| s.label.as_str() == label_str)
     }
     
     pub fn get_mut(&mut self, label: impl ScheduleLabel) -> Option<&mut Schedule> {
-        self.schedules.first_mut()
+        let label_str = label.as_str();
+        self.schedules.iter_mut().find(|s| s.label.as_str() == label_str)
     }
 }
 
@@ -506,34 +620,32 @@ impl Plugin for ScheduleRunnerPlugin {
         app.set_runner(move |mut app| {
              match mode {
                 RunMode::Once => {
-                    for system in app.update_schedule.iter_mut() {
-                        system.run(&mut app.world);
+                    if let Some(update) = app.schedules.get_mut(Update) {
+                        update.run(&mut app.world);
                     }
-                    for system in app.last_schedule.iter_mut() {
-                        system.run(&mut app.world);
+                    if let Some(last) = app.schedules.get_mut(Last) {
+                        last.run(&mut app.world);
                     }
                 }
                 RunMode::Loop => {
                     let mut ticks = 0;
                      loop {
-                        for system in app.update_schedule.iter_mut() {
-                            system.run(&mut app.world);
+                        if let Some(update) = app.schedules.get_mut(Update) {
+                            update.run(&mut app.world);
                         }
-                        for system in app.last_schedule.iter_mut() {
-                            system.run(&mut app.world);
+                        if let Some(last) = app.schedules.get_mut(Last) {
+                            last.run(&mut app.world);
                         }
                         
                         // Check for AppExit
-                        if let Some(events) = app.world.get_resource::<Events<AppExit>>() {
-                            // Note: Reader requires mutable access to events usually? 
-                            // Bevy's Events<T> get_reader is &self -> Reader.
-                            // Reader interacts with queue.
-                            // My implementation: get_reader(&self).
+                        let should_exit = if let Some(events) = app.world.get_resource::<Events<AppExit>>() {
                             let reader = events.get_reader();
-                            if reader.iter().count() > 0 {
-                                break; 
-                            }
-                        }
+                            reader.iter().count() > 0
+                        } else {
+                            false
+                        };
+                        
+                        if should_exit { break; }
 
                         ticks += 1;
                         if ticks > 100 { break; } // Safety brake for CI/Test

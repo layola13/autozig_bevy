@@ -5,9 +5,9 @@ use crate::system_set::SystemSet;
 /// Configuration for a single system
 pub struct SystemConfig {
     pub(crate) system: BoxedSystem,
-    pub(crate) before: Vec<Box<dyn SystemSet>>,
-    pub(crate) after: Vec<Box<dyn SystemSet>>,
-    pub(crate) in_sets: Vec<Box<dyn SystemSet>>,
+    pub(crate) before: Vec<String>,
+    pub(crate) after: Vec<String>,
+    pub(crate) in_sets: Vec<String>,
 }
 
 impl SystemConfig {
@@ -47,28 +47,43 @@ impl IntoSystemConfigs<()> for SystemConfigs {
 pub trait IntoSystemConfigs<Marker> {
     fn into_configs(self) -> SystemConfigs;
 
-    fn in_set(self, set: impl SystemSet + Clone) -> SystemConfigs 
+    fn in_set(self, set: impl SystemSet) -> SystemConfigs 
     where Self: Sized 
     {
         let mut configs = self.into_configs();
+        let name = set.as_str().to_string();
         for config in &mut configs.configs {
-            config.in_sets.push(Box::new(set.clone()));
+            config.in_sets.push(name.clone());
         }
         configs
     }
 
-    fn before<M>(self, set: impl IntoSystemConfigs<M>) -> SystemConfigs 
-    where Self: Sized 
+    fn before<S>(self, set: S) -> SystemConfigs 
+    where 
+        Self: Sized,
+        S: crate::system_set::IntoSystemSet,
     {
-        // Placeholder for now - normally would store dependency
-        self.into_configs()
+        let mut configs = self.into_configs();
+        let set = set.into_system_set();
+        let name = set.as_str().to_string();
+        for config in &mut configs.configs {
+            config.before.push(name.clone());
+        }
+        configs
     }
 
-    fn after<M>(self, set: impl IntoSystemConfigs<M>) -> SystemConfigs 
-    where Self: Sized 
+    fn after<S>(self, set: S) -> SystemConfigs 
+    where 
+        Self: Sized,
+        S: crate::system_set::IntoSystemSet,
     {
-        // Placeholder for now
-        self.into_configs()
+        let mut configs = self.into_configs();
+        let set = set.into_system_set();
+        let name = set.as_str().to_string();
+        for config in &mut configs.configs {
+            config.after.push(name.clone());
+        }
+        configs
     }
     
     fn chain(self) -> SystemConfigs
@@ -87,8 +102,7 @@ where
 {
     fn into_configs(self) -> SystemConfigs {
         let sys = self.into_system();
-        let boxed = crate::system::BoxedSystem::new(sys, "closure_system");
-        SystemConfig::new(boxed).into()
+        SystemConfig::new(sys).into()
     }
 }
 

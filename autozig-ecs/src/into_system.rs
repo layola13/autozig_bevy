@@ -137,8 +137,12 @@ where
     }
 
     fn run(&mut self, world: &mut World) {
+        if self.state.is_none() {
+            self.state = Some(F::Param::init_state(world, &mut self.meta));
+        }
+
         let change_tick = world.change_tick().0;
-        let state = self.state.as_mut().expect("System not initialized");
+        let state = self.state.as_mut().unwrap();
         let params = F::Param::get_param(state, &self.meta, world, change_tick);
         self.func.run(params);
         self.meta.last_run = change_tick;
@@ -152,9 +156,16 @@ where
     Marker: Send + Sync + 'static,
 {
     fn into_system(self) -> crate::system::BoxedSystem {
-        let name = "function_system"; // TODO: Use better naming or type_name
+        let name = std::any::type_name::<F>();
         let system = ParamFunctionSystem::new(self, name);
         crate::system::BoxedSystem::new(system, name)
+    }
+}
+
+// Implement IntoSystem for BoxedSystem (identity)
+impl IntoSystem<()> for BoxedSystem {
+    fn into_system(self) -> BoxedSystem {
+        self
     }
 }
 

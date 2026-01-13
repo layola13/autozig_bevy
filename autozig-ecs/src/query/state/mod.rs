@@ -163,14 +163,12 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
                 this_run,
             )
         };
-        let filter_fetch = unsafe {
-            F::Fetch::init(
+        let filter_fetch = F::Fetch::init(
                 &self.filter_state,
                 cell,
                 last_run,
                 this_run,
-            )
-        };
+            );
         let matched_archetypes = self.matched_archetypes.read().unwrap().clone();
         QueryStateIter {
             _phantom: PhantomData,
@@ -220,14 +218,12 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
                 this_run,
             )
         };
-        let filter_fetch = unsafe {
-            F::Fetch::init(
+        let filter_fetch = F::Fetch::init(
                 &self.filter_state,
                 cell,
                 last_run,
                 this_run,
-            )
-        };
+            );
         let matched_archetypes = self.matched_archetypes.read().unwrap().clone();
         QueryStateIterMut {
             _phantom: PhantomData,

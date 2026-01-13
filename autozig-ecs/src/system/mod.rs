@@ -61,6 +61,9 @@ impl Default for Schedule {
 pub trait System: Send + Sync {
     fn initialize(&mut self, _world: &mut crate::world::World) {}
     fn run(&mut self, world: &mut crate::world::World);
+    fn name(&self) -> &str {
+        std::any::type_name::<Self>()
+    }
 }
 
 
@@ -288,6 +291,10 @@ impl System for BoxedSystem {
     fn run(&mut self, world: &mut crate::world::World) {
         self.inner.run(world);
     }
+    
+    fn name(&self) -> &str {
+        self.meta.name()
+    }
 }
 
 /// AdapterSystem - 系统适配器
@@ -324,6 +331,8 @@ impl<A: System, B: System> System for CombinatorSystem<A, B> {
         self.system_a.run(world);
         self.system_b.run(world);
     }
+    
+    // Name is combinator
 }
 
 /// FunctionSystem - 函数系统（将函数转换为系统）
@@ -352,6 +361,10 @@ where
     fn run(&mut self, world: &mut crate::world::World) {
         (self.func)(world);
     }
+    
+    fn name(&self) -> &str {
+        self.meta.name()
+    }
 }
 
 /// ExclusiveFunctionSystem - 独占函数系统
@@ -377,6 +390,10 @@ where
 {
     fn run(&mut self, world: &mut crate::world::World) {
         (self.func)(world);
+    }
+    
+    fn name(&self) -> &str {
+        self.meta.name()
     }
 }
 

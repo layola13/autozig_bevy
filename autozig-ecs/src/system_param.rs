@@ -97,9 +97,8 @@ impl ReadOnlySystemParam for () {}
 impl StaticSystemParam for () {}
 
 // Implement for Res<'static, T>
-// Implement for Res<'a, T>
-impl<'a, T: Resource> SystemParam for Res<'a, T> {
-    type State = (); // TODO: Cache ResourceId or pointer?
+impl<T: Resource> SystemParam for Res<'static, T> {
+    type State = ();
     type Item<'w> = Res<'w, T>;
 
     fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
@@ -115,11 +114,10 @@ impl<'a, T: Resource> SystemParam for Res<'a, T> {
         world.resource::<T>()
     }
 }
-impl<'a, T: Resource> ReadOnlySystemParam for Res<'a, T> {}
+impl<T: Resource> ReadOnlySystemParam for Res<'static, T> {}
 
 // Implement for ResMut<'static, T>
-// Implement for ResMut<'a, T>
-impl<'a, T: Resource> SystemParam for ResMut<'a, T> {
+impl<T: Resource> SystemParam for ResMut<'static, T> {
     type State = ();
     type Item<'w> = ResMut<'w, T>;
 
@@ -139,8 +137,8 @@ impl<'a, T: Resource> SystemParam for ResMut<'a, T> {
     }
 }
 
-// Implement for Commands<'a>
-impl<'a> SystemParam for Commands<'a> {
+// Implement for Commands<'static>
+impl SystemParam for Commands<'static> {
     type State = (); // Placeholder for CommandQueue
     type Item<'w> = Commands<'w>;
 
@@ -159,8 +157,7 @@ impl<'a> SystemParam for Commands<'a> {
 }
 
 // Implement for Query
-// Implement for Query
-impl<'a, Q: QueryData, F: QueryFilter> SystemParam for Query<'a, Q, F> {
+impl<Q: QueryData, F: QueryFilter> SystemParam for Query<'static, Q, F> {
     type State = QueryState<Q, F>;
     type Item<'w> = Query<'w, Q, F>;
 

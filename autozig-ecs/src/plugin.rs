@@ -75,9 +75,7 @@ pub enum AppExit {
 pub struct App {
     plugin_manager: *mut PluginManagerOpaque,
     pub(crate) world: World,
-    pub(crate) startup_schedule: Vec<BoxedSystem>,
-    pub(crate) update_schedule: Vec<BoxedSystem>,
-    pub(crate) last_schedule: Vec<BoxedSystem>,
+    pub(crate) schedules: crate::schedule::Schedules,
     runner: Option<Box<dyn FnOnce(App)>>,
 }
 
@@ -93,20 +91,27 @@ impl App {
         // Initialize AppExit events
         world.insert_resource(Events::<AppExit>::default());
         
+        // Initialize standard schedules
+        use crate::schedule::{Startup, Update, Last};
+        let mut schedules = crate::schedule::Schedules::new();
+        schedules.insert(crate::schedule::Schedule::new(Startup));
+        schedules.insert(crate::schedule::Schedule::new(Update));
+        schedules.insert(crate::schedule::Schedule::new(Last));
+        
         Self { 
             plugin_manager,
             world,
-            startup_schedule: Vec::new(),
-            update_schedule: Vec::new(),
-            last_schedule: Vec::new(),
+            schedules,
             runner: None,
         }
     }
     
     pub fn run(mut self) {
+        use crate::schedule::{Startup, Update, Last};
+        
         // Run startup systems once
-        for system in self.startup_schedule.iter_mut() {
-            system.run(&mut self.world);
+        if let Some(startup) = self.schedules.get_mut(Startup) {
+            startup.run(&mut self.world);
         }
 
         // If a runner is set, delegate to it
@@ -114,12 +119,20 @@ impl App {
             runner(self);
         } else {
              // Default: Single run
-             for system in self.update_schedule.iter_mut() {
-                system.run(&mut self.world);
-            }
-            for system in self.last_schedule.iter_mut() {
-                system.run(&mut self.world);
-            }
+             if let Some(update) = self.schedules.get_mut(Update) {
+                update.run(&mut self.world);
+             }
+             if let Some(last) = self.schedules.get_mut(Last) {
+                last.run(&mut self.world);
+             }
+        }
+    }
+
+    /// Run the Update schedule once without consuming App
+    pub fn update(&mut self) {
+        use crate::schedule::Update;
+        if let Some(update) = self.schedules.get_mut(Update) {
+            update.run(&mut self.world);
         }
     }
 
@@ -134,23 +147,14 @@ impl App {
     
     /// Add systems to a specific schedule
     pub fn add_systems<M>(&mut self, schedule: impl crate::schedule::ScheduleLabel, systems: impl IntoSystemConfigs<M>) -> &mut Self {
-        let configs = systems.into_configs();
-        // Simple mapping based on type name or "debug" implementation of label
-        // This is a hack for verification since we don't have a full Schedule map
-        let label_str = schedule.as_str();
-        
-        let target_schedule = if label_str.contains("Startup") {
-            &mut self.startup_schedule
-        } else if label_str.contains("Last") {
-            &mut self.last_schedule
+        let label_str = schedule.as_str().to_string();
+        if let Some(sched) = self.schedules.get_mut(schedule) {
+            sched.add_systems(systems);
         } else {
-            &mut self.update_schedule // Default to Update
-        };
-
-        for config in configs.configs {
-            let mut system = config.system;
-            system.initialize(&mut self.world);
-            target_schedule.push(system);
+            // Panic or Create new schedule?
+            // Bevy panics if schedule doesn't exist usually, or implicitly creates.
+            // For now, let's panic to be explicit about supported schedules.
+            panic!("Schedule not found: {}", label_str);
         }
         self
     }
@@ -190,8 +194,18 @@ impl App {
         plugin_manager_count(self.plugin_manager)
     }
     
+    pub fn world_mut(&mut self) -> &mut World {
+        &mut self.world
+    }
+
     pub fn closure_system_count(&self) -> usize {
-        self.startup_schedule.len() + self.update_schedule.len() + self.last_schedule.len()
+        // Iterate all schedules
+        use crate::schedule::{Startup, Update, Last};
+        let mut count = 0;
+        if let Some(s) = self.schedules.get(Startup) { count += s.system_count(); }
+        if let Some(s) = self.schedules.get(Update) { count += s.system_count(); }
+        if let Some(s) = self.schedules.get(Last) { count += s.system_count(); }
+        count
     }
 }
 

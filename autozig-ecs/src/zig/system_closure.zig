@@ -4,7 +4,8 @@ const Entity = common.Entity;
 const g_allocator = common.g_allocator;
 
 // Rust 闭包的表示 (fat pointer)
-pub const RustClosure = struct {
+// Rust 闭包的表示 (fat pointer) - Must match #[repr(C)] layout
+pub const RustClosure = extern struct {
     data_ptr: *anyopaque, // 闭包捕获的数据
     vtable_ptr: *anyopaque, // 虚表指针
 };
