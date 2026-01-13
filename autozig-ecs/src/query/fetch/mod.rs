@@ -369,3 +369,7 @@ impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE));
 impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF));
 impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG));
 impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH), (I, SI));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH), (I, SI), (J, SJ));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH), (I, SI), (J, SJ), (K, SK));
+impl_fetch_tuple!((A, SA), (B, SB), (C, SC), (D, SD), (E, SE), (F, SF), (G, SG), (H, SH), (I, SI), (J, SJ), (K, SK), (L, SL));

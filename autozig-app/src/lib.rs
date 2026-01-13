@@ -441,6 +441,16 @@ impl Default for ScheduleRunnerPlugin {
     }
 }
 
+impl ScheduleRunnerPlugin {
+    pub fn run_loop(_wait: core::time::Duration) -> Self {
+        Self { run_mode: RunMode::Loop }
+    }
+    
+    pub fn run_once() -> Self {
+        Self { run_mode: RunMode::Once }
+    }
+}
+
 impl Plugin for ScheduleRunnerPlugin {
     fn build(&self, _app: &mut App) {}
     fn name(&self) -> &str { "ScheduleRunnerPlugin" }

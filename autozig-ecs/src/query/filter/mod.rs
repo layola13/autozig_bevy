@@ -176,6 +176,7 @@ impl Default for SpawnedFetch {
 
 /// QueryFilter trait
 pub trait QueryFilter: Send + Sync + 'static {
+    /// The state type used to maintain persistent data for this filter
     type State: Send + Sync + 'static;
     fn init_state(world: &crate::world::World) -> Self::State;
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;

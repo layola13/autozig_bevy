@@ -14,6 +14,9 @@ include_zig!("src/zig/common.zig", {
     fn common_noop();
 });
 
+// Re-export derive macros
+pub use autozig_macro::{Component, Resource, SystemSet};
+
 // Core modules
 pub mod ptr;              // Type-erased pointer types (foundational)
 pub mod entity;
@@ -38,6 +41,7 @@ pub mod table;
 // Additional required modules for complete API coverage
 pub mod removal_detection;
 pub mod system_set;
+pub mod system_config;
 pub mod condition;
 pub mod combinator;
 pub mod exclusive_system;
@@ -109,14 +113,16 @@ pub mod prelude {
     // pub use crate::local::Local;
     // pub use crate::deferred::DeferredCommands;
     pub use crate::command::Commands;
+    pub use crate::system_config::IntoSystemConfigs;
     // TODO: Uncomment when implemented:
     // pub use crate::command::{CommandQueue, CommandBuffer};
-    // pub use crate::into_system::{SystemParamFunction, IntoSystemConfig, IntoSystemConfigs};
+    // pub use crate::into_system::{SystemParamFunction, IntoSystemConfig};
     
     // ==================== Schedule Types ====================
     pub use crate::schedule::{Schedule, Schedules, ScheduleLabel, ScheduleBuildSettings,
         ExecutorKind, LogLevel, ScheduleGraph, NodeId, NodeConfigs, SystemConfigs,
-        Stepping, SteppingState};
+        Stepping, SteppingState, ScheduleRunnerPlugin, RunMode, 
+        Startup, Update, FixedUpdate, PreUpdate, PostUpdate, Last, First};
     pub use crate::system_set::{SystemSet, IntoSystemSet, SystemSetConfig, SystemSetConfigs,
         IntoSystemSetConfig, IntoSystemSetConfigs, SystemTypeSet, AnonymousSet};
     pub use crate::condition::{Condition, IntoCondition, RunCriteria, ShouldRun};
@@ -125,7 +131,7 @@ pub mod prelude {
     // ==================== Event Types ====================
     pub use crate::event::{
         Event, Events, EventId, EventReader, EventWriter, EventIter as EventIterator,
-        EventCursor, EventRegistry, EventParIter,
+        EventCursor, EventRegistry, EventParIter, AppExit,
     };
     
     // ==================== Observer Types ====================
@@ -152,9 +158,9 @@ pub mod prelude {
     
     // ==================== Plugin System ====================
     pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};
-    // TODO: Uncomment when implemented:
-    // pub use crate::plugin::{PluginGroup, PluginGroupBuilder, SubApp, AppLabel,
-    //     CleanupPlugin};
+    
+    // Re-export derive macros
+    pub use autozig_macro::{Component, Resource, SystemSet};
 }
 
 // Re-export commonly used types at crate level

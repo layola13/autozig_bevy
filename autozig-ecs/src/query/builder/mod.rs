@@ -157,7 +157,7 @@ impl<'w> QueryBuilder<'w> {
 
     /// Build a typed query
     pub fn build<Q: QueryData, F: QueryFilter>(&self) -> crate::query::Query<'w, Q, F> {
-        unsafe { crate::query::Query::new(self.world, Box::leak(Box::new(crate::query::QueryState::new(self.world)))) }
+        unsafe { crate::query::Query::new(self.world, Box::leak(Box::new(crate::query::QueryStateInner::new::<Q, F>(self.world)))) }
     }
 
     /// Transmute to a different query type (type-level cast)

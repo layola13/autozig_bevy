@@ -59,6 +59,12 @@ impl<E: Event> Drop for Events<E> {
     }
 }
 
+impl<E: Event> Default for Events<E> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl<E: Event> Send for Events<E> {}
 unsafe impl<E: Event> Sync for Events<E> {}
 
@@ -119,3 +125,13 @@ pub struct EventId<E: Event>(u64, PhantomData<E>);
 pub struct EventCursor<E: Event>(u64, PhantomData<E>);
 pub struct EventRegistry;
 pub struct EventParIter;
+
+/// Event sent when the application should exit
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppExit {
+    #[default]
+    Success,
+    Error(u8),
+}
+
+

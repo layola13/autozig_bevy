@@ -8,9 +8,10 @@ use crate::{
 };
 
 /// Core trait for types that can be used in queries
-pub trait WorldQuery: Send + Sync {
+pub trait QueryData: Send + Sync + 'static {
     type Item<'w>;
     type Fetch<'w>: Fetch<'w, Item = Self::Item<'w>, State = Self::State>;
+    /// The state type used to maintain persistent data for this query
     type State: Send + Sync + 'static;
     type ReadOnly: ReadOnlyWorldQuery;
     const IS_READ_ONLY: bool;
@@ -42,131 +43,245 @@ pub trait WorldQuery: Send + Sync {
     fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool;
 }
 
-pub trait ReadOnlyWorldQuery: WorldQuery {}
+pub trait ReadOnlyWorldQuery: QueryData {}
 
 pub use super::fetch::{EntityFetch, ReadFetch, WriteFetch, OptionFetch};
+pub use QueryData as WorldQuery;
+pub use ReadOnlyWorldQuery as ReadOnlyQueryData;
 
 // Entity implementation
-impl WorldQuery for Entity {
+impl QueryData for Entity {
     type Item<'w> = Entity;
     type Fetch<'w> = EntityFetch;
     type State = ();
     type ReadOnly = Entity;
     const IS_READ_ONLY: bool = true;
-    fn init_state(_world: &crate::world::World) -> Self::State { () }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { EntityFetch::init(state, world, last_run, this_run) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
-    fn get_access(_state: &Self::State) -> Access { Access::new() }
-    fn update_component_access(_state: &Self::State, _access: &mut FilteredAccess) {}
-    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
+    fn init_state(_world: &crate::world::World) -> <Self as QueryData>::State { () }
+    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { EntityFetch::init(state, world, last_run, this_run) }
+    unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
+    unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
+    fn get_access(_state: &<Self as QueryData>::State) -> Access { Access::new() }
+    fn update_component_access(_state: &<Self as QueryData>::State, _access: &mut FilteredAccess) {}
+    fn matches_component_set(_state: &<Self as QueryData>::State, _set: &[ComponentId]) -> bool { true }
 }
 impl ReadOnlyWorldQuery for Entity {}
 
 // &T implementation
-impl<'a, T: Component> WorldQuery for &'a T {
+impl<T: Component> QueryData for &'static T {
     type Item<'w> = &'w T;
     type Fetch<'w> = ReadFetch<T>;
     type State = ComponentId;
-    type ReadOnly = &'a T;
+    type ReadOnly = &'static T;
     const IS_READ_ONLY: bool = true;
-    fn init_state(world: &crate::world::World) -> Self::State { world.component_id::<T>().expect("Component not registered") }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { ReadFetch::init(state, world, last_run, this_run) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
-    fn get_access(state: &Self::State) -> Access { let mut access = Access::new(); access.add_component_read(*state); access }
-    fn update_component_access(state: &Self::State, access: &mut FilteredAccess) { access.add_component_read(*state); }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool { set.contains(state) }
+    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { world.component_id::<T>().expect("Component not registered") }
+    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { ReadFetch::init(state, world, last_run, this_run) }
+    unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
+    unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
+    fn get_access(state: &<Self as QueryData>::State) -> Access { let mut access = Access::new(); access.add_component_read(*state); access }
+    fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) { access.add_component_read(*state); }
+    fn matches_component_set(state: &<Self as QueryData>::State, set: &[ComponentId]) -> bool { set.contains(state) }
 }
-impl<'a, T: Component> ReadOnlyWorldQuery for &'a T {}
+impl<T: Component> ReadOnlyWorldQuery for &'static T {}
 
 // &mut T implementation
-impl<'a, T: Component> WorldQuery for &'a mut T {
+impl<T: Component> QueryData for &'static mut T {
     type Item<'w> = &'w mut T;
     type Fetch<'w> = WriteFetch<T>;
     type State = ComponentId;
-    type ReadOnly = &'a T;
+    type ReadOnly = &'static T;
     const IS_READ_ONLY: bool = false;
-    fn init_state(world: &crate::world::World) -> Self::State { world.component_id::<T>().expect("Component not registered") }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { WriteFetch::init(state, world, last_run, this_run) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
-    fn get_access(state: &Self::State) -> Access { let mut access = Access::new(); access.add_component_write(*state); access }
-    fn update_component_access(state: &Self::State, access: &mut FilteredAccess) { access.add_component_write(*state); }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool { set.contains(state) }
+    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { world.component_id::<T>().expect("Component not registered") }
+    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { WriteFetch::init(state, world, last_run, this_run) }
+    unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { fetch.set_archetype(state, archetype, table); }
+    unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { fetch.set_table(state, table); }
+    fn get_access(state: &<Self as QueryData>::State) -> Access { let mut access = Access::new(); access.add_component_write(*state); access }
+    fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) { access.add_component_write(*state); }
+    fn matches_component_set(state: &<Self as QueryData>::State, set: &[ComponentId]) -> bool { set.contains(state) }
 }
 
 // Option<T> implementation
-impl<T: WorldQuery> WorldQuery for Option<T> {
+impl<T: QueryData> QueryData for Option<T> {
     type Item<'w> = Option<T::Item<'w>>;
     type Fetch<'w> = OptionFetch<T::Fetch<'w>>;
     type State = T::State;
     type ReadOnly = Option<T::ReadOnly>;
     const IS_READ_ONLY: bool = T::IS_READ_ONLY;
-    fn init_state(world: &crate::world::World) -> Self::State { T::init_state(world) }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { OptionFetch::new(T::init_fetch(world, state, last_run, this_run)) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { T::set_archetype(&mut fetch.inner, state, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { T::set_table(&mut fetch.inner, state, table); }
-    fn get_access(state: &Self::State) -> Access { T::get_access(state) }
-    fn update_component_access(state: &Self::State, access: &mut FilteredAccess) { T::update_component_access(state, access); }
-    fn matches_component_set(_state: &Self::State, _set: &[ComponentId]) -> bool { true }
+    fn init_state(world: &crate::world::World) -> <Self as QueryData>::State { T::init_state(world) }
+    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &<Self as QueryData>::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { OptionFetch::new(T::init_fetch(world, state, last_run, this_run)) }
+    unsafe fn set_archetype<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { T::set_archetype(&mut fetch.inner, state, archetype, table); }
+    unsafe fn set_table<'w>(fetch: &mut <Self as QueryData>::Fetch<'w>, state: &<Self as QueryData>::State, table: &crate::storage::Table) { T::set_table(&mut fetch.inner, state, table); }
+    fn get_access(state: &<Self as QueryData>::State) -> Access { T::get_access(state) }
+    fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) { T::update_component_access(state, access); }
+    fn matches_component_set(_state: &<Self as QueryData>::State, _set: &[ComponentId]) -> bool { true }
 }
 impl<T: ReadOnlyWorldQuery> ReadOnlyWorldQuery for Option<T> {}
 
-impl WorldQuery for () {
+impl QueryData for () {
     type Item<'w> = ();
     type Fetch<'w> = ();
     type State = ();
     type ReadOnly = ();
     const IS_READ_ONLY: bool = true;
-    fn init_state(_: &crate::world::World) -> Self::State { () }
-    unsafe fn init_fetch<'w>(_: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: &Self::State, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> Self::Fetch<'w> { () }
-    unsafe fn set_archetype<'w>(_: &mut Self::Fetch<'w>, _: &Self::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
-    unsafe fn set_table<'w>(_: &mut Self::Fetch<'w>, _: &Self::State, _: &crate::storage::Table) {}
-    fn get_access(_: &Self::State) -> Access { Access::new() }
-    fn update_component_access(_: &Self::State, _: &mut FilteredAccess) {}
-    fn matches_component_set(_: &Self::State, _: &[ComponentId]) -> bool { true }
+    fn init_state(_: &crate::world::World) -> <Self as QueryData>::State { () }
+    unsafe fn init_fetch<'w>(_: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _: &<Self as QueryData>::State, _: crate::change_detection::Tick, _: crate::change_detection::Tick) -> <Self as QueryData>::Fetch<'w> { () }
+    unsafe fn set_archetype<'w>(_: &mut <Self as QueryData>::Fetch<'w>, _: &<Self as QueryData>::State, _: &crate::archetype::Archetype, _: &crate::storage::Table) {}
+    unsafe fn set_table<'w>(_: &mut <Self as QueryData>::Fetch<'w>, _: &<Self as QueryData>::State, _: &crate::storage::Table) {}
+    fn get_access(_: &<Self as QueryData>::State) -> Access { Access::new() }
+    fn update_component_access(_: &<Self as QueryData>::State, _: &mut FilteredAccess) {}
+    fn matches_component_set(_: &<Self as QueryData>::State, _: &[ComponentId]) -> bool { true }
 }
 impl ReadOnlyWorldQuery for () {}
 
-// 1-tuple implementation
-impl<A: WorldQuery> WorldQuery for (A,) {
-    type Item<'w> = (A::Item<'w>,);
-    type Fetch<'w> = (A::Fetch<'w>,);
-    type State = (A::State,);
-    type ReadOnly = (A::ReadOnly,);
-    const IS_READ_ONLY: bool = A::IS_READ_ONLY;
-    fn init_state(world: &crate::world::World) -> Self::State { (A::init_state(world),) }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { (A::init_fetch(world, &state.0, last_run, this_run),) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { A::set_archetype(&mut fetch.0, &state.0, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { A::set_table(&mut fetch.0, &state.0, table); }
-    fn get_access(state: &Self::State) -> Access { A::get_access(&state.0) }
-    fn update_component_access(state: &Self::State, access: &mut FilteredAccess) { A::update_component_access(&state.0, access); }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool { A::matches_component_set(&state.0, set) }
-}
-impl<A: ReadOnlyWorldQuery> ReadOnlyWorldQuery for (A,) {}
+macro_rules! impl_tuple_world_query {
+    ($(($name:ident, $var:ident)),*) => {
+        #[allow(non_snake_case)]
+        impl<$($name: WorldQuery),*> WorldQuery for ($($name,)*) {
+            type Item<'w> = ($($name::Item<'w>,)*);
+            type Fetch<'w> = ($($name::Fetch<'w>,)*);
+            type State = ($($name::State,)*);
+            type ReadOnly = ($($name::ReadOnly,)*);
+            const IS_READ_ONLY: bool = true $(&& $name::IS_READ_ONLY)*;
 
-// 2-tuple implementation
-impl<A: WorldQuery, B: WorldQuery> WorldQuery for (A, B) {
-    type Item<'w> = (A::Item<'w>, B::Item<'w>);
-    type Fetch<'w> = (A::Fetch<'w>, B::Fetch<'w>);
-    type State = (A::State, B::State);
-    type ReadOnly = (A::ReadOnly, B::ReadOnly);
-    const IS_READ_ONLY: bool = A::IS_READ_ONLY && B::IS_READ_ONLY;
-    fn init_state(world: &crate::world::World) -> Self::State { (A::init_state(world), B::init_state(world)) }
-    unsafe fn init_fetch<'w>(world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, state: &Self::State, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self::Fetch<'w> { (A::init_fetch(world, &state.0, last_run, this_run), B::init_fetch(world, &state.1, last_run, this_run)) }
-    unsafe fn set_archetype<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) { A::set_archetype(&mut fetch.0, &state.0, archetype, table); B::set_archetype(&mut fetch.1, &state.1, archetype, table); }
-    unsafe fn set_table<'w>(fetch: &mut Self::Fetch<'w>, state: &Self::State, table: &crate::storage::Table) { A::set_table(&mut fetch.0, &state.0, table); B::set_table(&mut fetch.1, &state.1, table); }
-    fn get_access(state: &Self::State) -> Access { let mut access = A::get_access(&state.0); access.extend(&B::get_access(&state.1)); access }
-    fn update_component_access(state: &Self::State, access: &mut FilteredAccess) { A::update_component_access(&state.0, access); B::update_component_access(&state.1, access); }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool { A::matches_component_set(&state.0, set) && B::matches_component_set(&state.1, set) }
-}
-impl<A: ReadOnlyWorldQuery, B: ReadOnlyWorldQuery> ReadOnlyWorldQuery for (A, B) {}
+            fn init_state(world: &crate::world::World) -> Self::State {
+                ($($name::init_state(world),)*)
+            }
 
-pub trait QueryData: WorldQuery {}
-pub trait ReadOnlyQueryData: QueryData + ReadOnlyWorldQuery {}
-impl<T: WorldQuery> QueryData for T {}
-impl<T: ReadOnlyWorldQuery> ReadOnlyQueryData for T {}
+            unsafe fn init_fetch<'w>(
+                world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>,
+                state: &Self::State,
+                last_run: crate::change_detection::Tick,
+                this_run: crate::change_detection::Tick,
+            ) -> Self::Fetch<'w> {
+                let ($($var,)*) = state;
+                ($($name::init_fetch(world, $var, last_run, this_run),)*)
+            }
+
+            unsafe fn set_archetype<'w>(
+                fetch: &mut Self::Fetch<'w>,
+                state: &Self::State,
+                archetype: &crate::archetype::Archetype,
+                table: &crate::storage::Table,
+            ) {
+                let ($($var,)*) = state;
+                let ($($name,)*) = fetch; // Shadowing here is fine if we use $var for state and $name for fetch vars? 
+                // No, better to use distinct names for fetch vars too or just index?
+                // Tuple destructuring: let (a_fetch, b_fetch) = fetch;
+                // Let's reuse $var with a suffix? Macro hygiene makes this hard.
+                // But we can just shadow $name here if we don't use $name as type anymore?
+                // Wait, we DO use $name as type: $name::set_archetype.
+                // So we CANNOT shadow $name.
+                // We need TWO variable names? Or just reuse $var for both and do it in steps?
+                // No, state and fetch are both tuples matching ($name...).
+                
+                // Let's use `fetch.0`, `fetch.1` via standard index? Can't easy loop with index.
+                // WE NEED another set of identifiers for fetch variables.
+                // OR we can just access by pattern match in the loop? No.
+                
+                // Solution: Use `state` destructuring into `$var`.
+                // Use `fetch` destructuring into something else?
+                // We can use a recursive macro to generate the tuple indices?
+                // Or just provide specific names for everything?
+                // `impl_tuple_world_query!((A, a, a_fetch), ...)`
+                
+                // Let's try to use `fetch` pattern matching in the function call?
+                // `let (ref mut f0, ref mut f1, ...) = fetch;`
+                // But we can't generate `f0`, `f1` without input.
+                
+                // Let's add a 3rd identifier for fetch variable.
+            }
+        }
+    }
+}
+// RESTARTING REPLACEMENT CONTENT TO FIX LOGIC above
+// Correct approach:
+// We need to destructure `fetch` (mutable) and `state` (immutable).
+// We cannot shadow `$name` because we need it for `$name::set_archetype`.
+// So we need unique variable names for the destructured parts.
+// I will require TWO variable names: one for state_field, one for fetch_field.
+// (A, s_a, f_a)
+
+macro_rules! impl_tuple_world_query {
+    ($(($name:ident, $state_var:ident, $fetch_var:ident)),*) => {
+        #[allow(non_snake_case)]
+        impl<$($name: QueryData),*> QueryData for ($($name,)*) {
+            type Item<'w> = ($($name::Item<'w>,)*);
+            type Fetch<'w> = ($($name::Fetch<'w>,)*);
+            type State = ($($name::State,)*);
+            type ReadOnly = ($($name::ReadOnly,)*);
+            const IS_READ_ONLY: bool = true $(&& $name::IS_READ_ONLY)*;
+
+            fn init_state(world: &crate::world::World) -> <Self as QueryData>::State {
+                ($($name::init_state(world),)*)
+            }
+
+            unsafe fn init_fetch<'w>(
+                world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>,
+                state: &<Self as QueryData>::State,
+                last_run: crate::change_detection::Tick,
+                this_run: crate::change_detection::Tick,
+            ) -> <Self as QueryData>::Fetch<'w> {
+                let ($($state_var,)*) = state;
+                ($($name::init_fetch(world, $state_var, last_run, this_run),)*)
+            }
+
+            unsafe fn set_archetype<'w>(
+                fetch: &mut <Self as QueryData>::Fetch<'w>,
+                state: &<Self as QueryData>::State,
+                archetype: &crate::archetype::Archetype,
+                table: &crate::storage::Table,
+            ) {
+                let ($($state_var,)*) = state;
+                let ($($fetch_var,)*) = fetch;
+                $($name::set_archetype($fetch_var, $state_var, archetype, table);)*
+            }
+
+            unsafe fn set_table<'w>(
+                fetch: &mut <Self as QueryData>::Fetch<'w>,
+                state: &<Self as QueryData>::State,
+                table: &crate::storage::Table,
+            ) {
+                let ($($state_var,)*) = state;
+                let ($($fetch_var,)*) = fetch;
+                $($name::set_table($fetch_var, $state_var, table);)*
+            }
+
+            fn get_access(state: &<Self as QueryData>::State) -> Access {
+                let ($($state_var,)*) = state;
+                let mut access = Access::new();
+                $(
+                    access.extend(&$name::get_access($state_var));
+                )*
+                access
+            }
+
+            fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) {
+                let ($($state_var,)*) = state;
+                $($name::update_component_access($state_var, access);)*
+            }
+
+            fn matches_component_set(state: &<Self as QueryData>::State, set: &[ComponentId]) -> bool {
+                let ($($state_var,)*) = state;
+                true $(&& $name::matches_component_set($state_var, set))*
+            }
+        }
+
+        impl<$($name: ReadOnlyWorldQuery),*> ReadOnlyWorldQuery for ($($name,)*) {}
+    };
+}
+
+impl_tuple_world_query!((A, a, fa));
+impl_tuple_world_query!((A, a, fa), (B, b, fb));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg), (H, h, fh));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg), (H, h, fh), (I, i, fi));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg), (H, h, fh), (I, i, fi), (J, j, fj));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg), (H, h, fh), (I, i, fi), (J, j, fj), (K, k, fk));
+impl_tuple_world_query!((A, a, fa), (B, b, fb), (C, c, fc), (D, d, fd), (E, e, fe), (F, f, ff), (G, g, fg), (H, h, fh), (I, i, fi), (J, j, fj), (K, k, fk), (L, l, fl));
+
 
 #[cfg(test)]
 pub(crate) mod tests {

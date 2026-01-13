@@ -42,18 +42,25 @@ extern "C" {
 /// 
 /// Manages the state of a query including matched entities, component access, and filters.
 /// Architecture: 90% Zig + 10% Rust
-pub struct QueryState<Q: QueryData = (), F: QueryFilter = ()> {
-    state: Q::State,
-    filter_state: F::State,
+pub struct QueryStateInner<S: Send + Sync + 'static, FS: Send + Sync + 'static> {
+    state: S,
+    filter_state: FS,
     inner: *mut QueryStateCoreOpaque,
     pub(crate) matched_archetypes: Vec<u32>,
     matched_entities_cache: Vec<Entity>, // Keeping for backward compatibility/legacy tests
-    _phantom: PhantomData<(Q, F)>,
+    _phantom: PhantomData<(S, FS)>,
 }
 
-impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
+/// Helper type alias to access QueryStateInner using Query types
+pub type QueryState<Q, F = ()> = QueryStateInner<<Q as QueryData>::State, <F as QueryFilter>::State>;
+
+// SAFETY: QueryStateInner manages its own internal state and raw pointers are to Zig-managed memory which should be thread-safe for query operations
+unsafe impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Send for QueryStateInner<S, FS> {}
+unsafe impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Sync for QueryStateInner<S, FS> {}
+
+impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS> {
     /// Create a new query state
-    pub fn new(world: &World) -> Self {
+    pub fn new<Q: QueryData<State=S>, F: QueryFilter<State=FS>>(world: &World) -> Self {
         let state = Q::init_state(world);
         let filter_state = F::init_state(world);
         Self {
@@ -76,7 +83,9 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Get a component for an entity
-    pub fn get<'w>(&self, _world: &'w World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> {
+    pub fn get<'w, Q>(&self, _world: &'w World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> 
+    where Q: QueryData<State=S>
+    {
         if self.matched_entities_cache.contains(&entity) {
              Err(QueryEntityError::QueryDoesNotMatch(entity))
         } else {
@@ -85,35 +94,45 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Get a mutable component for an entity
-    pub fn get_mut<'w>(&mut self, world: &'w mut World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> {
-        self.get(world, entity)
+    pub fn get_mut<'w, Q>(&mut self, world: &'w mut World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> 
+    where Q: QueryData<State=S>
+    {
+        self.get::<Q>(world, entity)
     }
     
     /// Get many entities at once
-    pub fn get_many<const N: usize>(
+    pub fn get_many<const N: usize, Q>(
         &self,
         _world: &World,
         _entities: [Entity; N],
-    ) -> Result<[Q; N], QueryEntityError> {
+    ) -> Result<[Q::Item<'_>; N], QueryEntityError> 
+    where Q: QueryData<State=S>
+    {
         Err(QueryEntityError::NoSuchEntity(Entity::from_raw(0)))
     }
     
     /// Get many entities mutably
-    pub fn get_many_mut<const N: usize>(
+    pub fn get_many_mut<const N: usize, Q>(
         &mut self,
         _world: &mut World,
         _entities: [Entity; N],
-    ) -> Result<[Q; N], QueryEntityError> {
+    ) -> Result<[Q::Item<'_>; N], QueryEntityError> 
+    where Q: QueryData<State=S>
+    {
         Err(QueryEntityError::NoSuchEntity(Entity::from_raw(0)))
     }
     
     /// Get unchecked (unsafe, no validation)
-    pub unsafe fn get_unchecked(&self, _world: &World, _entity: Entity) -> Q {
-        panic!("Unchecked access not implemented")
+    pub unsafe fn get_unchecked<Q>(&self, _world: &World, _entity: Entity) -> Q::Item<'_> 
+    where Q: QueryData<State=S>
+    {
+         panic!("Unchecked access not implemented")
     }
     
     /// Iterate over query results
-    pub fn iter<'w>(&'w self, world: &'w World) -> QueryStateIter<'w, Q, F> {
+    pub fn iter<'w, Q, F>(&'w self, world: &'w World) -> QueryStateIter<'w, Q, F> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         let cell = world.as_unsafe_world_cell_readonly();
         let fetch = unsafe {
             Q::init_fetch(
@@ -136,7 +155,9 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Iterate mutably over query results
-    pub fn iter_mut<'w>(&'w mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> {
+    pub fn iter_mut<'w, Q, F>(&'w mut self, world: &'w mut World) -> QueryStateIterMut<'w, Q, F> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         let last_run = world.last_change_tick();
         let this_run = world.read_change_tick();
         let world_ptr = world.inner;
@@ -163,10 +184,12 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Iterate over combinations
-    pub fn iter_combinations<const N: usize>(
+    pub fn iter_combinations<const N: usize, Q, F>(
         &self,
         _world: &World,
-    ) -> QueryCombinationIter<'_, Q, F, N> {
+    ) -> QueryCombinationIter<'_, Q, F, N> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryCombinationIter {
             _phantom: PhantomData,
             entities: &self.matched_entities_cache,
@@ -175,7 +198,9 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Get single entity matching query
-    pub fn single(&self, _world: &World) -> Result<Q, QuerySingleError> {
+    pub fn single<Q>(&self, _world: &World) -> Result<Q::Item<'_>, QuerySingleError> 
+    where Q: QueryData<State=S>
+    {
         let count = self.matched_entity_count();
         match count {
             0 => Err(QuerySingleError::NoEntities("No entities match query")),
@@ -185,12 +210,16 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Get single entity mutably
-    pub fn single_mut(&mut self, _world: &mut World) -> Result<Q, QuerySingleError> {
-        self.single(&World::new())
+    pub fn single_mut<Q>(&mut self, _world: &mut World) -> Result<Q::Item<'_>, QuerySingleError> 
+    where Q: QueryData<State=S>
+    {
+        self.single::<Q>(&World::new())
     }
     
     /// Get single entity unchecked
-    pub unsafe fn single_unchecked(&self, _world: &World) -> Q {
+    pub unsafe fn single_unchecked<Q>(&self, _world: &World) -> Q::Item<'_> 
+    where Q: QueryData<State=S>
+    {
         panic!("Single unchecked not implemented")
     }
     
@@ -200,16 +229,21 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Get query result count
-    pub fn iter_manual<'w, 's>(&'s self, _world: &'w World) -> QueryStateIter<'s, Q, F> {
+    // NOTE: iter_manual relies on Q, F
+    pub fn iter_manual<'w, 's, Q, F>(&'s self, _world: &'w World) -> QueryStateIter<'s, Q, F> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         panic!("iter_manual not implemented")
     }
     
     /// Iterate many entities manually
-    pub fn iter_many<'w, 's, EntityList: IntoIterator<Item = Entity>>(
+    pub fn iter_many<'w, 's, Q, F, EntityList: IntoIterator<Item = Entity>>(
         &'s self,
         _world: &'w World,
         entities: EntityList,
-    ) -> QueryManyIter<'w, 's, Q, F, EntityList::IntoIter> {
+    ) -> QueryManyIter<'w, 's, Q, F, EntityList::IntoIter> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryManyIter {
             _phantom: PhantomData,
             entity_iter: entities.into_iter(),
@@ -217,11 +251,13 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Iterate many entities mutably
-    pub fn iter_many_mut<'w, 's, EntityList: IntoIterator<Item = Entity>>(
+    pub fn iter_many_mut<'w, 's, Q, F, EntityList: IntoIterator<Item = Entity>>(
         &'s mut self,
         _world: &'w mut World,
         entities: EntityList,
-    ) -> QueryManyIterMut<'w, 's, Q, F, EntityList::IntoIter> {
+    ) -> QueryManyIterMut<'w, 's, Q, F, EntityList::IntoIter> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryManyIterMut {
             _phantom: PhantomData,
             entity_iter: entities.into_iter(),
@@ -229,10 +265,12 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Iterate combinations manually
-    pub fn iter_combinations_manual<'w, 's, const N: usize>(
+    pub fn iter_combinations_manual<'w, 's, const N: usize, Q, F>(
         &'s self,
         _world: &'w World,
-    ) -> QueryCombinationIter<'s, Q, F, N> {
+    ) -> QueryCombinationIter<'s, Q, F, N> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryCombinationIter {
             _phantom: PhantomData,
             entities: &self.matched_entities_cache,
@@ -258,7 +296,9 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Parallel iteration
-    pub fn par_iter(&self, _world: &World) -> QueryParIter<'_, Q, F> {
+    pub fn par_iter<Q, F>(&self, _world: &World) -> QueryParIter<'_, Q, F> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryParIter {
             _phantom: PhantomData,
             entities: &self.matched_entities_cache,
@@ -266,7 +306,9 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Parallel mutable iteration
-    pub fn par_iter_mut(&mut self, _world: &mut World) -> QueryParIterMut<'_, Q, F> {
+    pub fn par_iter_mut<Q, F>(&mut self, _world: &mut World) -> QueryParIterMut<'_, Q, F> 
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
         QueryParIterMut {
             _phantom: PhantomData,
             entities: &self.matched_entities_cache,
@@ -274,35 +316,45 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
     
     /// Convert to readonly
-    pub fn as_readonly(&self) -> &QueryState<Q::ReadOnly, F>
-    where
-        Q: QueryData,
+    pub fn as_readonly(&self) -> &QueryStateInner<S, FS>
     {
+        // Actually this signature usually changes Q to Q::ReadOnly.
+        // But Q::ReadOnly::State == Q::State?
+        // Yes, likely.
         unsafe { &*(self as *const _ as *const _) }
     }
     
     /// Transmute to different query type
-    pub fn transmute<NewQ: QueryData>(&self, _world: &World) -> QueryState<NewQ, F> {
+    pub fn transmute<NewQ>(&self, _world: &World) -> QueryStateInner<NewQ::State, FS> 
+    where NewQ: QueryData
+    // We can't easily return QueryStateInner<NewQ::State> without re-checking state compatibility.
+    {
         panic!("QueryState::transmute not implemented")
     }
     
     /// Transmute with filtered
-    pub fn transmute_filtered<NewQ: QueryData, NewF: QueryFilter>(
+    pub fn transmute_filtered<NewQ, NewF>(
         &self,
         _world: &World,
-    ) -> QueryState<NewQ, NewF> {
+    ) -> QueryStateInner<NewQ::State, NewF::State>
+    where NewQ: QueryData, NewF: QueryFilter 
+    {
         panic!("QueryState::transmute_filtered not implemented")
     }
     
     /// Transmute to lens
-    pub fn transmute_lens<NewQ: QueryData>(&self) -> QueryLens<'_, NewQ, F> {
+    pub fn transmute_lens<NewQ>(&self) -> QueryLens<'_, NewQ, ()> // F = ()? Need NewF?
+    where NewQ: QueryData<State=S> // Constrained?
+    {
         panic!("QueryState::transmute_lens not implemented")
     }
     
     /// Transmute filtered lens
-    pub fn transmute_lens_filtered<NewQ: QueryData, NewF: QueryFilter>(
+    pub fn transmute_lens_filtered<NewQ, NewF>(
         &self,
-    ) -> QueryLens<'_, NewQ, NewF> {
+    ) -> QueryLens<'_, NewQ, NewF> 
+    where NewQ: QueryData<State=S>, NewF: QueryFilter<State=FS>
+    {
         panic!("QueryState::transmute_lens_filtered not implemented")
     }
     
@@ -369,7 +421,7 @@ impl<Q: QueryData, F: QueryFilter> QueryState<Q, F> {
     }
 }
 
-impl<Q: QueryData, F: QueryFilter> Drop for QueryState<Q, F> {
+impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Drop for QueryStateInner<S, FS> {
     fn drop(&mut self) {
         query_state_destroy(self.inner);
     }
@@ -629,64 +681,68 @@ mod tests {
     use super::*;
     use crate::component::Component;
     use crate::change_detection::Tick;
+    use crate::world::World;
+    use crate::entity::Entity;
 
     #[derive(Debug, Clone, Copy, PartialEq)]
     struct Position { x: f32, y: f32 }
     impl Component for Position {}
 
     #[test]
-    fn test_query_state_creation() {
+    fn test_query_state_create() {
         let world = World::new();
-        let _state = QueryState::<(), ()>::new(&world);
+        let _state = QueryState::<(), ()>::new::<(), ()>(&world);
     }
 
     #[test]
     fn test_query_state_is_empty() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
         assert!(state.is_empty(&world));
     }
 
     #[test]
     fn test_query_state_matched_count() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
         assert_eq!(state.matched_entity_count(), 0);
     }
 
     #[test]
     fn test_query_state_component_count() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
         assert_eq!(state.component_count(), 0);
     }
 
     #[test]
     fn test_query_state_iter() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
-        let mut iter = state.iter(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
+        let mut iter = state.iter::<(), ()>(&world);
         assert!(iter.next().is_none());
     }
 
     #[test]
     fn test_query_state_contains() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
         assert!(!state.contains(Entity::from_raw(0)));
     }
 
     #[test]
     fn test_query_state_validate_world() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
         assert!(state.validate_world(&world));
     }
 
     #[test]
     fn test_query_state_matches_archetype() {
         let world = World::new();
-        let state = QueryState::<(), ()>::new(&world);
+        let state = QueryState::<(), ()>::new::<(), ()>(&world);
+        // assert!(state.matches_archetype(0)); // This method might not exist or work on empty
+        // Reverting to what was there in file view:
         assert!(state.matches_archetype(0));
     }
 }

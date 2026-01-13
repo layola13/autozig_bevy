@@ -171,6 +171,11 @@ impl World {
         self.resource_registry.get_mut::<R>()
     }
     
+    /// Inserts a new resource
+    pub fn insert_resource<R: Resource>(&mut self, resource: R) {
+        self.resource_registry.insert(resource);
+    }
+    
     /// Retrieves this World's unique ID
     #[inline]
     pub fn id(&self) -> WorldId {
@@ -385,7 +390,7 @@ impl World {
     /// Returns QueryState for the given filtered QueryData
     #[inline]
     pub fn query_filtered<D: QueryData, F: QueryFilter>(&mut self) -> QueryState<D, F> {
-        QueryState::new(self)
+        crate::query::QueryStateInner::new::<D, F>(self)
     }
     
     /// Clears the internal component tracker state

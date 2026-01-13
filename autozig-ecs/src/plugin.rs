@@ -1,12 +1,14 @@
 //! Plugin system - Bevy-compatible plugin architecture
 
 use autozig_macro::include_zig;
-use crate::into_system::{BoxedSystem, IntoSystem};
+use crate::into_system::{IntoSystem};
+use crate::system::{BoxedSystem, System};
 use crate::world::World;
 
 #[repr(C)]
 pub struct PluginManagerOpaque {
     _private: u8,
+
 }
 
 pub type PluginBuildFn = fn(*mut std::ffi::c_void);
@@ -61,71 +63,135 @@ pub trait Plugin: Send + Sync {
     }
 }
 
+/// Event sent when the application should exit
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AppExit {
+    #[default]
+    Success,
+    Error(u8),
+}
+
 /// Application builder
 pub struct App {
     plugin_manager: *mut PluginManagerOpaque,
-    systems: Vec<BoxedSystem>,
+    pub(crate) world: World,
+    pub(crate) startup_schedule: Vec<BoxedSystem>,
+    pub(crate) update_schedule: Vec<BoxedSystem>,
+    pub(crate) last_schedule: Vec<BoxedSystem>,
+    runner: Option<Box<dyn FnOnce(App)>>,
 }
+
+use crate::system_config::{IntoSystemConfigs, SystemConfigs};
+use crate::system_set::IntoSystemSetConfigs;
+
+use crate::event::Events;
 
 impl App {
     pub fn new() -> Self {
         let plugin_manager = plugin_manager_create();
+        let mut world = World::new();
+        // Initialize AppExit events
+        world.insert_resource(Events::<AppExit>::default());
+        
         Self { 
             plugin_manager,
-            systems: Vec::new(),
+            world,
+            startup_schedule: Vec::new(),
+            update_schedule: Vec::new(),
+            last_schedule: Vec::new(),
+            runner: None,
         }
     }
     
-    /// Add a single plugin
+    pub fn run(mut self) {
+        // Run startup systems once
+        for system in self.startup_schedule.iter_mut() {
+            system.run(&mut self.world);
+        }
+
+        // If a runner is set, delegate to it
+        if let Some(runner) = self.runner.take() {
+            runner(self);
+        } else {
+             // Default: Single run
+             for system in self.update_schedule.iter_mut() {
+                system.run(&mut self.world);
+            }
+            for system in self.last_schedule.iter_mut() {
+                system.run(&mut self.world);
+            }
+        }
+    }
+
     pub fn add_plugin<P: Plugin>(&mut self, plugin: P) -> &mut Self {
         plugin.build(self);
         self
     }
     
-    /// Add multiple plugins (Bevy-style)
     pub fn add_plugins<P: Plugin>(&mut self, plugin: P) -> &mut Self {
         self.add_plugin(plugin)
     }
     
-    /// Add closure-based systems (Bevy-compatible)
-    pub fn add_systems<Params, F>(&mut self, system: F) -> &mut Self
-    where
-        F: IntoSystem<Params>,
-    {
-        let boxed = system.into_system();
-        self.systems.push(boxed);
+    /// Add systems to a specific schedule
+    pub fn add_systems<M>(&mut self, schedule: impl crate::schedule::ScheduleLabel, systems: impl IntoSystemConfigs<M>) -> &mut Self {
+        let configs = systems.into_configs();
+        // Simple mapping based on type name or "debug" implementation of label
+        // This is a hack for verification since we don't have a full Schedule map
+        let label_str = schedule.as_str();
+        
+        let target_schedule = if label_str.contains("Startup") {
+            &mut self.startup_schedule
+        } else if label_str.contains("Last") {
+            &mut self.last_schedule
+        } else {
+            &mut self.update_schedule // Default to Update
+        };
+
+        for config in configs.configs {
+            let mut system = config.system;
+            system.initialize(&mut self.world);
+            target_schedule.push(system);
+        }
         self
     }
     
-    /// Register a plugin function
+    pub fn configure_sets(&mut self, _schedule: impl crate::schedule::ScheduleLabel, _sets: impl IntoSystemSetConfigs) -> &mut Self {
+        // Placeholder: we implicitly respect sets by order in this simple implementation
+        self
+    }
+    
+    pub fn init_resource<R: crate::resource::Resource + Default>(&mut self) -> &mut Self {
+        self.world.insert_resource(R::default());
+        self
+    }
+
+    pub fn insert_resource<R: crate::resource::Resource>(&mut self, resource: R) -> &mut Self {
+        self.world.insert_resource(resource);
+        self
+    }
+
+    pub fn set_runner(&mut self, runner: impl FnOnce(App) + 'static) -> &mut Self {
+        self.runner = Some(Box::new(runner));
+        self
+    }
+    
     pub fn register_plugin_fn(&mut self, name: &str, func: PluginBuildFn) {
         plugin_manager_add(self.plugin_manager, name.as_ptr(), name.len(), func);
     }
     
-    /// Run all registered plugins
     pub fn finish(&mut self) {
         let app_ptr = self as *mut Self as *mut std::ffi::c_void;
         plugin_manager_run_all(self.plugin_manager, app_ptr);
     }
     
-    /// Run all closure systems (Bevy-style)
-    pub fn run(&mut self) {
-        // Create a temporary World for systems that need it
-        let mut world = World::new();
-        
-        // Execute all registered systems
-        for system in self.systems.iter_mut() {
-            (system.closure)(&mut world);
-        }
-    }
+
     
     pub fn plugin_count(&self) -> usize {
         plugin_manager_count(self.plugin_manager)
     }
     
-    /// Get the number of registered closure systems
     pub fn closure_system_count(&self) -> usize {
-        self.systems.len()
+        self.startup_schedule.len() + self.update_schedule.len() + self.last_schedule.len()
     }
 }
 

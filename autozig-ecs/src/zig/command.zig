@@ -9,13 +9,14 @@ pub const OpCode = enum(u8) {
     Despawn = 2,
     InsertComponent = 3,
     RemoveComponent = 4,
+    InsertResource = 5,
 };
 
 // CommandBuffer - 延迟命令队列
 pub const CommandBuffer = struct {
     stream: std.ArrayList(u8),
     allocator: std.mem.Allocator,
-    
+
     pub fn init(allocator: std.mem.Allocator) !*CommandBuffer {
         const buffer = try allocator.create(CommandBuffer);
         buffer.* = CommandBuffer{
@@ -24,23 +25,23 @@ pub const CommandBuffer = struct {
         };
         return buffer;
     }
-    
+
     pub fn deinit(self: *CommandBuffer) void {
         self.stream.deinit(self.allocator);
         self.allocator.destroy(self);
     }
-    
+
     // 写入Spawn命令
     pub fn writeSpawn(self: *CommandBuffer) !void {
         try self.stream.append(self.allocator, @intFromEnum(OpCode.Spawn));
     }
-    
+
     // 写入Despawn命令
     pub fn writeDespawn(self: *CommandBuffer, entity_idx: u32) !void {
         try self.stream.append(self.allocator, @intFromEnum(OpCode.Despawn));
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&entity_idx));
     }
-    
+
     // 写入InsertComponent命令
     pub fn writeInsert(
         self: *CommandBuffer,
@@ -51,32 +52,49 @@ pub const CommandBuffer = struct {
         try self.stream.append(self.allocator, @intFromEnum(OpCode.InsertComponent));
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&entity_idx));
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&component_id));
-        
+
         // 写入数据长度
         const data_len: u32 = @intCast(data.len);
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&data_len));
-        
+
         // 写入数据
         try self.stream.appendSlice(self.allocator, data);
     }
-    
+
+    // 写入InsertResource命令
+    pub fn writeInsertResource(
+        self: *CommandBuffer,
+        resource_id: u32,
+        data: []const u8,
+    ) !void {
+        try self.stream.append(self.allocator, @intFromEnum(OpCode.InsertResource));
+        try self.stream.appendSlice(self.allocator, std.mem.asBytes(&resource_id));
+
+        // 写入数据长度
+        const data_len: u32 = @intCast(data.len);
+        try self.stream.appendSlice(self.allocator, std.mem.asBytes(&data_len));
+
+        // 写入数据
+        try self.stream.appendSlice(self.allocator, data);
+    }
+
     // 写入RemoveComponent命令
     pub fn writeRemove(self: *CommandBuffer, entity_idx: u32, component_id: u32) !void {
         try self.stream.append(self.allocator, @intFromEnum(OpCode.RemoveComponent));
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&entity_idx));
         try self.stream.appendSlice(self.allocator, std.mem.asBytes(&component_id));
     }
-    
+
     // 清空命令缓冲
     pub fn clear(self: *CommandBuffer) void {
         self.stream.clearRetainingCapacity();
     }
-    
+
     // 获取原始字节流（用于apply）
     pub fn getStream(self: *const CommandBuffer) []const u8 {
         return self.stream.items;
     }
-    
+
     pub fn isEmpty(self: *const CommandBuffer) bool {
         return self.stream.items.len == 0;
     }
@@ -115,6 +133,17 @@ export fn command_buffer_write_insert(
     return true;
 }
 
+export fn command_buffer_write_insert_resource(
+    buffer: *CommandBuffer,
+    resource_id: u32,
+    data_ptr: [*]const u8,
+    data_len: usize,
+) bool {
+    const data = data_ptr[0..data_len];
+    buffer.writeInsertResource(resource_id, data) catch return false;
+    return true;
+}
+
 export fn command_buffer_write_remove(
     buffer: *CommandBuffer,
     entity_idx: u32,
@@ -147,11 +176,11 @@ export fn command_buffer_apply_simple(buffer: *CommandBuffer) u32 {
     var executed: u32 = 0;
     var cursor: usize = 0;
     const bytes = buffer.stream.items;
-    
+
     while (cursor < bytes.len) {
         const op = @as(OpCode, @enumFromInt(bytes[cursor]));
         cursor += 1;
-        
+
         switch (op) {
             .Spawn => {
                 // 实际执行spawn逻辑
@@ -177,9 +206,19 @@ export fn command_buffer_apply_simple(buffer: *CommandBuffer) u32 {
                 cursor += 8;
                 executed += 1;
             },
+            .InsertResource => {
+                // Skip resource_id (4)
+                cursor += 4;
+                // Read data_len
+                const data_len = std.mem.bytesToValue(u32, bytes[cursor..][0..4]);
+                cursor += 4;
+                // Skip data
+                cursor += data_len;
+                executed += 1;
+            },
         }
     }
-    
+
     buffer.clear();
     return executed;
 }

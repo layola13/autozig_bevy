@@ -40,6 +40,7 @@ pub mod state;
 pub use self::error::{QueryEntityError, QuerySingleError, QueryComponentError, QueryBuildError, QueryIterError, QueryError};
 pub use self::world_query::{QueryData, ReadOnlyQueryData, WorldQuery, ReadOnlyWorldQuery, OptionFetch};
 pub use self::state::QueryState;
+pub use self::state::QueryStateInner;
 pub use self::builder::QueryBuilder;
 pub use self::fetch::{EntityFetch, ReadFetch, WriteFetch, Fetch};
 pub use self::filter::{With, Without, Or, Added, Changed, QueryFilter};
@@ -97,7 +98,7 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
 
     /// Get component data for a specific entity
     pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
-        self.state().get(self.world, entity)
+        self.state().get::<Q>(self.world, entity)
     }
 }
 
@@ -127,10 +128,43 @@ impl<'w, Q: QueryData, F: QueryFilter> QueryMut<'w, Q, F> {
     /// Get mutable component data for a specific entity
     pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'_>, QueryEntityError> {
         let world_ptr = self.world as *const World as usize as *mut World;
-        self.state_mut().get_mut(unsafe { &mut *world_ptr }, entity)
+        self.state_mut().get_mut::<Q>(unsafe { &mut *world_ptr }, entity)
     }
 }
+
+unsafe impl<'w, Q: QueryData, F: QueryFilter> Send for Query<'w, Q, F> {}
+unsafe impl<'w, Q: QueryData, F: QueryFilter> Sync for Query<'w, Q, F> {}
+
+unsafe impl<'w, Q: QueryData, F: QueryFilter> Send for QueryMut<'w, Q, F> {}
+unsafe impl<'w, Q: QueryData, F: QueryFilter> Sync for QueryMut<'w, Q, F> {}
 
 /// Helper for Read and Write (legacy support if needed, but preferred to use &T and &mut T)
 pub type Read<'a, T> = &'a T;
 pub type Write<'a, T> = &'a mut T;
+
+impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a Query<'w, Q, F> {
+    type Item = Q::Item<'a>;
+    type IntoIter = QueryIter<'a, Q, F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a mut Query<'w, Q, F> {
+    type Item = Q::Item<'a>;
+    type IntoIter = QueryIter<'a, Q, F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, 'w, Q: QueryData, F: QueryFilter> IntoIterator for &'a mut QueryMut<'w, Q, F> {
+    type Item = Q::Item<'a>;
+    type IntoIter = QueryIterMut<'a, Q, F>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}

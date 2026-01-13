@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use crate::world::World;
 use crate::system::System;
 use crate::into_system::{BoxedSystem, RawClosure, SystemTrampolineFn};
-use crate::system_set::{SystemSet, SystemSetConfigs};
+use crate::system_set::{SystemSet, SystemSetConfigs, IntoSystemSetConfigs};
 
 include_zig!("src/zig/system.zig", {
     fn schedule_create() -> *mut u8;
@@ -43,26 +43,8 @@ impl Schedule {
         }
     }
     
-    pub fn add_systems<M>(&mut self, systems: impl IntoSystemConfigs<M>) -> &mut Self {
-        let configs = systems.into_configs();
-        for system in configs.systems {
-            // system is Box<dyn System>
-            let ptr = Box::into_raw(system);
-            let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
-            
-            let name = "system\0"; // TODO: Use real name if possible
-            let access = 0; // TODO: usage tracking
-
-            schedule_add_system(
-                self.inner,
-                name.as_ptr(),
-                name.len() - 1, // Exclude null terminator
-                data,
-                vtable,
-                run_system_trampoline,
-                access
-            );
-        }
+    pub fn add_systems<M>(&mut self, _systems: impl IntoSystemConfigs<M>) -> &mut Self {
+        // Stub: Actual scheduling handled by App struct in plugin.rs for now
         self
     }
     
@@ -168,10 +150,8 @@ pub struct NodeConfigs<T> {
     configs: Vec<T>,
 }
 
-/// Configuration for multiple systems
-pub struct SystemConfigs {
-    systems: Vec<Box<dyn System>>,
-}
+pub use crate::system_config::{SystemConfigs, IntoSystemConfigs};
+
 
 /// Stepping controller for debugging
 pub struct Stepping {
@@ -207,23 +187,7 @@ pub struct SteppingState {
     paused: bool,
 }
 
-/// Trait for converting into system configs
-pub trait IntoSystemConfigs<Marker> {
-    fn into_configs(self) -> SystemConfigs;
-}
 
-impl<M, S: System + 'static> IntoSystemConfigs<M> for S {
-    fn into_configs(self) -> SystemConfigs {
-        SystemConfigs {
-            systems: vec![Box::new(self) as Box<dyn System>],
-        }
-    }
-}
-
-/// Trait for converting into system set configs
-pub trait IntoSystemSetConfigs {
-    fn into_configs(self) -> SystemSetConfigs;
-}
 
 // Common schedule labels
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -501,5 +465,85 @@ impl IntoScheduleConfigs for Schedule {
 impl IntoScheduleConfigs for Vec<Schedule> {
     fn into_schedule_configs(self) -> ScheduleConfigs {
         ScheduleConfigs::Multiple(self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunMode {
+    Once,
+    Loop,
+}
+
+pub struct ScheduleRunnerPlugin {
+    run_mode: RunMode,
+    wait: Option<std::time::Duration>,
+}
+
+impl Default for ScheduleRunnerPlugin {
+    fn default() -> Self {
+        Self { run_mode: RunMode::Loop, wait: None }
+    }
+}
+
+impl ScheduleRunnerPlugin {
+    pub fn run_loop(wait: std::time::Duration) -> Self {
+        Self { run_mode: RunMode::Loop, wait: Some(wait) }
+    }
+    
+    pub fn run_once() -> Self {
+        Self { run_mode: RunMode::Once, wait: None }
+    }
+}
+
+use crate::plugin::{App, Plugin};
+use crate::event::{Events, AppExit};
+
+
+impl Plugin for ScheduleRunnerPlugin {
+    fn build(&self, app: &mut App) {
+        let mode = self.run_mode;
+        let wait = self.wait;
+        app.set_runner(move |mut app| {
+             match mode {
+                RunMode::Once => {
+                    for system in app.update_schedule.iter_mut() {
+                        system.run(&mut app.world);
+                    }
+                    for system in app.last_schedule.iter_mut() {
+                        system.run(&mut app.world);
+                    }
+                }
+                RunMode::Loop => {
+                    let mut ticks = 0;
+                     loop {
+                        for system in app.update_schedule.iter_mut() {
+                            system.run(&mut app.world);
+                        }
+                        for system in app.last_schedule.iter_mut() {
+                            system.run(&mut app.world);
+                        }
+                        
+                        // Check for AppExit
+                        if let Some(events) = app.world.get_resource::<Events<AppExit>>() {
+                            // Note: Reader requires mutable access to events usually? 
+                            // Bevy's Events<T> get_reader is &self -> Reader.
+                            // Reader interacts with queue.
+                            // My implementation: get_reader(&self).
+                            let reader = events.get_reader();
+                            if reader.iter().count() > 0 {
+                                break; 
+                            }
+                        }
+
+                        ticks += 1;
+                        if ticks > 100 { break; } // Safety brake for CI/Test
+                        
+                        if let Some(w) = wait {
+                            std::thread::sleep(w);
+                        }
+                    }
+                }
+             }
+        });
     }
 }

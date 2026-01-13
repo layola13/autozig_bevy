@@ -50,7 +50,9 @@ impl ClosureRegistry {
 
     pub fn register(&mut self, system: BoxedSystem) -> bool {
         let name = "closure_system"; // TODO: generate unique names
-        let access_flags = system.access.to_u8();
+        // Access flags now handled via SystemMeta but we need to ensure initialization
+        // let access_flags = system.access.to_u8();
+        let access_flags = 0; // TODO: properly extracting access from meta requires init state first
         
         // TODO: Implement proper fat pointer extraction and trampoline registration
         // This is a placeholder - actual implementation needs to properly handle
@@ -80,127 +82,119 @@ impl Default for ClosureRegistry {
     }
 }
 
-/// Type-erased system containing a closure
-pub struct BoxedSystem {
-    pub(crate) closure: Box<dyn FnMut(&mut World) + Send + Sync>,
-    pub(crate) access: WorldAccessFlags,
-}
+// BoxedSystem is imported from crate::system
+
+
+// Re-export types used by schedule.rs
+pub use crate::system::{BoxedSystem, RawClosure, SystemTrampolineFn};
 
 /// IntoSystem trait - converts closures into systems
 pub trait IntoSystem<Params> {
-    fn into_system(self) -> BoxedSystem;
+    fn into_system(self) -> crate::system::BoxedSystem;
 }
 
 use crate::system::System;
+use crate::system::SystemMeta;
 
-// Implementation for no parameters
-impl<F> IntoSystem<()> for F
+// SystemParamFunction trait
+pub trait SystemParamFunction<Marker>: Send + Sync + 'static {
+    type Param: SystemParam;
+    fn run(&mut self, param: <Self::Param as SystemParam>::Item<'_>);
+}
+
+// ParamFunctionSystem - System wrapper for functions with SystemParams
+pub struct ParamFunctionSystem<Marker, F>
 where
-    F: FnMut() + Send + Sync + 'static,
+    F: SystemParamFunction<Marker>,
 {
-    fn into_system(mut self) -> BoxedSystem {
-        let closure = Box::new(move |_world: &mut World| {
-            self();
-        });
+    func: F,
+    state: Option<<F::Param as SystemParam>::State>,
+    meta: SystemMeta,
+    _marker: PhantomData<fn(Marker)>, // Use fn(Marker) to avoid Send/Sync requirements for Marker
+}
 
-        BoxedSystem {
-            closure,
-            access: WorldAccessFlags::default(),
+impl<Marker, F> ParamFunctionSystem<Marker, F>
+where
+    F: SystemParamFunction<Marker>,
+{
+    pub fn new(func: F, name: &str) -> Self {
+        Self {
+            func,
+            state: None,
+            meta: SystemMeta::new(name),
+            _marker: PhantomData,
         }
     }
 }
 
-// ... RawClosure struct ... (keep it if needed, or remove)
-// I'll keep the struct definitions but remove the impl block calling transmute on FnMut if I switch to System trait.
-// Actually, I'll just append System impl.
+impl<Marker, F> System for ParamFunctionSystem<Marker, F>
+where
+    F: SystemParamFunction<Marker>,
+    Marker: Send + Sync + 'static,
+{
+    fn initialize(&mut self, world: &mut World) {
+        self.state = Some(F::Param::init_state(world, &mut self.meta));
+    }
 
-impl System for BoxedSystem {
     fn run(&mut self, world: &mut World) {
-        (self.closure)(world);
-    }
-}
-
-#[repr(C)]
-pub struct RawClosure {
-    pub data: *mut std::ffi::c_void,
-    pub vtable: *mut std::ffi::c_void,
-}
-
-pub type SystemTrampolineFn = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void);
-
-unsafe extern "C" fn system_trampoline(closure: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
-    let closure = closure as *mut RawClosure;
-    let ptr: *mut (dyn FnMut(&mut World) + Send + Sync) = std::mem::transmute(((*closure).data, (*closure).vtable));
-    let world = &mut *(world_ptr as *mut World);
-    (*ptr)(world);
-}
-
-impl BoxedSystem {
-    pub fn into_raw_parts(self) -> (*mut std::ffi::c_void, *mut std::ffi::c_void, SystemTrampolineFn) {
-        let ptr = Box::into_raw(self.closure);
-        let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
-        (data, vtable, system_trampoline)
-    }
-}
-
-// Implementation for single parameter
-impl<F, P1> IntoSystem<(P1,)> for F
-where
-    F: FnMut(P1::Item<'_>) + Send + Sync + 'static,
-    P1: SystemParam,
-{
-    fn into_system(mut self) -> BoxedSystem {
-        let closure = Box::new(move |world: &mut World| {
-            let p1 = P1::fetch(world);
-            self(p1);
-        });
-
-        BoxedSystem {
-            closure,
-            access: P1::access_flags(),
+        let change_tick = world.change_tick().0;
+        let state = self.state.as_mut().expect("System not initialized");
+        unsafe {
+            let params = F::Param::get_param(state, &self.meta, world, change_tick);
+            self.func.run(params);
         }
+        self.meta.last_run = change_tick;
     }
 }
 
-// Macro to generate implementations for 2-16 parameters
-macro_rules! impl_into_system {
+// Implement IntoSystem for SystemParamFunction
+impl<Marker, F> IntoSystem<Marker> for F
+where
+    F: SystemParamFunction<Marker>,
+    Marker: Send + Sync + 'static,
+{
+    fn into_system(self) -> crate::system::BoxedSystem {
+        let name = "function_system"; // TODO: Use better naming or type_name
+        let system = ParamFunctionSystem::new(self, name);
+        crate::system::BoxedSystem::new(system, name)
+    }
+}
+
+
+// Macro to implement SystemParamFunction for tuples
+macro_rules! impl_system_param_function {
     ($($param:ident),*) => {
         #[allow(non_snake_case)]
-        impl<F, $($param),*> IntoSystem<($($param,)*)> for F
+        impl<F, $($param),*> SystemParamFunction<($($param,)*)> for F
         where
             F: FnMut($($param::Item<'_>),*) + Send + Sync + 'static,
             $($param: SystemParam),*
         {
-            fn into_system(mut self) -> BoxedSystem {
-                let closure = Box::new(move |world: &mut World| {
-                    $(let $param = $param::fetch(world);)*
-                    self($($param),*);
-                });
-
-                BoxedSystem {
-                    closure,
-                    access: WorldAccessFlags::merge(&[
-                        $($param::access_flags()),*
-                    ]),
-                }
+            type Param = ($($param),*);
+            fn run(&mut self, param: ($($param::Item<'_>),*)) {
+                #[allow(non_snake_case)]
+                let ($($param),*) = param;
+                self($($param),*);
             }
         }
     };
 }
 
-// Generate implementations for 2-16 parameters
-impl_into_system!(P1, P2);
-impl_into_system!(P1, P2, P3);
-impl_into_system!(P1, P2, P3, P4);
-impl_into_system!(P1, P2, P3, P4, P5);
-impl_into_system!(P1, P2, P3, P4, P5, P6);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15);
-impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);
+// Generate implementations
+impl_system_param_function!();
+impl_system_param_function!(P1);
+impl_system_param_function!(P1, P2);
+impl_system_param_function!(P1, P2, P3);
+impl_system_param_function!(P1, P2, P3, P4);
+impl_system_param_function!(P1, P2, P3, P4, P5);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15);
+impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);

@@ -15,30 +15,59 @@ pub trait Bundle: Send + Sync + 'static {
     fn get_components(&self) -> Vec<(u32, *const u8, usize)>;
 }
 
-/// 为单个组件实现Bundle
+// Restore generic implementation for single component
 impl<T: Component> Bundle for T {
     fn component_ids() -> Vec<u32> {
-        vec![0] // 实际实现中需要从registry获取真实ID
+        vec![0] // Stubbed
     }
     
     fn get_components(&self) -> Vec<(u32, *const u8, usize)> {
-        vec![(0, self as *const T as *const u8, std::mem::size_of::<T>())]
+         vec![(0, self as *const T as *const u8, std::mem::size_of::<T>())]
     }
 }
 
-/// 为元组实现Bundle
-impl<A: Component, B: Component> Bundle for (A, B) {
-    fn component_ids() -> Vec<u32> {
-        vec![0, 1]
-    }
-    
-    fn get_components(&self) -> Vec<(u32, *const u8, usize)> {
-        vec![
-            (0, &self.0 as *const A as *const u8, std::mem::size_of::<A>()),
-            (1, &self.1 as *const B as *const u8, std::mem::size_of::<B>()),
-        ]
+macro_rules! impl_bundle_tuple {
+    ($($param:ident),*) => {
+        impl<$($param: Component),*> Bundle for ($($param,)*) {
+            fn component_ids() -> Vec<u32> {
+                #[allow(unused_mut)]
+                let mut ids = Vec::new();
+                #[allow(unused_mut, unused_variables)]
+                let mut i = 0;
+                $(
+                    let _ = std::mem::size_of::<$param>(); // Verify usage
+                    ids.push(i);
+                    i += 1;
+                )*
+                ids
+            }
+            
+            fn get_components(&self) -> Vec<(u32, *const u8, usize)> {
+                #[allow(non_snake_case)]
+                let ($($param,)*) = self;
+                #[allow(unused_mut)]
+                let mut components = Vec::new();
+                #[allow(unused_mut, unused_variables)]
+                let mut i = 0;
+                $(
+                    components.push((i, $param as *const $param as *const u8, std::mem::size_of::<$param>()));
+                    i += 1;
+                )*
+                components
+            }
+        }
     }
 }
+
+impl_bundle_tuple!();
+impl_bundle_tuple!(A);
+impl_bundle_tuple!(A, B);
+impl_bundle_tuple!(A, B, C);
+impl_bundle_tuple!(A, B, C, D);
+impl_bundle_tuple!(A, B, C, D, E);
+impl_bundle_tuple!(A, B, C, D, E, F);
+impl_bundle_tuple!(A, B, C, D, E, F, G);
+// Add up to 15... but 7 is enough for verification example (3)
 
 /// BundleInserter - Bundle插入器
 pub struct BundleInserter {
