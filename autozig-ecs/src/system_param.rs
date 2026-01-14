@@ -6,6 +6,7 @@ use crate::command::Commands;
 use crate::query::{Query, QueryData, QueryFilter, QueryState, QueryStateInner};
 use crate::event::{Events, EventReader, EventWriter, Event};
 use crate::removal_detection::{RemovedComponentEvents, RemovedComponentEntity, RemovedComponents, RemovedComponentReader};
+use crate::system::In;
 use std::marker::PhantomData;
 
 /// World access flags for system scheduling
@@ -443,8 +444,125 @@ impl SystemParam for SystemName<'static> {
         _world: &'w World,
         _change_tick: u32,
     ) -> Self::Item<'w> {
-        // SAFETY: State lifetime outlives the function call  
+        // SAFETY: State lifetime outlives the function call
         let state_ptr = state as *const String;
         unsafe { SystemName((*state_ptr).as_str()) }
+    }
+}
+
+// Option<Res<T>>
+impl<T: Resource> SystemParam for Option<Res<'static, T>> {
+    type State = ();
+    type Item<'w> = Option<Res<'w, T>>;
+    
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        ()
+    }
+    
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        world.get_resource::<T>()
+    }
+}
+
+// Option<ResMut<T>>
+impl<T: Resource> SystemParam for Option<ResMut<'static, T>> {
+    type State = ();
+    type Item<'w> = Option<ResMut<'w, T>>;
+    
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        ()
+    }
+    
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        // SAFETY: We assume scheduler enforces safety or we check runtime borrows (TODO)
+        let world_ptr = world as *const World as *mut World;
+        unsafe { (*world_ptr).get_resource_mut::<T>() }
+    }
+}
+
+/// Single<T> - Ensures query matches exactly one entity
+pub struct Single<'w, D: QueryData, F: QueryFilter = ()> {
+    pub item: D::Item<'w>,
+    _marker: PhantomData<F>,
+}
+
+impl<'w, D: QueryData, F: QueryFilter> std::ops::Deref for Single<'w, D, F> {
+    type Target = D::Item<'w>;
+    fn deref(&self) -> &Self::Target {
+        &self.item
+    }
+}
+
+impl<'w, D: QueryData, F: QueryFilter> std::ops::DerefMut for Single<'w, D, F> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.item
+    }
+}
+
+impl<D: QueryData + 'static, F: QueryFilter + 'static> SystemParam for Single<'static, D, F> {
+    type State = QueryState<D, F>;
+    type Item<'w> = Single<'w, D, F>;
+    
+    fn init_state(world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        QueryStateInner::new::<D, F>(world)
+    }
+    
+    fn get_param<'w, 's>(
+        state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        let mut query = unsafe { Query::<D, F>::new(world, state as *const QueryState<D, F>) };
+        let mut iter = query.iter();
+        match iter.next() {
+            Some(item) => {
+                if iter.next().is_some() {
+                    panic!("Single<T> matched multiple entities!");
+                }
+                Single { item, _marker: PhantomData }
+            },
+            None => panic!("Single<T> matched no entities!"),
+        }
+    }
+}
+
+
+
+
+
+// In<T> - System Input Parameter
+impl<T: Send + Sync + 'static> SystemParam for In<T> {
+    type State = ();
+    type Item<'w> = In<T>;
+    
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        ()
+    }
+    
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        system_meta: &SystemMeta,
+        _world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        unsafe {
+            let ptr = system_meta.input_ptr as *mut Option<T>;
+            if ptr.is_null() {
+                 panic!("In<T> system parameter requires an input, but none was provided via SystemMeta");
+            }
+            let val = (*ptr).take().expect("System input already consumed or missing");
+            In::new(val)
+        }
     }
 }

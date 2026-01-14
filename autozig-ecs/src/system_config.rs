@@ -1,6 +1,7 @@
 
 use crate::system::{BoxedSystem, System};
 use crate::system_set::SystemSet;
+use crate::condition::{BoxedCondition, IntoCondition};
 
 /// Configuration for a single system
 pub struct SystemConfig {
@@ -8,6 +9,7 @@ pub struct SystemConfig {
     pub(crate) before: Vec<String>,
     pub(crate) after: Vec<String>,
     pub(crate) in_sets: Vec<String>,
+    pub(crate) conditions: Vec<BoxedCondition>,
 }
 
 impl SystemConfig {
@@ -17,6 +19,7 @@ impl SystemConfig {
             before: Vec::new(),
             after: Vec::new(),
             in_sets: Vec::new(),
+            conditions: Vec::new(),
         }
     }
 }
@@ -91,6 +94,24 @@ pub trait IntoSystemConfigs<Marker> {
     {
         let mut configs = self.into_configs();
         configs.chained = true;
+        configs
+    }
+
+    fn run_if<M>(self, condition: impl IntoCondition<M>) -> SystemConfigs 
+    where Self: Sized
+    {
+        let mut configs = self.into_configs();
+        let condition = condition.into_condition();
+        let boxed: BoxedCondition = Box::new(condition);
+        
+        if configs.configs.len() > 1 {
+            // TODO: Require Clone for Condition to support multiple systems
+             panic!("run_if on tuple of systems not supported yet (requires Clone Condition)");
+        }
+        
+        if let Some(config) = configs.configs.first_mut() {
+             config.conditions.push(boxed);
+        }
         configs
     }
 }

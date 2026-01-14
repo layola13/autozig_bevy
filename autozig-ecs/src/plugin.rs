@@ -69,7 +69,6 @@ use crate::event::{Events, AppExit};
 pub struct App {
     plugin_manager: *mut PluginManagerOpaque,
     pub(crate) world: World,
-    pub(crate) schedules: crate::schedule::Schedules,
     runner: Option<Box<dyn FnOnce(App)>>,
 }
 
@@ -90,42 +89,49 @@ impl App {
         schedules.insert(crate::schedule::Schedule::new(Startup));
         schedules.insert(crate::schedule::Schedule::new(Update));
         schedules.insert(crate::schedule::Schedule::new(Last));
+        world.insert_resource(schedules);
         
         Self { 
             plugin_manager,
             world,
-            schedules,
             runner: None,
         }
     }
     
     pub fn run(mut self) {
-        use crate::schedule::{Startup, Update, Last};
+        use crate::schedule::{Startup, Update, Last, Schedules};
         
-        // Run startup systems once
-        if let Some(startup) = self.schedules.get_mut(Startup) {
-            startup.run(&mut self.world);
+        // Helper to run a schedule safely
+        fn run_schedule(world: &mut World, label: impl crate::schedule::ScheduleLabel) {
+            if let Some(mut schedules) = world.remove_resource::<Schedules>() {
+                 if let Some(schedule) = schedules.get_mut(label) {
+                     schedule.run(world);
+                 }
+                 world.insert_resource(schedules);
+            }
         }
+
+        // Run startup systems once
+        run_schedule(&mut self.world, Startup);
 
         // If a runner is set, delegate to it
         if let Some(runner) = self.runner.take() {
             runner(self);
         } else {
              // Default: Single run
-             if let Some(update) = self.schedules.get_mut(Update) {
-                update.run(&mut self.world);
-             }
-             if let Some(last) = self.schedules.get_mut(Last) {
-                last.run(&mut self.world);
-             }
+             run_schedule(&mut self.world, Update);
+             run_schedule(&mut self.world, Last);
         }
     }
 
     /// Run the Update schedule once without consuming App
     pub fn update(&mut self) {
-        use crate::schedule::Update;
-        if let Some(update) = self.schedules.get_mut(Update) {
-            update.run(&mut self.world);
+        use crate::schedule::{Update, Schedules};
+        if let Some(mut schedules) = self.world.remove_resource::<Schedules>() {
+             if let Some(update) = schedules.get_mut(Update) {
+                update.run(&mut self.world);
+             }
+             self.world.insert_resource(schedules);
         }
     }
 
@@ -140,8 +146,11 @@ impl App {
     
     /// Add systems to a specific schedule
     pub fn add_systems<M>(&mut self, schedule: impl crate::schedule::ScheduleLabel, systems: impl IntoSystemConfigs<M>) -> &mut Self {
-        let label_str = schedule.as_str().to_string();
-        if let Some(sched) = self.schedules.get_mut(schedule) {
+        let label_str = schedule.label().to_string();
+        let mut schedules = self.world.get_resource_mut::<crate::schedule::Schedules>()
+            .expect("Schedules resource missing");
+            
+        if let Some(sched) = schedules.get_mut(schedule) {
             sched.add_systems(systems);
         } else {
             // Panic or Create new schedule?
@@ -153,8 +162,11 @@ impl App {
     }
     
     pub fn configure_sets(&mut self, schedule: impl crate::schedule::ScheduleLabel, sets: impl IntoSystemSetConfigs) -> &mut Self {
-        let label_str = schedule.as_str().to_string();
-        if let Some(sched) = self.schedules.get_mut(schedule) {
+        let label_str = schedule.label().to_string();
+        let mut schedules = self.world.get_resource_mut::<crate::schedule::Schedules>()
+            .expect("Schedules resource missing");
+
+        if let Some(sched) = schedules.get_mut(schedule) {
             sched.configure_sets(sets);
         } else {
             panic!("Schedule not found: {}", label_str);
@@ -196,13 +208,18 @@ impl App {
         &mut self.world
     }
 
-    pub fn closure_system_count(&self) -> usize {
+    pub fn closure_system_count(&mut self) -> usize {
         // Iterate all schedules
-        use crate::schedule::{Startup, Update, Last};
+        // Note: &self -> &mut self locally for get_resource_mut? 
+        // No, System count shouldn't require mut world, but get_resource requires access.
+        // If we only need read access, use get_resource.
+        use crate::schedule::{Startup, Update, Last, Schedules};
         let mut count = 0;
-        if let Some(s) = self.schedules.get(Startup) { count += s.system_count(); }
-        if let Some(s) = self.schedules.get(Update) { count += s.system_count(); }
-        if let Some(s) = self.schedules.get(Last) { count += s.system_count(); }
+        if let Some(schedules) = self.world.get_resource::<Schedules>() {
+            if let Some(s) = schedules.get(Startup) { count += s.system_count(); }
+            if let Some(s) = schedules.get(Update) { count += s.system_count(); }
+            if let Some(s) = schedules.get(Last) { count += s.system_count(); }
+        }
         count
     }
 }

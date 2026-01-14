@@ -1,33 +1,43 @@
 //! System combinators - Compose systems together
 
 use crate::world::World;
-use crate::system::System;
 
-/// NOT combinator
-pub struct NotSystem<S> {
-    system: S,
+use crate::condition::Condition;
+
+/// NOT condition combinator
+pub struct Not<S> {
+    pub system: S,
 }
 
-/// AND THEN combinator
-pub struct AndThenSystem<A, B> {
-    first: A,
-    second: B,
+impl<S: Condition> Condition for Not<S> {
+    fn run(&mut self, world: &mut World) -> bool {
+        !self.system.run(world)
+    }
 }
 
-/// OR ELSE combinator
-pub struct OrElseSystem<A, B> {
-    first: A,
-    second: B,
+/// AND condition combinator
+pub struct And<A, B> {
+    pub a: A,
+    pub b: B,
 }
 
-/// CHAIN combinator - pipe output to input
-pub struct ChainSystem<A, B> {
-    first: A,
-    second: B,
+impl<A: Condition, B: Condition> Condition for And<A, B> {
+    fn run(&mut self, world: &mut World) -> bool {
+        self.a.run(world) && self.b.run(world)
+    }
 }
 
-/// PIPE combinator - similar to chain
-pub struct PipeSystem<A, B> {
-    first: A,
-    second: B,
+/// OR condition combinator (renamed to avoid collision with query::filter::Or)
+pub struct OrCond<A, B> {
+    pub a: A,
+    pub b: B,
 }
+
+impl<A: Condition, B: Condition> Condition for OrCond<A, B> {
+    fn run(&mut self, world: &mut World) -> bool {
+        self.a.run(world) || self.b.run(world)
+    }
+}
+
+// Aliases for legacy
+pub type Or<A, B> = OrCond<A, B>;

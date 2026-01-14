@@ -114,20 +114,19 @@ unsafe impl<'w> Send for Commands<'w> {}
 unsafe impl<'w> Sync for Commands<'w> {}
 
 impl<'w> Commands<'w> {
-    pub fn new(world: &crate::world::World) -> Self {
-        unsafe { Self::new_from_entities(&world.allocator, &world.entities) }
-    }
 
-    /// Creates a new Commands instance from entities storage
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the entities storage remains valid
-    pub unsafe fn new_from_entities(
-        _allocator: &crate::entity::EntityAllocator,
-        _entities: &crate::entity::Entities,
-    ) -> Self {
-        // 创建一个新的命令缓冲区
+    /// Create new Commands from internals (used by World)
+    pub fn new_from_entities(_allocator: &crate::entity::EntityAllocator, _entities: &crate::entity::Entities) -> Self {
+        // In this implementation, Commands creates its own internal buffer
+        // In real Bevy, it borrows from World's queue or similar.
+        // Here we create a temporary buffer for immediate flush? 
+        // No, Commands usually writes to a CommandQueue.
+        // Our Commands wraps a CommandBufferOpaque created via new().
+        // But World::commands() implies we are creating one attached to World?
+        // Or creating a standalone one that will be applied to World later?
+        // World::commands() usually returns a Commands that queues to a system's queue.
+        // But here we are creating one on the fly.
+        // Let's create a fresh buffer.
         let buffer = command_buffer_create();
         Self {
             buffer,
@@ -135,29 +134,28 @@ impl<'w> Commands<'w> {
             _marker: PhantomData,
         }
     }
-    
-    /// Spawn a new entity (returns placeholder)
-    pub fn spawn<B: Bundle>(&mut self, bundle: B) -> EntityCommands<'_> {
-        self.spawn_bundle(bundle)
-    }
+
 
     /// Spawn a new entity (returns placeholder)
     pub fn spawn_empty(&mut self) -> EntityCommands<'_> {
         command_buffer_write_spawn(self.buffer);
         EntityCommands {
             buffer: self.buffer,
-            entity: None, // Implies "Latest"
+            entity: None,
+            queue: &mut self.resource_queue,
             _marker: PhantomData,
         }
     }
     
+    /// Spawn an entity with a bundle of components (alias for spawn_bundle)
+    pub fn spawn<B: Bundle>(&mut self, bundle: B) -> EntityCommands<'_> {
+        self.spawn_bundle(bundle)
+    }
+
     /// Spawn an entity with a bundle of components
     pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EntityCommands<'_> {
-        // First writes spawn
         command_buffer_write_spawn(self.buffer);
-        
         let components = bundle.get_components();
-        
         for (type_id, data_ptr, data_size) in components.iter() {
             command_buffer_write_insert(
                 self.buffer,
@@ -167,12 +165,11 @@ impl<'w> Commands<'w> {
                 *data_size,
             );
         }
-        
         std::mem::forget(bundle);
-        
         EntityCommands {
             buffer: self.buffer,
             entity: None, 
+            queue: &mut self.resource_queue,
             _marker: PhantomData,
         }
     }
@@ -184,29 +181,25 @@ impl<'w> Commands<'w> {
         }));
     }
 
-    /// Spawn a batch of bundles
-    pub fn spawn_batch<I>(&mut self, iter: I) 
-    where 
-        I: IntoIterator,
-        I::Item: Bundle,
-    {
-        for bundle in iter {
-             self.spawn_bundle(bundle);
-        }
-    }
-    
     /// Despawn an entity
     pub fn entity(&mut self, entity: Entity) -> EntityCommands<'_> {
         EntityCommands {
             buffer: self.buffer,
             entity: Some(entity),
+            queue: &mut self.resource_queue,
             _marker: PhantomData,
         }
     }
     
+    /// Add a custom command
+    pub fn add<C: Command>(&mut self, command: C) {
+        self.resource_queue.push(Box::new(move |world| {
+            command.apply(world);
+        }));
+    }
+
     /// Apply all commands
     pub fn apply(&mut self, world: &mut crate::world::World) {
-        // Apply Buffer (Spawn, Insert, Despawn)
         unsafe {
             let mut ptr: *const u8 = std::ptr::null();
             let mut len: usize = 0;
@@ -215,35 +208,28 @@ impl<'w> Commands<'w> {
             if len > 0 {
                 let bytes = std::slice::from_raw_parts(ptr, len);
                 let mut cursor = 0;
-                let mut last_entity = Entity::from_raw(0); // Placeholder
+                let mut last_entity = Entity::from_raw(0); 
                 
                 while cursor < len {
                     let op = bytes[cursor];
                     cursor += 1;
-                    
                     match op {
-                        1 => { // Spawn
-                            last_entity = world.spawn_empty().id();
-                        },
-                        2 => { // Despawn
+                        1 => { last_entity = world.spawn_empty().id(); },
+                        2 => { 
                              let entity_idx = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
                              cursor += 4;
-                             let entity = Entity::from_raw(entity_idx); // Simplification: assuming index matches
+                             let entity = Entity::from_raw(entity_idx); 
                              world.despawn(entity); 
                         },
-                        3 => { // InsertComponent
+                        3 => { 
                             let entity_idx = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
                             cursor += 4;
                             let component_id = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
                             cursor += 4;
                             let data_len = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32) as usize;
                             cursor += 4;
-                            
                             let target_entity = if entity_idx == u32::MAX { last_entity } else { Entity::from_raw(entity_idx) };
-                            
                             let data_ptr = bytes[cursor..].as_ptr();
-                            
-                            // Use internal bundle insertion
                             world.insert_bundle_components_internal(
                                 target_entity,
                                 vec![(
@@ -252,28 +238,29 @@ impl<'w> Commands<'w> {
                                     data_len
                                 )]
                             );
-                            
                             cursor += data_len;
                         },
-                        4 => { // RemoveComponent
-                             // Skip for now (not used in demo)
-                             cursor += 8;
-                        },
-                        _ => { // Unknown
-                             // Just break to avoid infinite loop on bad data
-                             break;
-                        }
+                        4 => { cursor += 8; },
+                        _ => { break; }
                     }
                 }
             }
         }
-        
         command_buffer_clear(self.buffer);
-
-        // Apply Resource Queue
         for cmd in self.resource_queue.drain(..) {
             cmd(world);
         }
+    }
+}
+
+/// Helper trait for commands
+pub trait Command: Send + Sync + 'static {
+    fn apply(self, world: &mut crate::world::World);
+}
+
+impl<F> Command for F where F: FnOnce(&mut crate::world::World) + Send + Sync + 'static {
+    fn apply(self, world: &mut crate::world::World) {
+        self(world);
     }
 }
 
@@ -281,10 +268,24 @@ impl<'w> Commands<'w> {
 pub struct EntityCommands<'w> {
     buffer: *mut CommandBufferOpaque,
     entity: Option<Entity>,
+    queue: &'w mut Vec<Box<dyn FnOnce(&mut crate::world::World) + Send + Sync>>,
     _marker: PhantomData<&'w mut ()>,
 }
 
 impl<'w> EntityCommands<'w> {
+    /// Get the entity ID
+    pub fn id(&self) -> Entity {
+        self.entity.expect("Entity ID not available for buffered spawn")
+    }
+
+    /// Add a custom command
+    pub fn add<C: Command>(&mut self, command: C) -> &mut Self {
+        self.queue.push(Box::new(move |world| {
+            command.apply(world);
+        }));
+        self
+    }
+
     /// Insert a component
     pub fn insert<C: 'static>(&mut self, component: C) -> &mut Self {
         let component_id = get_component_id::<C>();

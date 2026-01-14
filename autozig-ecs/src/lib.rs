@@ -42,6 +42,7 @@ pub mod table;
 pub mod removal_detection;
 pub mod system_set;
 pub mod system_config;
+pub mod state;
 pub mod condition;
 pub mod combinator;
 pub mod exclusive_system;
@@ -105,7 +106,7 @@ pub mod prelude {
     pub use crate::system::{
         System, SystemMeta, SystemState, SystemInput, SystemOut,
         FunctionSystem, ExclusiveFunctionSystem, ExclusiveSystem,
-        SystemAdapter, CombinatorSystem, BoxedSystem, In
+        BoxedSystem, In, ChainSystem
     };
     pub use crate::into_system::IntoSystem;
     pub use crate::system_param::{SystemParam, ReadOnlySystemParam, StaticSystemParam};
@@ -125,8 +126,8 @@ pub mod prelude {
         Startup, Update, FixedUpdate, PreUpdate, PostUpdate, Last, First};
     pub use crate::system_set::{SystemSet, IntoSystemSet, SystemSetConfig, SystemSetConfigs,
         IntoSystemSetConfig, IntoSystemSetConfigs, SystemTypeSet, AnonymousSet};
-    pub use crate::condition::{Condition, IntoCondition, RunCriteria, ShouldRun};
-    pub use crate::combinator::{NotSystem, AndThenSystem, OrElseSystem, ChainSystem, PipeSystem};
+    pub use crate::condition::{Condition, IntoCondition, BoxedCondition, ConditionalSystem};
+    pub use crate::combinator::{Not, And, OrCond};
     
     // ==================== Event Types ====================
     pub use crate::event::{
@@ -135,9 +136,8 @@ pub mod prelude {
     };
     
     // ==================== Observer Types ====================
-    pub use crate::observer::{Observer, ObserverState, ObserverDescriptor, Trigger, TriggerEvent, TriggerTargets,
-        ObserverSystem, ObserverRunner, OnAdd, OnInsert, OnRemove, OnReplace,
-        EntityObserver, ComponentObserver};
+    pub use crate::observer::{Observer, Trigger, TriggerEvent, TriggerTargets,
+        ObserverSystem, ObserverRunner, OnAdd, OnInsert, OnRemove, OnReplace};
     
     // ==================== Storage Types ====================
     pub use crate::storage::{

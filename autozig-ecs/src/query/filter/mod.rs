@@ -318,46 +318,72 @@ impl<'w> FilterFetch<'w> for SpawnedFetch {
     fn matches_archetype(_: &Self::State, _: &crate::archetype::Archetype) -> bool { true }
 }
 
-/// Or filter implementation
-impl<A: QueryFilter, B: QueryFilter> QueryFilter for Or<(A, B)> {
-    type State = (A::State, B::State);
-    type Fetch<'w> = OrFetch<A::Fetch<'w>, B::Fetch<'w>>;
-    fn init_state(world: &crate::world::World) -> Self::State {
-        (A::init_state(world), B::init_state(world))
-    }
-    fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
-        A::matches_component_set(&state.0, set) || B::matches_component_set(&state.1, set)
-    }
-}
+// Redefine OrFetch to generic wrapper for tuples
+pub struct OrFetch<T>(T);
 
-pub struct OrFetch<AF, BF> {
-    a: AF,
-    b: BF,
-}
-
-impl<'w, AF: FilterFetch<'w>, BF: FilterFetch<'w>> FilterFetch<'w> for OrFetch<AF, BF> {
-    type State = (AF::State, BF::State);
-    fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
-        Self {
-            a: AF::init(&state.0, world, last_run, this_run),
-            b: BF::init(&state.1, world, last_run, this_run),
+// Implement generic OrFetch logic via macro for tuples
+macro_rules! impl_or_filter_tuple {
+    ($(($name:ident, $state:ident, $fetch:ident, $idx:tt)),*) => {
+        // Implement QueryFilter for Or<(A, B, ...)>
+        impl<$($name: QueryFilter),*> QueryFilter for Or<($($name,)*)> {
+            type State = ($($name::State,)*);
+            type Fetch<'w> = OrFetch<($($name::Fetch<'w>,)*)>;
+            
+            fn init_state(world: &crate::world::World) -> Self::State {
+                ($($name::init_state(world),)*)
+            }
+            
+            fn matches_component_set(state: &Self::State, set: &[ComponentId]) -> bool {
+                let ($($state,)*) = state;
+                false $(|| $name::matches_component_set($state, set))*
+            }
         }
-    }
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
-        self.a.set_table(&state.0, table);
-        self.b.set_table(&state.1, table);
-    }
-    unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
-        self.a.set_archetype(&state.0, archetype, table);
-        self.b.set_archetype(&state.1, archetype, table);
-    }
-    fn matches(&mut self, entity: Entity, index: usize) -> bool {
-        self.a.matches(entity, index) || self.b.matches(entity, index)
-    }
-    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
-        AF::matches_archetype(&state.0, archetype) || BF::matches_archetype(&state.1, archetype)
-    }
+        
+        // Implement FilterFetch for OrFetch<(FA, FB, ...)>
+        impl<'w, $($name: FilterFetch<'w>),*> FilterFetch<'w> for OrFetch<($($name,)*)> {
+            type State = ($($name::State,)*);
+            
+            fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: Tick, this_run: Tick) -> Self {
+                let ($($state,)*) = state;
+                OrFetch(($($name::init($state, world, last_run, this_run),)*))
+            }
+            
+            unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+                let ($($state,)*) = state;
+                let inner = &mut self.0;
+                $(inner.$idx.set_table($state, table);)*
+            }
+            
+            unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+                let ($($state,)*) = state;
+                let inner = &mut self.0;
+                $(inner.$idx.set_archetype($state, archetype, table);)*
+            }
+            
+            fn matches(&mut self, entity: Entity, index: usize) -> bool {
+                let inner = &mut self.0;
+                false $(|| inner.$idx.matches(entity, index))*
+            }
+            
+            fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+                let ($($state,)*) = state;
+                false $(|| $name::matches_archetype($state, archetype))*
+            }
+        }
+    };
 }
+
+impl_or_filter_tuple!((A, sa, fa, 0), (B, sb, fb, 1));
+impl_or_filter_tuple!((A, sa, fa, 0), (B, sb, fb, 1), (C, sc, fc, 2));
+impl_or_filter_tuple!((A, sa, fa, 0), (B, sb, fb, 1), (C, sc, fc, 2), (D, sd, fd, 3));
+impl_or_filter_tuple!((A, sa, fa, 0), (B, sb, fb, 1), (C, sc, fc, 2), (D, sd, fd, 3), (E, se, fe, 4));
+
+// Original Or<(A, B)> is covered by tuple macro (A, B) case above.
+// So we can remove the manual implementation for Or<(A, B)>.
+// And Or<T> for single T? Or is usually Or<(A, B)>.
+// If Or<T> where T is single type, it's just T.
+// Bevy provides Or<(A,)>? No.
+// We only support Or of tuples.
 
 macro_rules! impl_query_filter_tuple {
     ($(($name:ident, $state_var:ident, $fetch_var:ident)),*) => {

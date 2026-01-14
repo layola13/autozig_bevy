@@ -104,6 +104,18 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
     pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'w>, QueryEntityError> {
         unsafe { (*self.state).get::<Q>(self.world, entity) }
     }
+    
+    /// Get mutable component data for a specific entity
+    pub fn get_mut(&mut self, entity: crate::entity::Entity) -> Result<Q::Item<'w>, QueryEntityError> {
+        // Note: Check for mutable access in state?
+        // QueryState::get handles it.
+        unsafe { (*self.state).get::<Q>(self.world, entity) }
+    }
+
+    /// Iterate over combinations of K distinct entities
+    pub fn iter_combinations<const K: usize>(&self) -> crate::query::state::QueryCombinationIter<'w, Q, F, K> {
+        unsafe { (*self.state).iter_combinations(self.world) }
+    }
 }
 
 impl<'w, Q: QueryData, F: QueryFilter> QueryMut<'w, Q, F> {

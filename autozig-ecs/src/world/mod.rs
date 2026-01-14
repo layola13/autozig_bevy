@@ -556,6 +556,36 @@ impl World {
     pub fn contains_entity(&self, entity: Entity) -> bool {
         world_contains_entity(self.inner, entity)
     }
+
+    /// Triggers an event for global observers
+    pub fn trigger<E: crate::observer::TriggerEvent + Clone>(&mut self, event: E) {
+        use crate::observer::ObserverList;
+        // Global observers
+        // Remove resource to avoid borrow conflicts
+        let mut observers = self.remove_resource::<ObserverList<E>>();
+        
+        if let Some(mut list) = observers.take() {
+            // Placeholder entity since this is global
+            list.trigger(crate::entity::Entity::PLACEHOLDER, self);
+            self.insert_resource(list);
+        }
+    }
+    
+    /// Tries to run a schedule if it exists
+    pub fn try_run_schedule(&mut self, label: impl ScheduleLabel) -> bool {
+        // Take schedules out to avoid borrow conflict
+        let mut schedules = self.remove_resource::<Schedules>();
+        let mut ran = false;
+        
+        if let Some(mut scheds) = schedules.take() {
+            if let Some(schedule) = scheds.get_mut(label) {
+                schedule.run(self);
+                ran = true;
+            }
+            self.insert_resource(scheds);
+        }
+        ran
+    }
 }
 
 impl Drop for World {

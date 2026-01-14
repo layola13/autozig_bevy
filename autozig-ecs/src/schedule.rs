@@ -1,6 +1,6 @@
 //! Schedule - System scheduling and execution
 
-use autozig_macro::include_zig;
+use autozig_macro::{include_zig, Resource};
 use std::marker::PhantomData;
 use crate::world::World;
 use crate::system::System;
@@ -32,9 +32,9 @@ include_zig!("src/zig/system.zig", {
 
 unsafe extern "C" fn run_system_trampoline(closure_ptr: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
     let closure = closure_ptr as *mut RawClosure;
-    let ptr: *mut dyn System = std::mem::transmute(((*closure).data, (*closure).vtable));
+    let ptr: *mut dyn System<In=(), Out=()> = std::mem::transmute(((*closure).data, (*closure).vtable));
     let world = &mut *(world_ptr as *mut World);
-    (*ptr).run(world);
+    (*ptr).run((), world);
 }
 
 /// A collection of systems that run in a specific order
@@ -43,6 +43,10 @@ pub struct Schedule {
     inner: *mut u8,
     label: Box<dyn ScheduleLabel>,
 }
+
+// SAFETY: Schedule inner pointer is only accessed during system execution
+unsafe impl Send for Schedule {}
+unsafe impl Sync for Schedule {}
 
 impl Schedule {
     pub fn new(label: impl ScheduleLabel) -> Self {
@@ -57,18 +61,27 @@ impl Schedule {
         let mut prev_name: Option<String> = None;
 
         for config in configs.configs {
-            let system = config.system;
+            let mut system = config.system;
+
+            if !config.conditions.is_empty() {
+                use crate::condition::ConditionalSystem;
+                use crate::system::BoxedSystem;
+                let meta = system.meta().clone();
+                let conditional = ConditionalSystem::new(system, config.conditions);
+                system = BoxedSystem::from_inner(Box::new(conditional), meta);
+            }
+
             let name = system.name().to_string();
-            let (data, vtable, trampoline) = system.into_raw_parts();
+            let (data, vtable) = system.into_raw_parts();
             
             // Register system node
             schedule_add_system(
                 self.inner,
                 name.as_ptr(),
                 name.len(),
-                data,
-                vtable,
-                trampoline,
+                data as *mut std::ffi::c_void,
+                vtable as *mut std::ffi::c_void,
+                run_system_trampoline,
                 0 // TODO: Access flags
             );
             
@@ -184,11 +197,30 @@ impl Schedule {
     }
 }
 
+use crate::resource::Resource;
+
 /// Container for multiple schedules
 #[derive(Default)]
 pub struct Schedules {
     schedules: Vec<Schedule>,
 }
+
+impl Resource for Schedules {}
+
+use std::borrow::Cow;
+
+/// Trait for schedule labels
+pub trait ScheduleLabel: Send + Sync + 'static {
+    fn label(&self) -> Cow<'static, str>;
+}
+
+impl ScheduleLabel for &'static str {
+    fn label(&self) -> Cow<'static, str> {
+        Cow::Borrowed(self)
+    }
+}
+
+// ... other structs ...
 
 impl Schedules {
     pub fn new() -> Self {
@@ -200,28 +232,57 @@ impl Schedules {
     }
     
     pub fn get(&self, label: impl ScheduleLabel) -> Option<&Schedule> {
-        let label_str = label.as_str();
-        self.schedules.iter().find(|s| s.label.as_str() == label_str)
+        let label_cow = label.label();
+        self.schedules.iter().find(|s| s.label.label() == label_cow)
     }
     
     pub fn get_mut(&mut self, label: impl ScheduleLabel) -> Option<&mut Schedule> {
-        let label_str = label.as_str();
-        self.schedules.iter_mut().find(|s| s.label.as_str() == label_str)
+        let label_cow = label.label();
+        self.schedules.iter_mut().find(|s| s.label.label() == label_cow)
     }
 }
-
-/// Trait for schedule labels
-pub trait ScheduleLabel: Send + Sync + 'static {
-    fn as_str(&self) -> &str;
+//...
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Startup;
+impl ScheduleLabel for Startup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Startup") }
 }
 
-impl ScheduleLabel for &'static str {
-    fn as_str(&self) -> &str {
-        self
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Update;
+impl ScheduleLabel for Update {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Update") }
 }
 
-/// Settings for building a schedule
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct FixedUpdate;
+impl ScheduleLabel for FixedUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedUpdate") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PreUpdate;
+impl ScheduleLabel for PreUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PreUpdate") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PostUpdate;
+impl ScheduleLabel for PostUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PostUpdate") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Last;
+impl ScheduleLabel for Last {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Last") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct First;
+impl ScheduleLabel for First {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("First") }
+}
 #[derive(Clone, Debug)]
 pub struct ScheduleBuildSettings {
     pub ambiguity_detection: LogLevel,
@@ -312,50 +373,6 @@ pub struct SteppingState {
     paused: bool,
 }
 
-
-
-// Common schedule labels
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Startup;
-impl ScheduleLabel for Startup {
-    fn as_str(&self) -> &str { "Startup" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Update;
-impl ScheduleLabel for Update {
-    fn as_str(&self) -> &str { "Update" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct FixedUpdate;
-impl ScheduleLabel for FixedUpdate {
-    fn as_str(&self) -> &str { "FixedUpdate" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PreUpdate;
-impl ScheduleLabel for PreUpdate {
-    fn as_str(&self) -> &str { "PreUpdate" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PostUpdate;
-impl ScheduleLabel for PostUpdate {
-    fn as_str(&self) -> &str { "PostUpdate" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Last;
-impl ScheduleLabel for Last {
-    fn as_str(&self) -> &str { "Last" }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct First;
-impl ScheduleLabel for First {
-    fn as_str(&self) -> &str { "First" }
-}
 // ============================================================================
 // Schedule Advanced Types - Schedule高级类型
 // ============================================================================
@@ -629,30 +646,39 @@ impl Plugin for ScheduleRunnerPlugin {
         let mode = self.run_mode;
         let wait = self.wait;
         app.set_runner(move |mut app| {
+             // Helper to run a schedule by removing it temporarily
+             // Helper to run a schedule by removing it temporarily
+             let run_schedule = |world: &mut crate::world::World, label: &dyn crate::schedule::ScheduleLabel| {
+                 use crate::schedule::Schedules;
+                 if let Some(mut schedules) = world.remove_resource::<Schedules>() {
+                     // Manual lookup to avoid trait object issues with generic get_mut
+                     let label_cow = label.label();
+                     let schedule_opt = schedules.schedules.iter_mut()
+                        .find(|s| s.label.label() == label_cow);
+                        
+                     if let Some(schedule) = schedule_opt {
+                         schedule.run(world);
+                     }
+                     world.insert_resource(schedules);
+                 }
+             };
+
              match mode {
                 RunMode::Once => {
-                    if let Some(update) = app.schedules.get_mut(Update) {
-                        update.run(&mut app.world);
-                    }
-                    if let Some(last) = app.schedules.get_mut(Last) {
-                        last.run(&mut app.world);
-                    }
+                    run_schedule(&mut app.world, &Update);
+                    run_schedule(&mut app.world, &Last);
                 }
                 RunMode::Loop => {
                     let mut ticks = 0;
                      loop {
-                        if let Some(update) = app.schedules.get_mut(Update) {
-                            update.run(&mut app.world);
-                        }
+                        run_schedule(&mut app.world, &Update);
                         
                         // Update event queues (especially AppExit)
                         if let Some(mut events) = app.world.get_resource_mut::<Events<AppExit>>() {
                             events.update();
                         }
 
-                        if let Some(last) = app.schedules.get_mut(Last) {
-                            last.run(&mut app.world);
-                        }
+                        run_schedule(&mut app.world, &Last);
                         
                         // Check for AppExit
                         let should_exit = if let Some(events) = app.world.get_resource::<Events<AppExit>>() {

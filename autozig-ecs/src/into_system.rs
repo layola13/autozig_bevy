@@ -99,7 +99,9 @@ use crate::system::SystemMeta;
 // SystemParamFunction trait
 pub trait SystemParamFunction<Marker>: Send + Sync + 'static {
     type Param: SystemParam;
-    fn run(&mut self, param: <Self::Param as SystemParam>::Item<'_>);
+    type In;
+    type Out;
+    fn run(&mut self, input: Self::In, param: <Self::Param as SystemParam>::Item<'_>) -> Self::Out;
 }
 
 // ParamFunctionSystem - System wrapper for functions with SystemParams
@@ -129,37 +131,24 @@ where
 
 impl<Marker, F> System for ParamFunctionSystem<Marker, F>
 where
-    F: SystemParamFunction<Marker>,
     Marker: Send + Sync + 'static,
+    F: SystemParamFunction<Marker, In = ()>,
 {
-    fn initialize(&mut self, world: &mut World) {
-        self.state = Some(F::Param::init_state(world, &mut self.meta));
-    }
+    type In = ();
+    type Out = ();
 
-    fn run(&mut self, world: &mut World) {
+    fn initialize(&mut self, world: &mut World) {
         if self.state.is_none() {
             self.state = Some(F::Param::init_state(world, &mut self.meta));
         }
-
-        let change_tick = world.change_tick().0;
-        let state = self.state.as_mut().unwrap();
-        let params = F::Param::get_param(state, &self.meta, world, change_tick);
-        self.func.run(params);
-        F::Param::apply(state, &self.meta, world);
-        self.meta.last_run = crate::change_detection::Tick::new(change_tick);
     }
-}
 
-// Implement IntoSystem for SystemParamFunction
-impl<Marker, F> IntoSystem<Marker> for F
-where
-    F: SystemParamFunction<Marker>,
-    Marker: Send + Sync + 'static,
-{
-    fn into_system(self) -> crate::system::BoxedSystem {
-        let name = std::any::type_name::<F>();
-        let system = ParamFunctionSystem::new(self, name);
-        crate::system::BoxedSystem::new(system, name)
+    fn run(&mut self, _input: (), world: &mut World) -> () {
+        let _ = self.run_with_out(world);
+    }
+
+    fn name(&self) -> &str {
+        self.meta.name()
     }
 }
 
@@ -170,21 +159,79 @@ impl IntoSystem<()> for BoxedSystem {
     }
 }
 
+impl<Marker, F> IntoSystem<Marker> for F
+where
+    Marker: Send + Sync + 'static,
+    F: SystemParamFunction<Marker, In = ()>,
+{
+    fn into_system(self) -> BoxedSystem {
+        let name = std::any::type_name::<F>();
+        let sys = ParamFunctionSystem::<Marker, F>::new(self, name);
+        BoxedSystem::new(sys, name)
+    }
+}
+
+impl<Marker, F> ParamFunctionSystem<Marker, F>
+where
+    Marker: Send + Sync + 'static,
+    F: SystemParamFunction<Marker, In = ()>,
+{
+    pub fn run_with_out(&mut self, world: &mut World) -> F::Out {
+         if self.state.is_none() {
+            self.state = Some(F::Param::init_state(world, &mut self.meta));
+        }
+
+        let change_tick = world.change_tick().0;
+        let state = self.state.as_mut().unwrap();
+        let params = F::Param::get_param(state, &self.meta, world, change_tick);
+        let out = self.func.run((), params);
+        F::Param::apply(state, &self.meta, world);
+        self.meta.last_run = crate::change_detection::Tick::new(change_tick);
+        out
+    }
+}
+
+use crate::condition::{Condition, IntoCondition};
+
+impl<Marker, F> Condition for ParamFunctionSystem<Marker, F>
+where
+    F: SystemParamFunction<Marker, In = (), Out = bool>,
+    Marker: Send + Sync + 'static,
+{
+    fn run(&mut self, world: &mut World) -> bool {
+        self.run_with_out(world)
+    }
+}
+
+impl<Marker, F> IntoCondition<Marker> for F
+where
+    F: SystemParamFunction<Marker, In = (), Out = bool>,
+    Marker: Send + Sync + 'static,
+{
+    type Condition = ParamFunctionSystem<Marker, F>;
+    fn into_condition(self) -> Self::Condition {
+        let name = std::any::type_name::<F>();
+        ParamFunctionSystem::<Marker, F>::new(self, name)
+    }
+}
+
 
 // Macro to implement SystemParamFunction for tuples
 macro_rules! impl_system_param_function {
     ($($param:ident),*) => {
         #[allow(non_snake_case)]
-        impl<F, $($param),*> SystemParamFunction<($($param,)*)> for F
+        impl<Out, F, $($param),*> SystemParamFunction<(Out, $($param,)*)> for F
         where
-            F: FnMut($($param::Item<'_>),*) + Send + Sync + 'static,
+            F: FnMut($($param::Item<'_>),*) -> Out + Send + Sync + 'static,
             $($param: SystemParam),*
         {
             type Param = ($($param),*);
-            fn run(&mut self, param: ($($param::Item<'_>),*)) {
+            type In = ();
+            type Out = Out;
+            fn run(&mut self, _input: (), param: ($($param::Item<'_>),*)) -> Out {
                 #[allow(non_snake_case)]
                 let ($($param),*) = param;
-                self($($param),*);
+                self($($param),*)
             }
         }
     };

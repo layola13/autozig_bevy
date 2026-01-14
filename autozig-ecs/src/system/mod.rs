@@ -58,13 +58,121 @@ impl Default for Schedule {
 }
 
 // System trait for user-defined systems
+// System trait for user-defined systems
 pub trait System: Send + Sync {
+    type In;
+    type Out;
     fn initialize(&mut self, _world: &mut crate::world::World) {}
-    fn run(&mut self, world: &mut crate::world::World);
+    fn run(&mut self, input: Self::In, world: &mut crate::world::World) -> Self::Out;
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
 }
+
+
+// ============================================================================
+// System Advanced Types - System高级类型
+// ============================================================================
+// ... (lines 74-266 unchanged)
+
+// BoxedSystem - 类型擦除的系统（Box包装）
+pub struct BoxedSystem {
+    inner: Box<dyn System<In=(), Out=()>>,
+    meta: SystemMeta,
+}
+
+impl BoxedSystem {
+    pub fn new<S: System<In=(), Out=()> + 'static>(system: S, name: &'static str) -> Self {
+        Self {
+            inner: Box::new(system),
+            meta: SystemMeta::new(name),
+        }
+    }
+    
+    pub fn from_inner(inner: Box<dyn System<In=(), Out=()>>, meta: SystemMeta) -> Self {
+        Self { inner, meta }
+    }
+    
+    pub fn meta(&self) -> &SystemMeta {
+        &self.meta
+    }
+    
+    pub fn into_raw_parts(self) -> (*mut u8, *mut u8) {
+        let raw = Box::into_raw(self.inner);
+        // Split into data ptr and vtable ptr
+        let (data_ptr, vtable_ptr) = (raw as *mut u8, std::ptr::null_mut::<u8>());
+        (data_ptr, vtable_ptr)
+    }
+    
+    pub fn name(&self) -> &str {
+        self.meta.name()
+    }
+    
+    pub fn run(&mut self, world: &mut crate::world::World) {
+        self.inner.run((), world);
+    }
+}
+
+impl System for BoxedSystem {
+    type In = ();
+    type Out = ();
+    fn initialize(&mut self, world: &mut crate::world::World) {
+        self.inner.initialize(world);
+    }
+
+    fn run(&mut self, _input: (), world: &mut crate::world::World) {
+        self.inner.run((), world);
+    }
+    
+    fn name(&self) -> &str {
+        self.meta.name()
+    }
+}
+
+// ... AdapterSystem (needs update if used) ...
+
+/// ChainSystem - Chained system execution A -> B
+pub struct ChainSystem<A, B> {
+    system_a: A,
+    system_b: B,
+}
+
+impl<A, B> ChainSystem<A, B> {
+    pub fn new(system_a: A, system_b: B) -> Self {
+        Self { system_a, system_b }
+    }
+}
+
+impl<A, B> System for ChainSystem<A, B> 
+where 
+    A: System, 
+    B: System<In = A::Out>,
+{
+    type In = A::In;
+    type Out = B::Out;
+
+    fn initialize(&mut self, world: &mut crate::world::World) {
+        self.system_a.initialize(world);
+        self.system_b.initialize(world);
+    }
+
+    fn run(&mut self, input: Self::In, world: &mut crate::world::World) -> Self::Out {
+        // Direct passing, no resource hack needed if run signature supports it!
+        let out_a = self.system_a.run(input, world);
+        self.system_b.run(out_a, world)
+    }
+    
+    fn name(&self) -> &str {
+        "ChainSystem" // could combine names
+    }
+}
+
+// CombinatorSystem removed/replaced by ChainSystem or similar?
+// Keeping CombinatorSystem as generic (if used). 
+// But generic CombinatorSystem<A, B> implies independent execution?
+// If independent, A::Out and B::Out discarded?
+// Assuming CombinatorSystem was previous attempt.
+// ChainSystem is what we want.
 
 
 // ============================================================================
@@ -256,100 +364,18 @@ unsafe extern "C" fn system_trampoline(closure: *mut std::ffi::c_void, world_ptr
     let data = unsafe { (*closure_ptr).data };
     let vtable = unsafe { (*closure_ptr).vtable };
     
-    let _ = writeln!(std::io::stderr(), "DEBUG: Trampoline - data: {:p}, vtable: {:p}", data, vtable);
-    let _ = std::io::stderr().flush();
-
-    let ptr: *mut dyn System = unsafe { std::mem::transmute((data, vtable)) };
+    // Transmute to trait object with In=(), Out=()
+    let ptr: *mut dyn System<In=(), Out=()> = unsafe { std::mem::transmute((data, vtable)) };
     
     let world = unsafe { &mut *(world_ptr as *mut crate::world::World) };
-    (*ptr).run(world);
+    (*ptr).run((), world);
 }
 
-/// BoxedSystem - 类型擦除的系统（Box包装）
-pub struct BoxedSystem {
-    inner: Box<dyn System>,
-    meta: SystemMeta,
-}
+// Note: BoxedSystem, ChainSystem are already defined above (via previous insert).
+// We should NOT redefine them here to avoid conflicts.
+// But we need to redefine FunctionSystem etc.
 
-impl BoxedSystem {
-    pub fn new<S: System + 'static>(system: S, name: &'static str) -> Self {
-        Self {
-            inner: Box::new(system),
-            meta: SystemMeta::new(name),
-        }
-    }
-    
-    pub fn run(&mut self, world: &mut crate::world::World) {
-        self.inner.run(world);
-    }
-    
-    pub fn meta(&self) -> &SystemMeta {
-        &self.meta
-    }
-    
-    pub fn into_raw_parts(self) -> (*mut std::ffi::c_void, *mut std::ffi::c_void, SystemTrampolineFn) {
-        let ptr = Box::into_raw(self.inner);
-        let (data, vtable): (*mut std::ffi::c_void, *mut std::ffi::c_void) = unsafe { std::mem::transmute(ptr) };
-        use std::io::Write;
-        let _ = writeln!(std::io::stderr(), "DEBUG: into_raw_parts - data: {:p}, vtable: {:p}", data, vtable);
-        let _ = std::io::stderr().flush();
-        (data, vtable, system_trampoline)
-    }
-}
-
-impl System for BoxedSystem {
-    fn initialize(&mut self, world: &mut crate::world::World) {
-        self.inner.initialize(world);
-    }
-
-    fn run(&mut self, world: &mut crate::world::World) {
-        self.inner.run(world);
-    }
-    
-    fn name(&self) -> &str {
-        self.meta.name()
-    }
-}
-
-/// AdapterSystem - 系统适配器
-pub struct AdapterSystem<S, A> {
-    system: S,
-    adapter: A,
-}
-
-impl<S, A> AdapterSystem<S, A> {
-    pub fn new(system: S, adapter: A) -> Self {
-        Self { system, adapter }
-    }
-}
-
-/// CombinatorSystem - 系统组合器
-pub struct CombinatorSystem<A, B> {
-    system_a: A,
-    system_b: B,
-}
-
-impl<A, B> CombinatorSystem<A, B> {
-    pub fn new(system_a: A, system_b: B) -> Self {
-        Self { system_a, system_b }
-    }
-}
-
-impl<A: System, B: System> System for CombinatorSystem<A, B> {
-    fn initialize(&mut self, world: &mut crate::world::World) {
-        self.system_a.initialize(world);
-        self.system_b.initialize(world);
-    }
-
-    fn run(&mut self, world: &mut crate::world::World) {
-        self.system_a.run(world);
-        self.system_b.run(world);
-    }
-    
-    // Name is combinator
-}
-
-/// FunctionSystem - 函数系统（将函数转换为系统）
+// FunctionSystem
 pub struct FunctionSystem<F> {
     func: F,
     meta: SystemMeta,
@@ -371,8 +397,10 @@ impl<F> System for FunctionSystem<F>
 where
     F: FnMut(&mut crate::world::World) + Send + Sync + 'static,
 {
-    // No state to initialize for direct world function
-    fn run(&mut self, world: &mut crate::world::World) {
+    type In = ();
+    type Out = ();
+    
+    fn run(&mut self, _input: (), world: &mut crate::world::World) {
         (self.func)(world);
     }
     
@@ -381,7 +409,7 @@ where
     }
 }
 
-/// ExclusiveFunctionSystem - 独占函数系统
+// ExclusiveFunctionSystem
 pub struct ExclusiveFunctionSystem<F> {
     func: F,
     meta: SystemMeta,
@@ -402,7 +430,10 @@ impl<F> System for ExclusiveFunctionSystem<F>
 where
     F: FnMut(&mut crate::world::World) + Send + Sync + 'static,
 {
-    fn run(&mut self, world: &mut crate::world::World) {
+    type In = ();
+    type Out = ();
+    
+    fn run(&mut self, _input: (), world: &mut crate::world::World) {
         (self.func)(world);
     }
     
@@ -410,6 +441,10 @@ where
         self.meta.name()
     }
 }
+
+// Removed: CombinatorSystem (replaced by ChainSystem), AdapterSystem (simplified out), 
+// BoxedSystem (defined above)
+
 
 /// ExclusiveSystem - 独占系统trait（需要独占访问World）
 pub trait ExclusiveSystem: Send + Sync + 'static {

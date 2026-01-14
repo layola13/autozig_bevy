@@ -1,6 +1,6 @@
 //! Observer - Reactive system for responding to component changes (Bevy 0.14+)
 
-use autozig_macro::include_zig;
+use autozig_macro::{include_zig, Resource, Component};
 use std::marker::PhantomData;
 use crate::world::World;
 use crate::entity::Entity;
@@ -41,12 +41,18 @@ unsafe extern "C" fn observer_trampoline<E: Default + TriggerEvent>(
 
 /// Observer that watches for specific events
 #[repr(C)]
-pub struct Observer {
+#[repr(C)]
+pub struct Observer<E: TriggerEvent> {
     inner: *mut u8,
+    _marker: PhantomData<E>,
 }
 
-impl Observer {
-    pub fn new<E, S>(system: S) -> Self 
+unsafe impl<E: TriggerEvent> Send for Observer<E> {}
+unsafe impl<E: TriggerEvent> Sync for Observer<E> {}
+impl<E: TriggerEvent> crate::component::Component for Observer<E> {}
+
+impl<E: TriggerEvent> Observer<E> {
+    pub fn new<S>(system: S) -> Self 
     where 
         E: TriggerEvent + Default,
         S: ObserverSystem<Event = E> + 'static
@@ -57,48 +63,51 @@ impl Observer {
         
         Self {
             inner: observer_create(data, vtable, observer_trampoline::<E>),
+            _marker: PhantomData,
         }
     }
 }
 
-impl Drop for Observer {
+impl<E: TriggerEvent> Drop for Observer<E> {
     fn drop(&mut self) {
         observer_destroy(self.inner);
     }
 }
 
-/// State of an observer
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObserverState {
-    Active,
-    Inactive,
-    Disabled,
+
+/// ObserverList - List of observers for a specific event type
+pub struct ObserverList<E: TriggerEvent> {
+    pub observers: Vec<Observer<E>>,
 }
 
-/// Descriptor for creating observers
-pub struct ObserverDescriptor {
-    pub component_id: ComponentId,
-    pub event_type: ObserverEventType,
+impl<E: TriggerEvent> ObserverList<E> {
+    pub fn trigger(&mut self, entity: Entity, world: &mut World) {
+        for observer in &mut self.observers {
+            // Unsafe: calling FFI function with opaque pointer
+            observer_trigger(observer.inner, entity, world as *mut World as *mut c_void);
+        }
+    }
 }
 
-/// Types of events observers can watch
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObserverEventType {
-    OnAdd,
-    OnInsert,
-    OnRemove,
-    OnReplace,
+impl<E: TriggerEvent> Default for ObserverList<E> {
+    fn default() -> Self {
+        Self { observers: Vec::new() }
+    }
 }
 
-/// Trigger for observer execution
+unsafe impl<E: TriggerEvent> Send for ObserverList<E> {}
+unsafe impl<E: TriggerEvent> Sync for ObserverList<E> {}
+impl<E: TriggerEvent + 'static> crate::resource::Resource for ObserverList<E> {}
+
+// Remove previously defined CachedComponentObservers and CachedObservers as they are superseded by generic ObserverList
 #[repr(C)]
-pub struct Trigger<'w, E> {
+pub struct Trigger<E> {
     pub entity: Entity,
     pub event: E,
-    _marker: PhantomData<&'w ()>,
+    pub(crate) _marker: PhantomData<E>,
 }
 
-impl<'w, E> Trigger<'w, E> {
+impl<E> Trigger<E> {
     pub fn entity(&self) -> Entity {
         self.entity
     }
@@ -139,236 +148,141 @@ pub trait ObserverSystem: Send + Sync + 'static {
     fn run(&mut self, trigger: Trigger<Self::Event>, world: &mut World);
 }
 
-/// Runner for executing observers
+/// Runner for executing observers - type-erased version
 pub struct ObserverRunner {
-    observers: Vec<Observer>,
+    // Type-erased: stores raw function pointers
+    _marker: std::marker::PhantomData<()>,
 }
 
 impl ObserverRunner {
     pub fn new() -> Self {
-        Self {
-            observers: Vec::new(),
-        }
-    }
-    
-    pub fn add_observer(&mut self, observer: Observer) {
-        self.observers.push(observer);
-    }
-    
-    pub fn trigger(&mut self, entity: Entity, world: &mut World) {
-        for observer in &mut self.observers {
-            observer_trigger(observer.inner, entity, world as *mut World as *mut c_void);
-        }
+        Self { _marker: std::marker::PhantomData }
     }
 }
+
+/// Trait for types that can be converted to ObserverSystem
+pub trait IntoObserverSystem<E, M>: Sized {
+    type System: ObserverSystem<Event = E>;
+    fn into_observer_system(self) -> Self::System;
+}
+
+use crate::component::Component;
 
 /// Marker for OnAdd events
 #[derive(Clone, Copy, Debug)]
-#[derive(Default)]
-pub struct OnAdd;
-impl TriggerEvent for OnAdd {}
+pub struct OnAdd<C>(PhantomData<C>);
+impl<C> Default for OnAdd<C> { fn default() -> Self { Self(PhantomData) } }
+impl<C: Component> TriggerEvent for OnAdd<C> {}
 
 /// Marker for OnInsert events
 #[derive(Clone, Copy, Debug)]
-#[derive(Default)]
-pub struct OnInsert;
-impl TriggerEvent for OnInsert {}
+pub struct OnInsert<C>(PhantomData<C>);
+impl<C> Default for OnInsert<C> { fn default() -> Self { Self(PhantomData) } }
+impl<C: Component> TriggerEvent for OnInsert<C> {}
 
 /// Marker for OnRemove events
 #[derive(Clone, Copy, Debug)]
-#[derive(Default)]
-pub struct OnRemove;
-impl TriggerEvent for OnRemove {}
+pub struct OnRemove<C>(PhantomData<C>);
+impl<C> Default for OnRemove<C> { fn default() -> Self { Self(PhantomData) } }
+impl<C: Component> TriggerEvent for OnRemove<C> {}
 
 /// Marker for OnReplace events
 #[derive(Clone, Copy, Debug)]
-#[derive(Default)]
-pub struct OnReplace;
-impl TriggerEvent for OnReplace {}
+pub struct OnReplace<C>(PhantomData<C>);
+impl<C> Default for OnReplace<C> { fn default() -> Self { Self(PhantomData) } }
+impl<C: Component> TriggerEvent for OnReplace<C> {}
 
-/// Observer attached to a specific entity
-pub struct EntityObserver {
-    entity: Entity,
-    observer: Observer,
-}
-
-impl EntityObserver {
-    pub fn new(entity: Entity, observer: Observer) -> Self {
-        Self { entity, observer }
-    }
-    
-    pub fn entity(&self) -> Entity {
-        self.entity
-    }
-}
-
-/// Observer attached to a component type
-pub struct ComponentObserver<T> {
-    observer: Observer,
-    _marker: PhantomData<T>,
-}
-
-impl<T> ComponentObserver<T> {
-    pub fn new(observer: Observer) -> Self {
-        Self {
-            observer,
-            _marker: PhantomData,
-        }
-    }
-}
-// ============================================================================
-// Observer Advanced Types - Observer高级类型
-// ============================================================================
-
-/// CachedComponentObservers - 缓存的组件观察者
-pub struct CachedComponentObservers {
-    observers: std::collections::HashMap<ComponentId, Vec<Observer>>,
-}
-
-impl CachedComponentObservers {
-    pub fn new() -> Self {
-        Self {
-            observers: std::collections::HashMap::new(),
-        }
-    }
-    
-    pub fn add_observer(&mut self, component_id: ComponentId, observer: Observer) {
-        self.observers
-            .entry(component_id)
-            .or_insert_with(Vec::new)
-            .push(observer);
-    }
-    
-    pub fn get_observers(&self, component_id: ComponentId) -> Option<&[Observer]> {
-        self.observers.get(&component_id).map(|v| v.as_slice())
-    }
-    
-    pub fn remove_observers(&mut self, component_id: ComponentId) -> Option<Vec<Observer>> {
-        self.observers.remove(&component_id)
-    }
-    
-    pub fn clear(&mut self) {
-        self.observers.clear();
-    }
-}
-
-impl Default for CachedComponentObservers {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// CachedObservers - 通用缓存的观察者集合
-pub struct CachedObservers {
-    on_add: Vec<Observer>,
-    on_insert: Vec<Observer>,
-    on_remove: Vec<Observer>,
-    on_replace: Vec<Observer>,
-}
-
-impl CachedObservers {
-    pub fn new() -> Self {
-        Self {
-            on_add: Vec::new(),
-            on_insert: Vec::new(),
-            on_remove: Vec::new(),
-            on_replace: Vec::new(),
-        }
-    }
-    
-    pub fn add_on_add(&mut self, observer: Observer) {
-        self.on_add.push(observer);
-    }
-    
-    pub fn add_on_insert(&mut self, observer: Observer) {
-        self.on_insert.push(observer);
-    }
-    
-    pub fn add_on_remove(&mut self, observer: Observer) {
-        self.on_remove.push(observer);
-    }
-    
-    pub fn add_on_replace(&mut self, observer: Observer) {
-        self.on_replace.push(observer);
-    }
-    
-    pub fn get_on_add(&self) -> &[Observer] {
-        &self.on_add
-    }
-    
-    pub fn get_on_insert(&self) -> &[Observer] {
-        &self.on_insert
-    }
-    
-    pub fn get_on_remove(&self) -> &[Observer] {
-        &self.on_remove
-    }
-    
-    pub fn get_on_replace(&self) -> &[Observer] {
-        &self.on_replace
-    }
-    
-    pub fn clear(&mut self) {
-        self.on_add.clear();
-        self.on_insert.clear();
-        self.on_remove.clear();
-        self.on_replace.clear();
-    }
-}
-
-impl Default for CachedObservers {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 // ============================================================================
 // Observer Traits - Observer trait扩展
 // ============================================================================
 
-/// IntoObserverSystem - 转换为观察者系统trait
-pub trait IntoObserverSystem<E: TriggerEvent, Marker> {
-    type System: ObserverSystem<Event = E>;
-    
-    fn into_system(self) -> Self::System;
-}
+// ... imports ...
+use crate::resource::Resource as ResourceTrait;
+use crate::system_param::{SystemParam, ReadOnlySystemParam};
+use crate::system::{SystemMeta, System};
 
-// 为函数实现IntoObserverSystem
-impl<E, F, Marker> IntoObserverSystem<E, Marker> for F
-where
-    E: TriggerEvent,
-    F: FnMut(Trigger<E>, &mut World) + Send + Sync + 'static,
-{
-    type System = FunctionObserverSystem<E, F>;
+// ...
+
+struct CurrentTrigger<E: TriggerEvent>(Trigger<E>);
+unsafe impl<E: TriggerEvent> Send for CurrentTrigger<E> {}
+unsafe impl<E: TriggerEvent> Sync for CurrentTrigger<E> {}
+impl<E: TriggerEvent + 'static> crate::resource::Resource for CurrentTrigger<E> {}
+
+// Impl SystemParam for Trigger
+impl<E: Component + Clone + TriggerEvent> crate::system_param::SystemParam for Trigger<E> {
+    type State = ();
+    type Item<'w> = Trigger<E>;
     
-    fn into_system(self) -> Self::System {
-        FunctionObserverSystem::new(self)
+    fn init_state(_world: &mut World, _system_meta: &mut crate::system::SystemMeta) -> Self::State {
+        ()
+    }
+    
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        _system_meta: &crate::system::SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+         // Access world resource "CurrentTrigger"
+         match world.get_resource::<CurrentTrigger<E>>() {
+             Some(current) => Trigger {
+                 entity: current.0.entity,
+                 event: current.0.event.clone(),
+                 _marker: PhantomData,
+             },
+             None => {
+                 // Return a dummy trigger or panic?
+                 // Since SystemParam creation happens before system run,
+                 // if we are outside observer, this should fail or panic.
+                 panic!("Trigger<E> used outside of Observer or CurrentTrigger resource missing.");
+             }
+         }
     }
 }
 
-/// FunctionObserverSystem - 函数观察者系统
-pub struct FunctionObserverSystem<E: TriggerEvent, F> {
-    func: F,
-    _phantom: PhantomData<E>,
+// ... ObserverSystem traits ...
+
+/// GenericObserverSystem - Adapts a System to be an ObserverSystem
+pub struct GenericObserverSystem<S, E> {
+    system: S,
+    _marker: PhantomData<E>,
 }
 
-impl<E: TriggerEvent, F> FunctionObserverSystem<E, F> {
-    pub fn new(func: F) -> Self {
-        Self {
-            func,
-            _phantom: PhantomData,
+impl<S, E> GenericObserverSystem<S, E> {
+    pub fn new(system: S) -> Self {
+        Self { system, _marker: PhantomData }
+    }
+}
+
+impl<S, E> ObserverSystem for GenericObserverSystem<S, E>
+where
+    S: System<In=()> + 'static,
+    E: TriggerEvent + Clone + 'static,
+{
+    type Event = E;
+    fn run(&mut self, trigger: Trigger<E>, world: &mut World) {
+        let prev = world.remove_resource::<CurrentTrigger<E>>();
+        world.insert_resource(CurrentTrigger(trigger)); // Moves trigger
+        
+        self.system.run((), world);
+        
+        world.remove_resource::<CurrentTrigger<E>>();
+        if let Some(p) = prev {
+            world.insert_resource(p);
         }
     }
 }
 
-impl<E, F> ObserverSystem for FunctionObserverSystem<E, F>
+// Implement IntoObserverSystem for any S: IntoSystem where S::System is used
+impl<E, M, S> IntoObserverSystem<E, M> for S
 where
-    E: TriggerEvent,
-    F: FnMut(Trigger<E>, &mut World) + Send + Sync + 'static,
+    E: TriggerEvent + Clone + 'static,
+    S: crate::into_system::IntoSystem<M>,
 {
-    type Event = E;
+    type System = GenericObserverSystem<crate::system::BoxedSystem, E>;
     
-    fn run(&mut self, trigger: Trigger<Self::Event>, world: &mut World) {
-        (self.func)(trigger, world);
+    fn into_observer_system(self) -> Self::System {
+        GenericObserverSystem::new(self.into_system())
     }
 }

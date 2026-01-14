@@ -238,6 +238,60 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             filter_state: &self.filter_state,
         }
     }
+
+    /// Iterate over combinations of K distinct entities
+    pub fn iter_combinations<'w, const K: usize, Q, F>(&'w self, world: &'w World) -> QueryCombinationIter<'w, Q, F, K>
+    where Q: QueryData<State=S>, F: QueryFilter<State=FS>
+    {
+        world.update_archetypes();
+        
+        // Lazy match (Duplicate logic from iter - could be extracted)
+        {
+            let archetypes = world.archetypes.read().unwrap();
+            let mut matched = self.matched_archetypes.write().unwrap();
+            if matched.len() < archetypes.len() {
+                matched.clear();
+                for archetype in archetypes.iter() {
+                    if Q::Fetch::matches_archetype(&self.state, archetype) && 
+                       F::Fetch::matches_archetype(&self.filter_state, archetype) {
+                        matched.push(archetype.id().0);
+                    }
+                }
+            }
+        }
+
+        let mut entities = Vec::new();
+        let matched = self.matched_archetypes.read().unwrap();
+        
+        // Initialize filter fetch for checking entities
+        let last_run = world.last_change_tick();
+        let this_run = world.read_change_tick();
+        let cell = world.as_unsafe_world_cell_readonly();
+        let mut filter_fetch = F::Fetch::init(&self.filter_state, cell, last_run, this_run);
+
+        for &arch_id in matched.iter() {
+            let table_ptr = unsafe { world_get_table_for_archetype(world.inner, arch_id) };
+            if !table_ptr.is_null() {
+                let table = Table { inner: table_ptr };
+                let count = table.entity_count();
+                unsafe { filter_fetch.set_table(&self.filter_state, &table); } // Update fetch table context
+                for i in 0..count {
+                    let entity = table.get_entity(i);
+                    if filter_fetch.matches(entity, i) {
+                        entities.push(entity);
+                    }
+                }
+            }
+        }
+
+        QueryCombinationIter {
+            state: self,
+            world,
+            entities,
+            indices: [0; K], // Will be initialized by first flag
+            first: true,
+        }
+    }
 }
 
 impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> Drop for QueryStateInner<S, FS> {
@@ -410,33 +464,109 @@ impl<'w, 's, Q: QueryData, F: QueryFilter, I: Iterator<Item = Entity>> Iterator 
 }
 
 /// Query combination iterator
-pub struct QueryCombinationIter<'w, Q: QueryData, F: QueryFilter, const N: usize> {
-    _phantom: PhantomData<(Q, F)>,
-    entities: &'w [Entity],
-    indices: [usize; N],
+pub struct QueryCombinationIter<'w, Q: QueryData, F: QueryFilter, const K: usize> {
+    state: &'w QueryStateInner<Q::State, F::State>,
+    world: &'w World,
+    entities: Vec<Entity>,
+    indices: [usize; K],
+    first: bool,
 }
 
-impl<'w, Q: QueryData, F: QueryFilter, const N: usize> Iterator for QueryCombinationIter<'w, Q, F, N> {
-    type Item = [Entity; N];
+impl<'w, Q: QueryData, F: QueryFilter, const K: usize> Iterator for QueryCombinationIter<'w, Q, F, K> {
+    type Item = [Q::Item<'w>; K];
     
     fn next(&mut self) -> Option<Self::Item> {
-        if self.entities.len() < N || N == 0 {
+        if self.entities.len() < K {
             return None;
         }
         
-        // Simple combination generation (placeholder)
-        let mut result = [Entity::from_raw(0); N];
-        for (i, &idx) in self.indices.iter().enumerate() {
-            if idx >= self.entities.len() {
-                return None;
+        if self.first {
+            self.first = false;
+            // First combination [0, 1, 2, ...]
+            for i in 0..K {
+                self.indices[i] = i;
             }
-            result[i] = self.entities[idx];
+        } else {
+            // Next combination logic
+            // Find rightmost index that can be incremented
+            let mut i = K - 1;
+            while i > 0 && self.indices[i] == self.entities.len() - K + i {
+                i -= 1;
+            }
+            if self.indices[i] == self.entities.len() - K + i {
+                return None; // Done
+            }
+            
+            self.indices[i] += 1;
+            for j in i+1..K {
+                self.indices[j] = self.indices[j-1] + 1;
+            }
         }
         
-        // Increment indices for next combination
-        self.indices[0] += 1;
+        // Map indices to Items
+        // We use unsafe cell to allow multiple mutable borrows if needed?
+        // QueryData::Item might be mutable.
+        // Bevy checks disjointness.
+        // We assume safety here or use unsafe.
         
-        Some(result)
+        // Problem: `get` takes `&Self`. If Q::Item is `&mut T`, `get` returns it.
+        // `query.get_mut` requires `&mut World` or `UnsafeCell`.
+        // `QueryCombinationIter` holds `&World` (shared).
+        // It can only return ReadOnly items unless unsafe.
+        // Bevy's `iter_combinations` requires `ReadOnlyQueryData` OR unsafe logic checking disjointness.
+        // SystemParam for `Query` has `iter_combinations`.
+        
+        // For simplicity, assuming ReadOnly or unsafe cast if user knows what they do.
+        // But `Query` struct holds `&'w World`, so it only supports read access?
+        // No, `QueryMut` holds `&'w mut World`.
+        // `iter_combinations` on `Query`?
+        // `Query` is read-only access (usually). `QueryMut` is mutable.
+        // If `Q` is `&mut T`, `Query<'w, &mut T>` is valid?
+        // Yes, `Query` struct definition lines 60-65: `world: &'w World`.
+        // `&World` only allows `get_resource`, NOT `get_mut` for components (unless interior mutability).
+        // `World::get_mut` takes `&mut self`.
+        // So `Query` with `&World` can ONLY return `&T`.
+        // `Q::Item` for `&mut T` requires `Mut<T>`.
+        
+        // Wait, `Query` struct is wrapper.
+        // Use `QueryState::get` which takes `&World`.
+        // `QueryStateInner::get` (line 86) returns `Q::Item`.
+        // If `Q` is `&mut T`, does `get` work with `&World`?
+        // `World::get` returns `Option<&T>`.
+        // `World::get_mut` returns `Option<Mut<T>>` taking `&mut World`.
+        
+        // So `Query` (shared world) CANNOT yield mutable items.
+        // Unsafe cell usage in `QueryStateInner` might allow it if we claim safety.
+        // But `Query` struct is intended for shared access.
+        // So `iter_combinations` on `Query` yields shared items.
+        
+        // If we want mutable combinations, we need `iter_combinations_mut` on `QueryMut`.
+        
+        // Let's implement fetching.
+        // We use `MaybeUninit`? No, generic array creation.
+        // `[Q::Item<'w>; K]` construction.
+        
+        let mut items: Vec<Q::Item<'w>> = Vec::with_capacity(K);
+        for &idx in &self.indices {
+            let entity = self.entities[idx];
+            // We use `get` which assumes shared access
+            match self.state.get::<Q>(self.world, entity) {
+                Ok(item) => items.push(item),
+                Err(_) => return None, // Should not happen if entities list is valid
+            }
+        }
+        
+        // Convert Vec to Array
+        // Q::Item might be non-Copy.
+        // Hack to convert Vec to Array.
+        if items.len() == K {
+             // Create array using iterator?
+             let mut iter = items.into_iter();
+             let array: [Q::Item<'w>; K] = std::array::from_fn(|_| iter.next().unwrap());
+             Some(array)
+        } else {
+            None
+        }
     }
 }
 
