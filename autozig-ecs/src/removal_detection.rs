@@ -44,12 +44,21 @@ pub struct RemovedComponents<'w, T> {
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<'w, T> RemovedComponents<'w, T> {
-    pub fn new(_world: &'w crate::world::World) -> Self {
-        // In a real implementation, this would look up the component id and fetch the readers.
-        // For now, return an empty reader placeholder.
+impl<'w, T: 'static> RemovedComponents<'w, T> {
+    pub fn new(world: &'w crate::world::World) -> Self {
+        let type_id = std::any::TypeId::of::<T>();
+        let events = if let Some(events_any) = world.removed_components.get(&type_id) {
+            if let Some(events) = events_any.downcast_ref::<RemovedComponentEvents>() {
+                &events.events[..]
+            } else {
+                &[]
+            }
+        } else {
+            &[]
+        };
+        
         Self {
-            reader: RemovedComponentReader { events: &[] },
+            reader: RemovedComponentReader { events },
             _marker: std::marker::PhantomData,
         }
     }

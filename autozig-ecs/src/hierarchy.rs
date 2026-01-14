@@ -454,7 +454,6 @@ impl crate::plugin::Plugin for HierarchyPlugin {
         use crate::into_system::IntoSystem;
         
         type HierarchySystemMarker = (
-            (),
             crate::command::Commands<'static>,
             crate::query::Query<'static, (crate::entity::Entity, &'static Parent), crate::query::filter::Changed<Parent>>,
             crate::query::Query<'static, &'static mut Children>,

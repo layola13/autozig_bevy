@@ -6,6 +6,7 @@ use autozig_macro::include_zig;
 use crate::component::Component;
 use crate::entity::Entity;
 use crate::query::QueryFilter;
+use crate::resource::{Res, ResMut};
 use std::marker::PhantomData;
 
 // ============================================================================
@@ -481,6 +482,12 @@ impl<'a, T> std::ops::Deref for Ref<'a, T> {
     }
 }
 
+impl<'a, T: std::fmt::Debug> std::fmt::Debug for Ref<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
 /// TickCells - Tick的Cell包装器
 pub struct TickCells {
     added: std::cell::Cell<Tick>,
@@ -611,6 +618,15 @@ impl<'a, T> Mut<'a, T> {
     }
 }
 
+impl<'a, T: PartialEq> Mut<'a, T> {
+    pub fn set_if_neq(&mut self, value: T) {
+        if *self.value != value {
+            *self.value = value;
+            self.set_changed();
+        }
+    }
+}
+
 impl<'a, T> DetectChanges for Mut<'a, T> {
     fn is_added(&self) -> bool {
         self.ticks.is_added(self.last_run, self.this_run)
@@ -651,5 +667,27 @@ impl<'a, T> std::ops::DerefMut for Mut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.set_changed();
         self.value
+    }
+}
+
+// Implementations for Res and ResMut (Stubs for Resource Change Detection compatibility)
+impl<'w, T> DetectChanges for Res<'w, T> {
+    fn is_added(&self) -> bool { false }
+    fn is_changed(&self) -> bool { false }
+    fn last_changed(&self) -> Tick { Tick(0) }
+}
+
+impl<'w, T> DetectChanges for ResMut<'w, T> {
+    fn is_added(&self) -> bool { false }
+    fn is_changed(&self) -> bool { false }
+    fn last_changed(&self) -> Tick { Tick(0) }
+}
+
+impl<'w, T: PartialEq> ResMut<'w, T> {
+    pub fn set_if_neq(&mut self, value: T) {
+        if *self.ptr != value {
+            *self.ptr = value;
+            // TODO: Update resource ticks when supported
+        }
     }
 }

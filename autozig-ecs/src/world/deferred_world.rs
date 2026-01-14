@@ -3,15 +3,20 @@
 use crate::world::World;
 use crate::entity::Entity;
 use crate::component::ComponentId;
+use crate::command::{CommandBuffer, Commands};
 
 /// DeferredWorld - 延迟世界操作，用于在系统执行期间安全地访问World
 pub struct DeferredWorld<'w> {
     world: &'w mut World,
+    buffer: CommandBuffer,
 }
 
 impl<'w> DeferredWorld<'w> {
     pub fn new(world: &'w mut World) -> Self {
-        Self { world }
+        Self { 
+            world,
+            buffer: CommandBuffer::new(),
+        }
     }
     
     /// 获取World的不可变引用
@@ -23,6 +28,12 @@ impl<'w> DeferredWorld<'w> {
     pub fn as_world_mut(&mut self) -> &mut World {
         self.world
     }
+    
+    /// Get Commands that will be applied when DeferredWorld is dropped
+    pub fn commands(&mut self) -> Commands<'_> {
+        self.buffer.commands()
+    }
+
     
     /// 获取实体的可变访问
     pub fn entity_mut(&mut self, entity: Entity) -> Option<crate::world::EntityWorldMut<'_>> {
@@ -58,12 +69,35 @@ impl<'w> DeferredWorld<'w> {
     }
     
     /// 转换为完全延迟的World
-    pub fn into_deferred(self) -> &'w mut World {
-        self.world
+    pub fn into_deferred(mut self) -> &'w mut World {
+        // Apply commands before returning world
+        if !self.buffer.is_empty() || !self.buffer.resource_queue.is_empty() {
+             self.buffer.apply_with_world(self.world);
+             // Clear buffer so if Drop logic was simple it wouldn't run, but we use ManuallyDrop anyway.
+             self.buffer = CommandBuffer::new();
+        }
+        
+        let this = std::mem::ManuallyDrop::new(self);
+        unsafe { std::ptr::read(&this.world) }
     }
     
     // TODO: 实现剩余的~10个deferred_world API
     // - entities_and_commands()
     // - trigger_raw()
     // - write_message系列
+    
+    pub fn write_message<M: crate::event::Event + Clone>(&mut self, message: M) {
+        // Send event using Events resource
+        if let Some(mut events) = self.world.get_resource_mut::<crate::event::Events<M>>() {
+            events.send(message);
+        }
+    }
+}
+
+impl<'w> Drop for DeferredWorld<'w> {
+    fn drop(&mut self) {
+        if !self.buffer.is_empty() || !self.buffer.resource_queue.is_empty() {
+            self.buffer.apply_with_world(self.world);
+        }
+    }
 }

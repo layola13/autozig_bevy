@@ -119,11 +119,13 @@ pub trait IntoSystemConfigs<Marker> {
 // Implement for single system
 impl<S, P> IntoSystemConfigs<(P,)> for S
 where
-    S: crate::into_system::IntoSystem<P>,
+    S: crate::into_system::IntoSystem<P, (), ()>,
 {
     fn into_configs(self) -> SystemConfigs {
         let sys = self.into_system();
-        SystemConfig::new(sys).into()
+        // Box into type-erased system
+        let boxed = crate::system::BoxedSystem::new(sys, std::any::type_name::<S>());
+        SystemConfig::new(boxed).into()
     }
 }
 

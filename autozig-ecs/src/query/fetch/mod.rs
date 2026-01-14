@@ -124,14 +124,91 @@ impl<T: Component> Drop for WriteFetch<T> {
     }
 }
 
+/// Ref fetch - fetches immutable component data with change detection info
+pub struct RefFetch<T: Component> {
+    pub(crate) inner: *mut FetchCoreOpaque,
+    component_id: ComponentId,
+    pub(crate) last_run: Tick,
+    pub(crate) this_run: Tick,
+    _phantom: PhantomData<T>,
+}
+
+unsafe impl<T: Component> Send for RefFetch<T> {}
+unsafe impl<T: Component> Sync for RefFetch<T> {}
+
+impl<T: Component> RefFetch<T> {
+    pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
+        Self {
+            inner: fetch_create(),
+            component_id,
+            last_run,
+            this_run,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn component_id(&self) -> ComponentId {
+        self.component_id
+    }
+}
+
+impl<T: Component> Drop for RefFetch<T> {
+    fn drop(&mut self) {
+        fetch_destroy(self.inner);
+    }
+}
+
+impl<'w, T: Component> Fetch<'w> for RefFetch<T> {
+    type Item = Ref<'w, T>;
+    type State = ComponentId;
+
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state, last_run, this_run)
+    }
+
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        fetch_set_table(self.inner, table.inner, state.index() as u32);
+    }
+
+    unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.set_table(state, table);
+    }
+
+    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
+        unsafe {
+            let ptr = fetch_get_at(self.inner, index);
+            let ticks_ptr = fetch_get_ticks_at(self.inner, index);
+            
+            if ptr.is_null() {
+                panic!("RefFetch: component pointer is null at index {}", index);
+            }
+            if ticks_ptr.is_null() {
+                panic!("RefFetch: ticks pointer is null at index {}", index);
+            }
+            
+            Ref::new(
+                &*(ptr as *const T),
+                &*(ticks_ptr as *const ComponentTicks),
+                self.last_run,
+                self.this_run,
+            )
+        }
+    }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
+    }
+}
+
 /// Option fetch - fetches optional component data
 pub struct OptionFetch<F> {
     pub(crate) inner: F,
+    pub(crate) matches: bool,
 }
 
 impl<F> OptionFetch<F> {
     pub fn new(inner: F) -> Self {
-        Self { inner }
+        Self { inner, matches: false }
     }
 }
 
@@ -259,16 +336,24 @@ impl<'w, F: Fetch<'w>> Fetch<'w> for OptionFetch<F> {
         Self::new(F::init(state, world, last_run, this_run))
     }
 
-    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
-        self.inner.set_table(state, table);
+    unsafe fn set_table(&mut self, _state: &Self::State, _table: &crate::storage::Table) {
+        // OptionFetch doesn't update matches in set_table because it needs Archetype.
+        // It should be driven by set_archetype.
     }
     
     unsafe fn set_archetype(&mut self, state: &Self::State, archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
-        self.inner.set_archetype(state, archetype, table);
+        self.matches = F::matches_archetype(state, archetype);
+        if self.matches {
+            self.inner.set_archetype(state, archetype, table);
+        }
     }
 
     fn fetch(&mut self, entity: Entity, row: usize) -> Self::Item {
-        Some(self.inner.fetch(entity, row))
+        if self.matches {
+            Some(self.inner.fetch(entity, row))
+        } else {
+            None
+        }
     }
 
     fn matches_archetype(_state: &Self::State, _archetype: &crate::archetype::Archetype) -> bool {

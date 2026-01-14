@@ -149,6 +149,18 @@ impl<'w, T> std::ops::DerefMut for ResMut<'w, T> {
     }
 }
 
+impl<'w, T: std::fmt::Debug> std::fmt::Debug for Res<'w, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.ptr.fmt(f)
+    }
+}
+
+impl<'w, T: std::fmt::Debug> std::fmt::Debug for ResMut<'w, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.ptr.fmt(f)
+    }
+}
+
 /// Marker for NonSend resources (TODO)
 pub struct NonSend<T>(T);
 pub struct NonSendMut<'w, T>(&'w mut T);

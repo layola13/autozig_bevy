@@ -124,7 +124,6 @@ impl App {
         }
     }
 
-    /// Run the Update schedule once without consuming App
     pub fn update(&mut self) {
         use crate::schedule::{Update, Schedules};
         if let Some(mut schedules) = self.world.remove_resource::<Schedules>() {
@@ -257,11 +256,13 @@ pub struct TimePlugin;
 
 impl Plugin for TimePlugin {
     fn build(&self, app: &mut App) {
-        fn time_plugin_build(_app_ptr: *mut std::ffi::c_void) {
-            // Initialize time resource
-        }
+        use autozig_time::Time;
+        app.insert_resource(Time::new());
         
-        app.register_plugin_fn("TimePlugin", time_plugin_build);
+        // Add time update system at the start of the frame
+        app.add_systems(crate::schedule::First, |mut time: crate::prelude::ResMut<Time>| {
+            time.update();
+        });
     }
 }
 
@@ -271,6 +272,7 @@ pub struct DefaultPlugins;
 impl Plugin for DefaultPlugins {
     fn build(&self, app: &mut App) {
         app.add_plugin(CorePlugin)
-           .add_plugin(TimePlugin);
+           .add_plugin(TimePlugin)
+           .add_plugin(crate::hierarchy::HierarchyPlugin);
     }
 }

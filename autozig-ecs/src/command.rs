@@ -8,6 +8,8 @@ use std::any::TypeId;
 use crate::bundle::Bundle;
 use crate::entity::Entity;
 
+pub type WorldCommand = Box<dyn FnOnce(&mut crate::world::World) + Send + Sync>;
+
 #[repr(C)]
 pub struct CommandBufferOpaque {
     _private: u8,
@@ -30,6 +32,14 @@ include_zig!("src/zig/command.zig", {
         entity_idx: u32,
         component_id: u32,
     ) -> bool;
+    fn command_buffer_write_insert_bundle(
+        buffer: *mut CommandBufferOpaque,
+        entity_idx: u32,
+        count: u32,
+        component_ids: *const u32,
+        data_lens: *const usize,
+        data_ptrs: *const *const u8,
+    ) -> bool;
     fn command_buffer_clear(buffer: *mut CommandBufferOpaque);
     fn command_buffer_get_stream(
         buffer: *const CommandBufferOpaque,
@@ -49,6 +59,7 @@ fn get_component_id<C: 'static>() -> u32 {
 
 pub struct CommandBuffer {
     inner: *mut CommandBufferOpaque,
+    pub(crate) resource_queue: Vec<WorldCommand>,
 }
 
 // SAFETY: CommandBuffer is designed to be used across threads
@@ -58,14 +69,17 @@ unsafe impl Sync for CommandBuffer {}
 impl CommandBuffer {
     pub fn new() -> Self {
         let inner = command_buffer_create();
-        Self { inner }
+        Self { 
+            inner,
+            resource_queue: Vec::new(),
+        }
     }
     
     /// Get Commands handle for writing
     pub fn commands(&mut self) -> Commands<'_> {
         Commands {
             buffer: self.inner,
-            resource_queue: Vec::new(),
+            resource_queue: &mut self.resource_queue,
             _marker: PhantomData,
         }
     }
@@ -106,7 +120,7 @@ impl Default for CommandBuffer {
 /// Bevy-compatible Commands API
 pub struct Commands<'w> {
     buffer: *mut CommandBufferOpaque,
-    resource_queue: Vec<Box<dyn FnOnce(&mut crate::world::World) + Send + Sync>>,
+    resource_queue: &'w mut Vec<WorldCommand>,
     _marker: PhantomData<&'w mut ()>,
 }
 
@@ -115,25 +129,7 @@ unsafe impl<'w> Sync for Commands<'w> {}
 
 impl<'w> Commands<'w> {
 
-    /// Create new Commands from internals (used by World)
-    pub fn new_from_entities(_allocator: &crate::entity::EntityAllocator, _entities: &crate::entity::Entities) -> Self {
-        // In this implementation, Commands creates its own internal buffer
-        // In real Bevy, it borrows from World's queue or similar.
-        // Here we create a temporary buffer for immediate flush? 
-        // No, Commands usually writes to a CommandQueue.
-        // Our Commands wraps a CommandBufferOpaque created via new().
-        // But World::commands() implies we are creating one attached to World?
-        // Or creating a standalone one that will be applied to World later?
-        // World::commands() usually returns a Commands that queues to a system's queue.
-        // But here we are creating one on the fly.
-        // Let's create a fresh buffer.
-        let buffer = command_buffer_create();
-        Self {
-            buffer,
-            resource_queue: Vec::new(),
-            _marker: PhantomData,
-        }
-    }
+
 
 
     /// Spawn a new entity (returns placeholder)
@@ -142,7 +138,7 @@ impl<'w> Commands<'w> {
         EntityCommands {
             buffer: self.buffer,
             entity: None,
-            queue: &mut self.resource_queue,
+            queue: self.resource_queue,
             _marker: PhantomData,
         }
     }
@@ -156,20 +152,30 @@ impl<'w> Commands<'w> {
     pub fn spawn_bundle<B: Bundle>(&mut self, bundle: B) -> EntityCommands<'_> {
         command_buffer_write_spawn(self.buffer);
         let components = bundle.get_components();
+        let count = components.len() as u32;
+        let mut ids = Vec::with_capacity(components.len());
+        let mut sizes = Vec::with_capacity(components.len());
+        let mut ptrs = Vec::with_capacity(components.len());
+        
         for (type_id, data_ptr, data_size) in components.iter() {
-            command_buffer_write_insert(
-                self.buffer,
-                u32::MAX, // Sentinel for "Latest Spawned"
-                hash_type_id(*type_id),
-                *data_ptr,
-                *data_size,
-            );
+            ids.push(hash_type_id(*type_id));
+            sizes.push(*data_size);
+            ptrs.push(*data_ptr);
         }
+        
+        command_buffer_write_insert_bundle(
+            self.buffer,
+            u32::MAX, // Sentinel for "Latest Spawned"
+            count,
+            ids.as_ptr(),
+            sizes.as_ptr(),
+            ptrs.as_ptr(),
+        );
         std::mem::forget(bundle);
         EntityCommands {
             buffer: self.buffer,
             entity: None, 
-            queue: &mut self.resource_queue,
+            queue: self.resource_queue,
             _marker: PhantomData,
         }
     }
@@ -186,7 +192,7 @@ impl<'w> Commands<'w> {
         EntityCommands {
             buffer: self.buffer,
             entity: Some(entity),
-            queue: &mut self.resource_queue,
+            queue: &mut *self.resource_queue,
             _marker: PhantomData,
         }
     }
@@ -241,6 +247,28 @@ impl<'w> Commands<'w> {
                             cursor += data_len;
                         },
                         4 => { cursor += 8; },
+                        6 => {
+                            let entity_idx = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
+                            cursor += 4;
+                            let count = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
+                            cursor += 4;
+                            let target_entity = if entity_idx == u32::MAX { last_entity } else { Entity::from_raw(entity_idx) };
+                            let mut bundle_data = Vec::with_capacity(count as usize);
+                            for _ in 0..count {
+                                let component_id = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32);
+                                cursor += 4;
+                                let data_len = std::ptr::read_unaligned(bytes[cursor..].as_ptr() as *const u32) as usize;
+                                cursor += 4;
+                                let data_ptr = bytes[cursor..].as_ptr();
+                                bundle_data.push((
+                                    crate::component::ComponentId::new(component_id as usize),
+                                    data_ptr,
+                                    data_len
+                                ));
+                                cursor += data_len;
+                            }
+                            world.insert_bundle_components_internal(target_entity, bundle_data);
+                        },
                         _ => { break; }
                     }
                 }
@@ -305,16 +333,25 @@ impl<'w> EntityCommands<'w> {
     pub fn insert_bundle<B: Bundle>(&mut self, bundle: B) -> &mut Self {
         let components = bundle.get_components();
         let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
-
+        let count = components.len() as u32;
+        let mut ids = Vec::with_capacity(components.len());
+        let mut sizes = Vec::with_capacity(components.len());
+        let mut ptrs = Vec::with_capacity(components.len());
+        
         for (type_id, data_ptr, data_size) in components.iter() {
-            command_buffer_write_insert(
-                self.buffer,
-                entity_idx,
-                hash_type_id(*type_id),
-                *data_ptr,
-                *data_size,
-            );
+            ids.push(hash_type_id(*type_id));
+            sizes.push(*data_size);
+            ptrs.push(*data_ptr);
         }
+        
+        command_buffer_write_insert_bundle(
+            self.buffer,
+            entity_idx,
+            count,
+            ids.as_ptr(),
+            sizes.as_ptr(),
+            ptrs.as_ptr(),
+        );
         
         std::mem::forget(bundle);
         self

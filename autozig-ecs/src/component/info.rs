@@ -468,7 +468,7 @@ impl Components {
         let mut info = ComponentInfo::new::<T>();
         info.id = id;
         
-        println!("Components::register: name={}, id={:?}", std::any::type_name::<T>(), id);
+        // println!("Components::register: name={}, id={:?}", std::any::type_name::<T>(), id);
         self.components.write().unwrap().insert(id, info);
         self.indices.write().unwrap().insert(type_id, id);
         id
@@ -482,7 +482,7 @@ impl Components {
         let mut info = ComponentInfo::new_resource::<T>();
         info.id = id;
 
-        println!("Components::register_resource_type: name={}, id={:?}", std::any::type_name::<T>(), id);
+        // println!("Components::register_resource_type: name={}, id={:?}", std::any::type_name::<T>(), id);
         self.components.write().unwrap().insert(id, info);
         self.resource_indices.write().unwrap().insert(type_id, id);
         id

@@ -155,6 +155,11 @@ pub const Table = struct {
         return &self.columns.items[idx];
     }
 
+    pub fn getColumnConst(self: *const Table, component_id: u32) ?*const Column {
+        const idx = self.getColumnIndex(component_id) orelse return null;
+        return &self.columns.items[idx];
+    }
+
     /// 添加一行（为entity添加数据）
     pub fn pushRow(self: *Table, entity: u32, tick: Tick) !usize {
         const row = self.entityCount();
@@ -165,7 +170,7 @@ pub const Table = struct {
             try column.data.resize(self.allocator, start + column.item_size);
             @memset(column.data.items[start..], 0);
             try column.ticks.append(self.allocator, ComponentTicks.new(tick));
-            std.debug.print("Table.pushRow: table={}, col={}, row={}, ticks_ptr={*}\n", .{ @intFromPtr(self), column.component_id, column.ticks.items.len - 1, &column.ticks.items[column.ticks.items.len - 1] });
+            // std.debug.print("Table.pushRow: table={}, col={}, row={}, ticks_ptr={*}\n", .{ @intFromPtr(self), column.component_id, column.ticks.items.len - 1, &column.ticks.items[column.ticks.items.len - 1] });
         }
 
         return row;

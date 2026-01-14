@@ -88,20 +88,15 @@ export fn component_ticks_new(tick: Tick) ComponentTicks {
 }
 
 export fn component_ticks_set_changed(ticks_ptr: *ComponentTicks, tick: Tick) void {
-    std.debug.print("setChanged: ptr={*}, val={}\n", .{ ticks_ptr, tick.value });
     ticks_ptr.setChanged(tick);
 }
 
 export fn component_ticks_is_added(ticks: ComponentTicks, last_run: Tick, this_run: Tick) bool {
-    const result = ticks.isAdded(last_run, this_run);
-    std.debug.print("isAdded: added={}, last={}, this={}, res={}\n", .{ ticks.added.value, last_run.value, this_run.value, result });
-    return result;
+    return ticks.isAdded(last_run, this_run);
 }
 
 export fn component_ticks_is_changed(ticks: ComponentTicks, last_run: Tick, this_run: Tick) bool {
-    const result = ticks.isChanged(last_run, this_run);
-    std.debug.print("isChanged: changed={}, last={}, this={}, res={}\n", .{ ticks.changed.value, last_run.value, this_run.value, result });
-    return result;
+    return ticks.isChanged(last_run, this_run);
 }
 
 export fn change_detection_context_init() ChangeDetectionContext {

@@ -101,6 +101,7 @@ pub mod prelude {
         With, Without, Or, Added, Changed,
         OptionFetch, BatchingStrategy
     };
+    pub use autozig_derive::QueryData;
     
     // ==================== System Types ====================
     pub use crate::system::{
@@ -159,6 +160,11 @@ pub mod prelude {
     // ==================== Plugin System ====================
     pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};
     
+    // ==== Common Conditions ====
+    pub mod common_conditions {
+        pub use crate::common_conditions::*;
+    }
+
     // Re-export derive macros
     pub use autozig_macro::{Component, Resource, SystemSet};
 }

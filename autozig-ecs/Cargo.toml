@@ -14,6 +14,12 @@ derive_more = { version = "1.0", features = ["from"] }
 
 # Zig integration
 autozig-macro = { path = "../../autozig/macro" }
+autozig-derive = { path = "../autozig-derive" }
+
+# Internal workspace dependencies
+autozig-time = { path = "../autozig-time" }
+autozig-math = { path = "../autozig-math" }
+autozig-color = { path = "../autozig-color" }
 
 [build-dependencies]
 cc = "1.0"
@@ -25,3 +31,4 @@ path = "src/lib.rs"
 default = []
 trace = []
 bevy_reflect = []
+

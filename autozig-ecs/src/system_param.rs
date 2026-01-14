@@ -566,3 +566,22 @@ impl<T: Send + Sync + 'static> SystemParam for In<T> {
         }
     }
 }
+
+/// RemovedComponents - Track removed components since the last update
+impl<T: 'static> SystemParam for crate::prelude::RemovedComponents<'static, T> {
+    type State = ();
+    type Item<'w> = crate::prelude::RemovedComponents<'w, T>;
+    
+    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
+        ()
+    }
+    
+    fn get_param<'w, 's>(
+        _state: &'s mut Self::State,
+        _system_meta: &SystemMeta,
+        world: &'w World,
+        _change_tick: u32,
+    ) -> Self::Item<'w> {
+        crate::prelude::RemovedComponents::new(world)
+    }
+}

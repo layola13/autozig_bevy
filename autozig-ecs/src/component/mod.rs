@@ -36,6 +36,7 @@ pub mod clone;
 pub mod info;
 pub mod register;
 pub mod required;
+pub mod hooks;
 
 // Re-export commonly used types
 pub use clone::{

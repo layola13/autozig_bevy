@@ -1,0 +1,23 @@
+[package]
+name = "autozig-ecs-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+autozig-ecs = { path = "../../autozig-ecs" }
+rand = "0.8"
+log = "0.4"
+# Add other dependencies as needed by examples (e.g. autozig-app if runner is needed, but we try to use minimal ecs)
+
+[[bin]]
+name = "change_detection"
+path = "change_detection.rs"
+
+[[bin]]
+name = "component_hooks"
+path = "component_hooks.rs"
+
+[[bin]]
+name = "custom_query_param"
+path = "custom_query_param.rs"

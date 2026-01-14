@@ -5,6 +5,9 @@ use crate::archetype::Archetype;
 use std::marker::PhantomData;
 use std::any::TypeId;
 
+// Re-export HookContext
+pub use crate::component::hooks::HookContext;
+
 // ============================================================================
 // Component ID and For - 组件ID和关联
 // ============================================================================
@@ -212,16 +215,19 @@ use std::sync::Arc;
 /// ComponentHooks - 组件生命周期钩子
 #[derive(Clone)]
 pub struct ComponentHooks {
-    on_add: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
-    on_insert: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
-    on_remove: Option<Arc<dyn Fn(DeferredWorld, Entity, ComponentId) + Send + Sync>>,
+    pub(crate) on_add: Option<Arc<dyn Fn(DeferredWorld, HookContext) + Send + Sync>>,
+    pub(crate) on_insert: Option<Arc<dyn Fn(DeferredWorld, HookContext) + Send + Sync>>,
+    pub(crate) on_replace: Option<Arc<dyn Fn(DeferredWorld, HookContext) + Send + Sync>>,
+    pub(crate) on_remove: Option<Arc<dyn Fn(DeferredWorld, HookContext) + Send + Sync>>,
 }
 
 impl std::fmt::Debug for ComponentHooks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ComponentHooks")
             .field("on_add", &self.on_add.is_some())
+            .field("on_add", &self.on_add.is_some())
             .field("on_insert", &self.on_insert.is_some())
+            .field("on_replace", &self.on_replace.is_some())
             .field("on_remove", &self.on_remove.is_some())
             .finish()
     }
@@ -232,6 +238,7 @@ impl ComponentHooks {
         Self {
             on_add: None,
             on_insert: None,
+            on_replace: None,
             on_remove: None,
         }
     }
@@ -243,47 +250,68 @@ impl ComponentHooks {
     pub fn has_on_insert(&self) -> bool {
         self.on_insert.is_some()
     }
+
+    pub fn has_on_replace(&self) -> bool {
+        self.on_replace.is_some()
+    }
     
     pub fn has_on_remove(&self) -> bool {
         self.on_remove.is_some()
     }
     
-    pub fn on_add<F>(&mut self, hook: F)
+    pub fn on_add<F>(&mut self, hook: F) -> &mut Self
     where
-        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
+        F: Fn(DeferredWorld, HookContext) + Send + Sync + 'static,
     {
         self.on_add = Some(Arc::new(hook));
+        self
     }
     
-    pub fn on_insert<F>(&mut self, hook: F)
+    pub fn on_insert<F>(&mut self, hook: F) -> &mut Self
     where
-        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
+        F: Fn(DeferredWorld, HookContext) + Send + Sync + 'static,
     {
         self.on_insert = Some(Arc::new(hook));
+        self
+    }
+
+    pub fn on_replace<F>(&mut self, hook: F) -> &mut Self
+    where
+        F: Fn(DeferredWorld, HookContext) + Send + Sync + 'static,
+    {
+        self.on_replace = Some(Arc::new(hook));
+        self
     }
     
-    pub fn on_remove<F>(&mut self, hook: F)
+    pub fn on_remove<F>(&mut self, hook: F) -> &mut Self
     where
-        F: Fn(DeferredWorld, Entity, ComponentId) + Send + Sync + 'static,
+        F: Fn(DeferredWorld, HookContext) + Send + Sync + 'static,
     {
         self.on_remove = Some(Arc::new(hook));
+        self
     }
     
-    pub fn trigger_add(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
+    pub fn trigger_add(&self, world: DeferredWorld, context: HookContext) {
         if let Some(hook) = &self.on_add {
-            hook(world, entity, component_id);
+            hook(world, context);
         }
     }
     
-    pub fn trigger_insert(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
+    pub fn trigger_insert(&self, world: DeferredWorld, context: HookContext) {
         if let Some(hook) = &self.on_insert {
-            hook(world, entity, component_id);
+            hook(world, context);
+        }
+    }
+
+    pub fn trigger_replace(&self, world: DeferredWorld, context: HookContext) {
+        if let Some(hook) = &self.on_replace {
+            hook(world, context);
         }
     }
     
-    pub fn trigger_remove(&self, world: DeferredWorld, entity: Entity, component_id: ComponentId) {
+    pub fn trigger_remove(&self, world: DeferredWorld, context: HookContext) {
         if let Some(hook) = &self.on_remove {
-            hook(world, entity, component_id);
+            hook(world, context);
         }
     }
 }

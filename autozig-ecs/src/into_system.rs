@@ -152,22 +152,22 @@ where
     }
 }
 
-// Implement IntoSystem for BoxedSystem (identity)
-impl IntoSystem<()> for BoxedSystem {
-    fn into_system(self) -> BoxedSystem {
+impl<S: System> IntoSystem<(), S::In, S::Out> for S {
+    type System = S;
+    fn into_system(self) -> Self {
         self
     }
 }
 
-impl<Marker, F> IntoSystem<Marker> for F
+impl<Marker, F> IntoSystem<Marker, (), F::Out> for F
 where
     Marker: Send + Sync + 'static,
     F: SystemParamFunction<Marker, In = ()>,
 {
-    fn into_system(self) -> BoxedSystem {
+    type System = ParamFunctionSystem<Marker, F>;
+    fn into_system(self) -> Self::System {
         let name = std::any::type_name::<F>();
-        let sys = ParamFunctionSystem::<Marker, F>::new(self, name);
-        BoxedSystem::new(sys, name)
+        ParamFunctionSystem::<Marker, F>::new(self, name)
     }
 }
 

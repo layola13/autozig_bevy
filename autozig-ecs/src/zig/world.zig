@@ -93,9 +93,9 @@ pub const World = struct {
 
         // Find or create target archetype
         var target_arch_id: ?u32 = null;
-        for (component_ids[0..count]) |id| {
-            std.debug.print("world_insert_components: count={}, id={}\n", .{ count, id });
-        }
+        // for (component_ids[0..count]) |id| {
+        //     // std.debug.print("world_insert_components: count={}, id={}\n", .{ count, id });
+        // }
         for (self.archetypes.items) |*arch| {
             if (arch.table_components.items.len == count) {
                 var match = true;
@@ -107,7 +107,7 @@ pub const World = struct {
                 }
                 if (match) {
                     target_arch_id = arch.id;
-                    std.debug.print("world_insert_components: found arch={}\n", .{target_arch_id.?});
+                    // std.debug.print("world_insert_components: found arch={}\n", .{target_arch_id.?});
                     break;
                 }
             }
@@ -115,7 +115,7 @@ pub const World = struct {
 
         if (target_arch_id == null) {
             const new_id = @as(u32, @intCast(self.archetypes.items.len));
-            std.debug.print("world_insert_components: creating new arch={} for count={}\n", .{ new_id, count });
+            // std.debug.print("world_insert_components: creating new arch={} for count={}\n", .{ new_id, count });
             var new_arch = Archetype.init(self.allocator, new_id);
             var new_table = Table.init(self.allocator);
 
@@ -244,4 +244,23 @@ export fn world_despawn(world: *World, entity: Entity) bool {
     world.free_list.append(world.allocator, entity.index) catch {};
 
     return true;
+}
+
+export fn world_get_component(world: *const World, entity: Entity, component_id: u32) ?[*]const u8 {
+    if (entity.index >= world.entities.items.len) return null;
+    const meta = world.entities.items[entity.index];
+    if (!meta.is_alive or meta.generation != entity.generation) return null;
+
+    if (meta.archetype_id >= world.archetypes.items.len) return null;
+    const arch = &world.archetypes.items[meta.archetype_id];
+
+    // Check if archetype has component (optimization before table lookup)
+    if (!arch.hasTableComponent(component_id)) return null;
+
+    const table_id = arch.table_id;
+    if (table_id >= world.tables.items.len) return null;
+    const table = &world.tables.items[table_id];
+
+    const col = table.getColumnConst(component_id) orelse return null;
+    return col.getConstPtr(meta.row);
 }

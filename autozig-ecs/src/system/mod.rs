@@ -67,6 +67,14 @@ pub trait System: Send + Sync {
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
+    
+    fn pipe<B>(self, other: B) -> ChainSystem<Self, B>
+    where
+        Self: Sized,
+        B: System<In = Self::Out>,
+    {
+        ChainSystem::new(self, other)
+    }
 }
 
 
@@ -99,9 +107,9 @@ impl BoxedSystem {
     
     pub fn into_raw_parts(self) -> (*mut u8, *mut u8) {
         let raw = Box::into_raw(self.inner);
-        // Split into data ptr and vtable ptr
-        let (data_ptr, vtable_ptr) = (raw as *mut u8, std::ptr::null_mut::<u8>());
-        (data_ptr, vtable_ptr)
+        // Transmute fat pointer to (data, vtable)
+        // SAFETY: Trait object pointers are (data_ptr, vtable_ptr)
+        unsafe { std::mem::transmute(raw) }
     }
     
     pub fn name(&self) -> &str {

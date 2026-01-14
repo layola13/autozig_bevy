@@ -358,8 +358,10 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
             
             if self.current_table_len > 0 {
                 unsafe {
-                    self.fetch.set_table(self.state, &table);
-                    self.filter_fetch.set_table(self.filter_state, &table);
+                    let archetypes = self.world.archetypes();
+                    let archetype = archetypes.get(crate::archetype::ArchetypeId::new(archetype_id)).unwrap();
+                    self.fetch.set_archetype(self.state, archetype, &table);
+                    self.filter_fetch.set_archetype(self.filter_state, archetype, &table);
                 }
             }
         }
@@ -482,88 +484,46 @@ impl<'w, Q: QueryData, F: QueryFilter, const K: usize> Iterator for QueryCombina
         
         if self.first {
             self.first = false;
-            // First combination [0, 1, 2, ...]
+            // First combination [0, 1, 2, ..., K-1]
             for i in 0..K {
                 self.indices[i] = i;
             }
         } else {
-            // Next combination logic
-            // Find rightmost index that can be incremented
+            // Next combination logic (nCr)
             let mut i = K - 1;
             while i > 0 && self.indices[i] == self.entities.len() - K + i {
                 i -= 1;
             }
+            
             if self.indices[i] == self.entities.len() - K + i {
-                return None; // Done
+                return None; // All combinations exhausted
             }
             
             self.indices[i] += 1;
-            for j in i+1..K {
-                self.indices[j] = self.indices[j-1] + 1;
+            for j in i + 1..K {
+                self.indices[j] = self.indices[j - 1] + 1;
             }
         }
         
-        // Map indices to Items
-        // We use unsafe cell to allow multiple mutable borrows if needed?
-        // QueryData::Item might be mutable.
-        // Bevy checks disjointness.
-        // We assume safety here or use unsafe.
-        
-        // Problem: `get` takes `&Self`. If Q::Item is `&mut T`, `get` returns it.
-        // `query.get_mut` requires `&mut World` or `UnsafeCell`.
-        // `QueryCombinationIter` holds `&World` (shared).
-        // It can only return ReadOnly items unless unsafe.
-        // Bevy's `iter_combinations` requires `ReadOnlyQueryData` OR unsafe logic checking disjointness.
-        // SystemParam for `Query` has `iter_combinations`.
-        
-        // For simplicity, assuming ReadOnly or unsafe cast if user knows what they do.
-        // But `Query` struct holds `&'w World`, so it only supports read access?
-        // No, `QueryMut` holds `&'w mut World`.
-        // `iter_combinations` on `Query`?
-        // `Query` is read-only access (usually). `QueryMut` is mutable.
-        // If `Q` is `&mut T`, `Query<'w, &mut T>` is valid?
-        // Yes, `Query` struct definition lines 60-65: `world: &'w World`.
-        // `&World` only allows `get_resource`, NOT `get_mut` for components (unless interior mutability).
-        // `World::get_mut` takes `&mut self`.
-        // So `Query` with `&World` can ONLY return `&T`.
-        // `Q::Item` for `&mut T` requires `Mut<T>`.
-        
-        // Wait, `Query` struct is wrapper.
-        // Use `QueryState::get` which takes `&World`.
-        // `QueryStateInner::get` (line 86) returns `Q::Item`.
-        // If `Q` is `&mut T`, does `get` work with `&World`?
-        // `World::get` returns `Option<&T>`.
-        // `World::get_mut` returns `Option<Mut<T>>` taking `&mut World`.
-        
-        // So `Query` (shared world) CANNOT yield mutable items.
-        // Unsafe cell usage in `QueryStateInner` might allow it if we claim safety.
-        // But `Query` struct is intended for shared access.
-        // So `iter_combinations` on `Query` yields shared items.
-        
-        // If we want mutable combinations, we need `iter_combinations_mut` on `QueryMut`.
-        
-        // Let's implement fetching.
-        // We use `MaybeUninit`? No, generic array creation.
-        // `[Q::Item<'w>; K]` construction.
-        
-        let mut items: Vec<Q::Item<'w>> = Vec::with_capacity(K);
+        // Fetch items for the current combination of indices
+        // SAFETY: We assume the query is read-only or disjoint (which combinations are by definition)
+        let mut items = Vec::with_capacity(K);
         for &idx in &self.indices {
             let entity = self.entities[idx];
-            // We use `get` which assumes shared access
+            // We use the world and state to fetch the data
+            // Since we only have &World, we can only fetch read-only data unless using UnsafeCell
             match self.state.get::<Q>(self.world, entity) {
                 Ok(item) => items.push(item),
                 Err(_) => return None, // Should not happen if entities list is valid
             }
         }
         
-        // Convert Vec to Array
-        // Q::Item might be non-Copy.
-        // Hack to convert Vec to Array.
         if items.len() == K {
-             // Create array using iterator?
-             let mut iter = items.into_iter();
-             let array: [Q::Item<'w>; K] = std::array::from_fn(|_| iter.next().unwrap());
-             Some(array)
+            // Convert Vec to Array [Q::Item<'w>; K]
+            // We use a trick to convert Vec to fixed-size array since into_iter().collect() can't do [T; K] easily
+            let mut iter = items.into_iter();
+            let array: [Q::Item<'w>; K] = std::array::from_fn(|_| iter.next().unwrap());
+            Some(array)
         } else {
             None
         }

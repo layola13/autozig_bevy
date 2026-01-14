@@ -332,8 +332,12 @@ impl<'w> EntityRef<'w> {
         false
     }
     pub fn get<T: crate::component::Component>(&self) -> Option<&'w T> {
-        // TODO: Implement storage access
-        None
+        // SAFETY: 
+        // 1. world.get_component_unsafe returns a pointer to the component data if it exists
+        // 2. We hold &'w World, so the data reference lifetime is tied to World
+        unsafe {
+            self.world.get_component_unsafe::<T>(self.entity).map(|ptr| &*ptr)
+        }
     }
 }
 

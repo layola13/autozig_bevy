@@ -73,3 +73,28 @@ pub fn derive_deref_mut(input: TokenStream) -> TokenStream {
 pub fn derive_enum_variant_meta(input: TokenStream) -> TokenStream {
     enum_variant_meta::derive_enum_variant_meta(input)
 }
+
+mod query_data;
+
+/// Derives `QueryData` for a struct.
+///
+/// This allows the struct to be used as a query parameter in systems.
+/// The struct fields must implement `QueryData`.
+///
+/// # Attributes
+///
+/// - `#[query_data(mutable)]`: (Optional) Marks the query data as mutable (currently ignored by simple implementation).
+///
+/// # Examples
+///
+/// ```ignore
+/// #[derive(QueryData)]
+/// struct MyQuery {
+///     a: &'static ComponentA,
+///     b: &'static mut ComponentB,
+/// }
+/// ```
+#[proc_macro_derive(QueryData, attributes(query_data))]
+pub fn derive_query_data(input: TokenStream) -> TokenStream {
+    query_data::derive_query_data(input)
+}

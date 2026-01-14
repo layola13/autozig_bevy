@@ -10,6 +10,7 @@ pub const OpCode = enum(u8) {
     InsertComponent = 3,
     RemoveComponent = 4,
     InsertResource = 5,
+    InsertBundle = 6,
 };
 
 // CommandBuffer - 延迟命令队列
@@ -59,6 +60,27 @@ pub const CommandBuffer = struct {
 
         // 写入数据
         try self.stream.appendSlice(self.allocator, data);
+    }
+
+    // 写入InsertBundle命令
+    pub fn writeInsertBundle(
+        self: *CommandBuffer,
+        entity_idx: u32,
+        count: u32,
+        component_ids: [*]const u32,
+        data_lens: [*]const usize,
+        data_ptrs: [*]const [*]const u8,
+    ) !void {
+        try self.stream.append(self.allocator, @intFromEnum(OpCode.InsertBundle));
+        try self.stream.appendSlice(self.allocator, std.mem.asBytes(&entity_idx));
+        try self.stream.appendSlice(self.allocator, std.mem.asBytes(&count));
+
+        for (0..count) |i| {
+            try self.stream.appendSlice(self.allocator, std.mem.asBytes(&component_ids[i]));
+            const d_len = @as(u32, @intCast(data_lens[i]));
+            try self.stream.appendSlice(self.allocator, std.mem.asBytes(&d_len));
+            try self.stream.appendSlice(self.allocator, data_ptrs[i][0..d_len]);
+        }
     }
 
     // 写入InsertResource命令
@@ -130,6 +152,18 @@ export fn command_buffer_write_insert(
 ) bool {
     const data = data_ptr[0..data_len];
     buffer.writeInsert(entity_idx, component_id, data) catch return false;
+    return true;
+}
+
+export fn command_buffer_write_insert_bundle(
+    buffer: *CommandBuffer,
+    entity_idx: u32,
+    count: u32,
+    component_ids: [*]const u32,
+    data_lens: [*]const usize,
+    data_ptrs: [*]const [*]const u8,
+) bool {
+    buffer.writeInsertBundle(entity_idx, count, component_ids, data_lens, data_ptrs) catch return false;
     return true;
 }
 
@@ -214,6 +248,20 @@ export fn command_buffer_apply_simple(buffer: *CommandBuffer) u32 {
                 cursor += 4;
                 // Skip data
                 cursor += data_len;
+                executed += 1;
+            },
+            .InsertBundle => {
+                // entity_idx (4) + count (4)
+                cursor += 4;
+                const count = std.mem.bytesToValue(u32, bytes[cursor..][0..4]);
+                cursor += 4;
+                for (0..count) |_| {
+                    // id (4) + len (4)
+                    cursor += 4;
+                    const data_len = std.mem.bytesToValue(u32, bytes[cursor..][0..4]);
+                    cursor += 4;
+                    cursor += data_len;
+                }
                 executed += 1;
             },
         }
