@@ -19,6 +19,7 @@ comptime {
     _ = @import("zig/command.zig");
     _ = @import("zig/plugin.zig");
     _ = @import("zig/system_closure.zig");
+    _ = @import("zig/simd_iter.zig");
 
     // New query modules
     _ = @import("query/fetch/zig/fetch.zig");

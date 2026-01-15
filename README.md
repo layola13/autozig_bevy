@@ -67,15 +67,17 @@ RUN_TESTS=no bash scripts/verify_all.sh
 
 | Mode | Frame Time | Relative |
 |------|------------|----------|
-| **Raw Pointer Iteration** | **26.88µs** | **6x faster** |
+| **SIMD Kernel (Zig)** | **27.57µs** | **5.5x faster** |
+| Raw Pointer Iteration | 31.92µs | 4.7x faster |
 | Standard Query (`Mut<T>`) | 162µs | Baseline |
 | Native Bevy (estimated) | ~150µs | Similar |
 
 ### Key Findings
 
-- **Zig storage achieves 6x better performance** than both standard AutoZig Query and Native Bevy when Rust abstraction overhead is eliminated
-- The 32-byte aligned memory in Zig enables optimal cache utilization and SIMD potential
-- Current bottleneck is Rust-side abstractions (`Mut` wrapper, Iterator protocol, QueryState)
+- **Zig storage achieves 5-6x better performance** than both standard AutoZig Query and Native Bevy
+- **Memory bandwidth is the limiting factor** - SIMD vectorization provides minimal benefit
+- The 32-byte aligned memory in Zig enables optimal cache utilization
+- Theoretical floor: ~27µs (near L3 cache bandwidth limit for 1.6MB data)
 
 ### Optimization History
 
@@ -84,7 +86,8 @@ RUN_TESTS=no bash scripts/verify_all.sh
 | Initial | 1.30ms | - |
 | + Pointer Iteration | 0.52ms | 2.5x |
 | + Pure Rust `set_changed` | 0.16ms | 8x |
-| + Raw Pointer (bypass Mut) | 0.027ms | **48x** |
+| + Raw Pointer (bypass Mut) | 0.032ms | **40x** |
+| + SIMD Kernel | 0.028ms | **46x** |
 
 ## Architecture
 
