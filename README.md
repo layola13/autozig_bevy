@@ -89,10 +89,20 @@ RUN_TESTS=no bash scripts/verify_all.sh
 | + Raw Pointer (bypass Mut) | 0.032ms | **40x** |
 | + SIMD Kernel | 0.028ms | **46x** |
 
+## Build Performance
+
+Zig incremental compilation cache significantly speeds up development:
+
+| Build Type | Time | Notes |
+|------------|------|-------|
+| **Incremental** | **4s** | Daily development |
+| Clean build | ~10s | After `cargo clean` |
+
 ## Architecture
 
 - **Zig Core**: Math, mesh, render pipeline, PBR lighting (SIMD optimized)
 - **Rust Wrapper**: Type-safe Bevy-compatible API
+- **Build System**: Zig source hashing for incremental compilation
 
 ## License
 

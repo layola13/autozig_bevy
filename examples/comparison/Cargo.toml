@@ -27,8 +27,9 @@ path = "src/bench_autozig_safe.rs"
 name = "bench_autozig_safe_simd"
 path = "src/bench_autozig_safe_simd.rs"
 
-[profile.release]
-lto = "fat"
-codegen-units = 1
-opt-level = 3
-panic = "abort"
+# Use workspace profile settings (thin LTO, 16 codegen-units)
+# For maximum performance benchmarks, uncomment below:
+# [profile.release]
+# lto = "fat"
+# codegen-units = 1
+# opt-level = 3
