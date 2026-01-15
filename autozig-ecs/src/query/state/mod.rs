@@ -219,7 +219,7 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             archetype_index: 0,
             row_index: 0,
             current_table_len: 0,
-            entities_ptr: std::ptr::null(), // Initialized to null
+            entities_slice: &[], // Initialized to empty slice
             fetch,
             filter_fetch,
             state: &self.state,
@@ -275,7 +275,7 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             archetype_index: 0,
             row_index: 0,
             current_table_len: 0,
-            entities_ptr: std::ptr::null(), // Initialized to null
+            entities_slice: &[], // Initialized to empty slice
             fetch,
             filter_fetch,
             state: &self.state,
@@ -352,7 +352,7 @@ pub struct QueryStateIter<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
-    pub(crate) entities_ptr: *const u32,
+    pub(crate) entities_slice: &'w [u32],
     pub(crate) fetch: Q::Fetch<'w>,
     pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
@@ -368,10 +368,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
         loop {
             // Inner loop: Iterate over rows in the current table
             if self.row_index < self.current_table_len {
-                // Optimized: Get entity from cached pointer without FFI
-                // SAFETY: row_index checked against current_table_len, entities_ptr valid for this table
-                let entity_id = unsafe { *self.entities_ptr.add(self.row_index) };
-                // Creating Entity with generation 0 to match previous FFI implementation behavior
+                // Optimized: Get entity from cached slice (noalias hint for LLVM)
+                // SAFETY: row_index checked against current_table_len
+                let entity_id = unsafe { *self.entities_slice.get_unchecked(self.row_index) };
                 let entity = Entity::from_raw(entity_id);
                 
                 // Runtime Filtering
@@ -403,8 +402,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
             self.row_index = 0;
             
             if self.current_table_len > 0 {
-                // Optimization: Cache entity list pointer to avoid FFI in inner loop
-                self.entities_ptr = table.get_entity_list_ptr();
+                // Optimization: Cache entity list slice
+                let ptr = table.get_entity_list_ptr();
+                self.entities_slice = unsafe { std::slice::from_raw_parts(ptr, self.current_table_len) };
 
                 unsafe {
                     let archetypes = self.world.archetypes();
@@ -430,7 +430,7 @@ pub struct QueryStateIterMut<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
-    pub(crate) entities_ptr: *const u32,
+    pub(crate) entities_slice: &'w [u32],
     pub(crate) fetch: Q::Fetch<'w>,
     pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
@@ -445,8 +445,8 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if self.row_index < self.current_table_len {
-                // Optimized: Get entity from cached pointer
-                let entity_id = unsafe { *self.entities_ptr.add(self.row_index) };
+                // Optimized: Get entity from cached slice
+                let entity_id = unsafe { *self.entities_slice.get_unchecked(self.row_index) };
                 let entity = Entity::from_raw(entity_id);
                 
                 // Runtime Filtering
@@ -477,8 +477,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
             self.row_index = 0;
             
             if self.current_table_len > 0 {
-                // Optimization: Cache entity list pointer
-                self.entities_ptr = table.get_entity_list_ptr();
+                // Optimization: Cache entity list slice
+                let ptr = table.get_entity_list_ptr();
+                self.entities_slice = unsafe { std::slice::from_raw_parts(ptr, self.current_table_len) };
 
                 unsafe {
                     self.fetch.set_table(self.state, &table);

@@ -60,7 +60,7 @@ impl Default for EntityFetch {
 /// Read fetch - fetches immutable component data
 pub struct ReadFetch<T: Component> {
     pub(crate) inner: *mut FetchCoreOpaque,
-    pub(crate) ptr: *const T,
+    pub(crate) slice: &'static [T], // Using 'static as placeholder, effectively unbounded unsafe slice
     component_id: ComponentId,
     pub(crate) last_run: Tick,
     pub(crate) this_run: Tick,
@@ -71,7 +71,7 @@ impl<T: Component> ReadFetch<T> {
     pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
         Self {
             inner: fetch_create(),
-            ptr: std::ptr::null(),
+            slice: &[],
             component_id,
             last_run,
             this_run,
@@ -95,6 +95,7 @@ pub struct WriteFetch<T: Component> {
     pub(crate) inner: *mut FetchCoreOpaque,
     pub(crate) ptr: *mut T,
     pub(crate) ticks_ptr: *mut ComponentTicks,
+    pub(crate) len: usize, // Store length for slice reconstruction
     component_id: ComponentId,
     pub(crate) last_run: Tick,
     pub(crate) this_run: Tick,
@@ -112,6 +113,7 @@ impl<T: Component> WriteFetch<T> {
             inner: fetch_create(),
             ptr: std::ptr::null_mut(),
             ticks_ptr: std::ptr::null_mut(),
+            len: 0,
             component_id,
             last_run,
             this_run,
@@ -288,9 +290,12 @@ impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
         fetch_set_table(self.inner, table.inner, state.index() as u32);
         if let Some(ptr) = table.get_column_data_ptr(*state) {
-            self.ptr = ptr as *const T;
+            // Create unbounded slice to provide noalias hint to LLVM
+            // SAFETY: The pointer is valid for table.entity_count() elements as per Zig guarantees
+            // We cast to 'static lifetime here internally, but access is bounded by 'w in Fetch
+            self.slice = std::slice::from_raw_parts(ptr as *const T, table.entity_count());
         } else {
-            self.ptr = std::ptr::null();
+            self.slice = &[];
         }
     }
 
@@ -301,8 +306,8 @@ impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
     #[inline(always)]
     fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
         unsafe {
-            if !self.ptr.is_null() {
-                &*(self.ptr.add(index))
+            if !self.slice.is_empty() {
+                self.slice.get_unchecked(index)
             } else {
                 let ptr = fetch_get_at(self.inner, index);
                 &*(ptr as *const T)
@@ -327,6 +332,7 @@ impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
     #[inline(always)]
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
         fetch_set_table(self.inner, table.inner, state.index() as u32);
+        self.len = table.entity_count();
         if let Some(ptr) = table.get_column_data_ptr(*state) {
             self.ptr = ptr as *mut T;
         } else {
@@ -346,26 +352,20 @@ impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
 
     #[inline(always)]
     fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
+        // CRITICAL OPTIMIZATION: Direct pointer access, NO slice reconstruction per call.
+        // Slices are logically valid for [0..self.len), caller guarantees index < len.
         unsafe {
-             if !self.ptr.is_null() && !self.ticks_ptr.is_null() {
-                Mut::new(
-                    &mut *(self.ptr.add(index)),
-                    &mut *(self.ticks_ptr.add(index)),
-                    self.this_run, 
-                    self.last_run,
-                    self.this_run,
-                )
-             } else {
-                 let ptr = fetch_get_at(self.inner, index);
-                 let ticks_ptr = fetch_get_ticks_at(self.inner, index);
-                 Mut::new(
-                    &mut *(ptr as *mut T),
-                    &mut *ticks_ptr,
-                    self.this_run,
-                    self.last_run,
-                    self.this_run,
-                )
-             }
+            // Direct pointer arithmetic - eliminates from_raw_parts_mut overhead
+            let data_ptr = self.ptr.add(index);
+            let ticks_ptr = self.ticks_ptr.add(index);
+
+            Mut::new(
+                &mut *data_ptr,
+                &mut *ticks_ptr,
+                self.this_run, 
+                self.last_run,
+                self.this_run,
+            )
         }
     }
 

@@ -127,8 +127,10 @@ impl ComponentTicks {
     }
 
     pub fn set_changed(&mut self, tick: Tick) {
-        let zig_tick = tick.to_zig();
-        component_ticks_set_changed(&mut self.zig_ticks, zig_tick);
+        // OPTIMIZATION: Direct field assignment instead of FFI call
+        // ZigComponentTicks is #[repr(C)] with known layout: { added: ZigTick, changed: ZigTick }
+        // ZigTick is #[repr(C)] with layout: { value: u32 }
+        self.zig_ticks.changed.value = tick.0;
     }
 
     pub fn is_added(&self, last_run: Tick, this_run: Tick) -> bool {

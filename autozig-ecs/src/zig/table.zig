@@ -6,19 +6,21 @@ const ComponentTicks = change_detection.ComponentTicks;
 const Tick = change_detection.Tick;
 const g_allocator = common.g_allocator;
 
+const align32 = std.mem.Alignment.fromByteUnits(32);
+
 /// Column - 列式存储，每个组件类型一列
 pub const Column = struct {
     component_id: u32,
-    data: std.ArrayList(u8), // 原始字节存储
-    ticks: std.ArrayList(ComponentTicks), // 变更检测周期
+    data: std.ArrayListAlignedUnmanaged(u8, align32), // Ensure 32-byte alignment for SIMD
+    ticks: std.ArrayListUnmanaged(ComponentTicks), // 变更检测周期
     item_size: usize,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, component_id: u32, item_size: usize) Column {
         return Column{
             .component_id = component_id,
-            .data = std.ArrayList(u8){},
-            .ticks = std.ArrayList(ComponentTicks){},
+            .data = std.ArrayListAlignedUnmanaged(u8, align32){},
+            .ticks = std.ArrayListUnmanaged(ComponentTicks){},
             .item_size = item_size,
             .allocator = allocator,
         };
