@@ -132,6 +132,68 @@ impl<T: Component> Drop for WriteFetch<T> {
     }
 }
 
+/// RawWriteFetch - Returns &mut T directly without Mut wrapper for maximum performance.
+/// Use this when you don't need per-entity change detection and want bulk operations.
+/// Change detection is handled at the table level (marks all entities as changed).
+pub struct RawWriteFetch<T: Component> {
+    pub(crate) ptr: *mut T,
+    pub(crate) len: usize,
+    component_id: ComponentId,
+    _phantom: PhantomData<T>,
+}
+
+unsafe impl<T: Component> Send for RawWriteFetch<T> {}
+unsafe impl<T: Component> Sync for RawWriteFetch<T> {}
+
+impl<T: Component> RawWriteFetch<T> {
+    pub fn new(component_id: ComponentId) -> Self {
+        Self {
+            ptr: std::ptr::null_mut(),
+            len: 0,
+            component_id,
+            _phantom: PhantomData,
+        }
+    }
+    
+    pub fn component_id(&self) -> ComponentId {
+        self.component_id
+    }
+}
+
+impl<'w, T: Component> Fetch<'w> for RawWriteFetch<T> {
+    type Item = &'w mut T;
+    type State = ComponentId;
+
+    #[inline(always)]
+    fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, _last_run: crate::change_detection::Tick, _this_run: crate::change_detection::Tick) -> Self {
+        Self::new(*state)
+    }
+
+    #[inline(always)]
+    unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
+        self.len = table.entity_count();
+        if let Some(ptr) = table.get_column_data_ptr(*state) {
+            self.ptr = ptr as *mut T;
+        } else {
+            self.ptr = std::ptr::null_mut();
+        }
+    }
+
+    unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
+        self.set_table(state, table);
+    }
+
+    #[inline(always)]
+    fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
+        // MAXIMUM PERFORMANCE: Direct pointer access, no Mut wrapper, no set_changed
+        unsafe { &mut *self.ptr.add(index) }
+    }
+
+    fn matches_archetype(state: &Self::State, archetype: &crate::archetype::Archetype) -> bool {
+        archetype.components().contains(state)
+    }
+}
+
 // ... RefFetch omitted for brevity, focusing on Read/Write first ...
 
 

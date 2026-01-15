@@ -11,6 +11,10 @@ rand = "0.8"
 name = "bench_autozig"
 path = "src/bench_autozig.rs"
 
+[[bin]]
+name = "bench_autozig_raw"
+path = "src/bench_autozig_raw.rs"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

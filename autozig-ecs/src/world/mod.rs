@@ -294,6 +294,12 @@ impl World {
         self.archetypes.read().unwrap()
     }
     
+    /// Returns raw pointer to the internal Zig world (for FFI/benchmark use)
+    #[inline]
+    pub fn as_raw_ptr(&self) -> *mut u8 {
+        self.inner as *mut u8
+    }
+    
     /// Retrieves this world's Components collection
     #[inline]
     pub fn components(&self) -> &Components {
