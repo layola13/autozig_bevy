@@ -24,9 +24,9 @@ unsafe extern "C" fn observer_trampoline<E: Default + TriggerEvent>(
     world_ptr: *mut c_void
 ) {
     let closure = closure_ptr as *mut RawClosure;
-    // We assume the stored closure is `Box<dyn ObserverSystem<Event=E>>`.
-    // Reconstructing trait object pointer
-    let system: *mut dyn ObserverSystem<Event=E> = std::mem::transmute(((*closure).data, (*closure).vtable));
+    let data = unsafe { (*closure).data };
+    let vtable = unsafe { (*closure).vtable };
+    let system: *mut dyn ObserverSystem<Event=E> = unsafe { std::mem::transmute((data, vtable)) };
     let world = &mut *(world_ptr as *mut World);
     
     // Construct trigger
@@ -51,26 +51,45 @@ unsafe impl<E: TriggerEvent> Send for Observer<E> {}
 unsafe impl<E: TriggerEvent> Sync for Observer<E> {}
 impl<E: TriggerEvent> crate::component::Component for Observer<E> {}
 
-impl<E: TriggerEvent> Observer<E> {
+impl<E: TriggerEvent + Default> Observer<E> {
     pub fn new<S>(system: S) -> Self 
-    where 
-        E: TriggerEvent + Default,
-        S: ObserverSystem<Event = E> + 'static
+    where
+        S: ObserverSystem<Event = E> + 'static,
     {
-        let boxed_system: Box<dyn ObserverSystem<Event=E>> = Box::new(system);
-        let ptr = Box::into_raw(boxed_system);
-        let (data, vtable): (*mut c_void, *mut c_void) = unsafe { std::mem::transmute(ptr) };
+        let mut boxed = Box::new(system);
+        let (data, vtable) = unsafe {
+            let ptr = Box::into_raw(boxed) as *mut dyn ObserverSystem<Event = E>;
+            std::mem::transmute(ptr)
+        };
+        
+        let inner = unsafe {
+            observer_create(data, vtable, observer_trampoline::<E> as _)
+        };
         
         Self {
-            inner: observer_create(data, vtable, observer_trampoline::<E>),
+            inner,
             _marker: PhantomData,
+        }
+    }
+
+    /// Manually    /// Trigger the observer
+    pub fn trigger(&self, entity: Entity, world: &mut World) {
+        if !self.inner.is_null() {
+             unsafe {
+                 observer_trigger(self.inner, entity, world as *mut World as *mut c_void);
+             }
         }
     }
 }
 
 impl<E: TriggerEvent> Drop for Observer<E> {
     fn drop(&mut self) {
-        observer_destroy(self.inner);
+        if !self.inner.is_null() {
+            eprintln!("DEBUG: Observer::drop calling observer_destroy for {:?}", self.inner);
+            unsafe {
+                observer_destroy(self.inner);
+            }
+        }
     }
 }
 
@@ -118,7 +137,7 @@ impl<E> Trigger<E> {
 }
 
 /// Event that triggers observers
-pub trait TriggerEvent: Send + Sync + 'static {}
+pub trait TriggerEvent: Send + Sync + Default + 'static {}
 
 /// Targets for observer triggers
 pub struct TriggerTargets {
@@ -173,24 +192,35 @@ use crate::component::Component;
 pub struct OnAdd<C>(PhantomData<C>);
 impl<C> Default for OnAdd<C> { fn default() -> Self { Self(PhantomData) } }
 impl<C: Component> TriggerEvent for OnAdd<C> {}
+impl<C: Component> Component for OnAdd<C> {}
 
 /// Marker for OnInsert events
 #[derive(Clone, Copy, Debug)]
 pub struct OnInsert<C>(PhantomData<C>);
 impl<C> Default for OnInsert<C> { fn default() -> Self { Self(PhantomData) } }
 impl<C: Component> TriggerEvent for OnInsert<C> {}
+impl<C: Component> Component for OnInsert<C> {}
 
 /// Marker for OnRemove events
 #[derive(Clone, Copy, Debug)]
 pub struct OnRemove<C>(PhantomData<C>);
 impl<C> Default for OnRemove<C> { fn default() -> Self { Self(PhantomData) } }
 impl<C: Component> TriggerEvent for OnRemove<C> {}
+impl<C: Component> Component for OnRemove<C> {}
 
 /// Marker for OnReplace events
 #[derive(Clone, Copy, Debug)]
 pub struct OnReplace<C>(PhantomData<C>);
 impl<C> Default for OnReplace<C> { fn default() -> Self { Self(PhantomData) } }
 impl<C: Component> TriggerEvent for OnReplace<C> {}
+impl<C: Component> Component for OnReplace<C> {}
+
+/// Component that tags an observer entity as observing a specific target entity
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Observed {
+    pub entity: Entity,
+}
+impl Component for Observed {}
 
 
 // ============================================================================
@@ -210,7 +240,7 @@ unsafe impl<E: TriggerEvent> Sync for CurrentTrigger<E> {}
 impl<E: TriggerEvent + 'static> crate::resource::Resource for CurrentTrigger<E> {}
 
 // Impl SystemParam for Trigger
-impl<E: Component + Clone + TriggerEvent> crate::system_param::SystemParam for Trigger<E> {
+impl<E: Clone + TriggerEvent> crate::system_param::SystemParam for Trigger<E> {
     type State = ();
     type Item<'w> = Trigger<E>;
     
@@ -226,16 +256,18 @@ impl<E: Component + Clone + TriggerEvent> crate::system_param::SystemParam for T
     ) -> Self::Item<'w> {
          // Access world resource "CurrentTrigger"
          match world.get_resource::<CurrentTrigger<E>>() {
-             Some(current) => Trigger {
-                 entity: current.0.entity,
-                 event: current.0.event.clone(),
-                 _marker: PhantomData,
+             Some(current) => {
+                 Trigger {
+                     entity: current.0.entity,
+                     event: current.0.event.clone(),
+                     _marker: PhantomData,
+                 }
              },
              None => {
                  // Return a dummy trigger or panic?
                  // Since SystemParam creation happens before system run,
                  // if we are outside observer, this should fail or panic.
-                 panic!("Trigger<E> used outside of Observer or CurrentTrigger resource missing.");
+                 panic!("Trigger<{}> used outside of Observer or CurrentTrigger resource missing.", std::any::type_name::<E>());
              }
          }
     }
@@ -279,10 +311,13 @@ impl<E, M, S> IntoObserverSystem<E, M> for S
 where
     E: TriggerEvent + Clone + 'static,
     S: crate::into_system::IntoSystem<M>,
+    <S as crate::into_system::IntoSystem<M>>::System: 'static,
 {
     type System = GenericObserverSystem<crate::system::BoxedSystem, E>;
     
     fn into_observer_system(self) -> Self::System {
-        GenericObserverSystem::new(self.into_system())
+        let system = self.into_system();
+        let boxed = crate::system::BoxedSystem::new(system, std::any::type_name::<S>());
+        GenericObserverSystem::new(boxed)
     }
 }

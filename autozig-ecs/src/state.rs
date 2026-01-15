@@ -64,7 +64,7 @@ pub fn in_state<S: States>(state: S) -> impl crate::condition::Condition {
     // The closure converted to system is the condition.
     use crate::condition::IntoCondition;
     use crate::resource::Res;
-    crate::condition::IntoCondition::<(bool, Res<State<S>>)>::into_condition(move |current_state: Res<State<S>>| {
+    crate::condition::IntoCondition::<crate::into_system::FunctionMarker<(bool, Res<State<S>>)> >::into_condition(move |current_state: Res<State<S>>| {
         *current_state.get() == state
     })
 }

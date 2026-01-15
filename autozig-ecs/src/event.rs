@@ -57,6 +57,13 @@ impl<E: Event> Events<E> {
     pub fn get_writer(&mut self) -> EventWriter<'_, E> {
         EventWriter::new(self.queue)
     }
+
+    pub fn is_empty(&self) -> bool {
+        let mut ptr: *const u8 = std::ptr::null();
+        let mut len: usize = 0;
+        event_queue_get_reader(self.queue, &mut ptr, &mut len);
+        len == 0
+    }
 }
 
 impl<E: Event> Drop for Events<E> {

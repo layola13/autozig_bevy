@@ -27,15 +27,35 @@ fn main() {
     
     app.init_resource::<Time>();
 
-    app.add_systems(Startup, IntoSystem::<((), Commands<'static>)>::into_system(setup));
+    use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
+
+    // Setup system
+    let setup_sys: ParamFunctionSystem<FunctionMarker<((), Commands<'static>)>, _> = setup.into_system();
+    app.add_systems(Startup, setup_sys);
+
+    // Time Updater
+    let time_sys: ParamFunctionSystem<FunctionMarker<((), ResMut<'static, Time>)>, _> = time_updater_system.into_system();
+
+    // Change Component
+    let change_comp_sys: ParamFunctionSystem<FunctionMarker<((), Res<'static, Time>, Query<'static, (Entity, &'static mut MyComponent)>)>, _> = change_component.into_system();
+    
+    // Change Component 2
+    let change_comp_2_sys: ParamFunctionSystem<FunctionMarker<((), Res<'static, Time>, Query<'static, (Entity, &'static mut MyComponent)>)>, _> = change_component_2.into_system();
+
+    // Change Resource
+    let change_res_sys: ParamFunctionSystem<FunctionMarker<((), Res<'static, Time>, ResMut<'static, MyResource>)>, _> = change_resource.into_system();
+
+    // Change Detection
+    let detect_sys: ParamFunctionSystem<FunctionMarker<((), Query<'static, Ref<'static, MyComponent>, Changed<MyComponent>>, Res<'static, MyResource>)>, _> = change_detection.into_system();
+
     app.add_systems(
         Update,
         (
-            IntoSystem::<((), ResMut<'static, Time>)>::into_system(time_updater_system),
-            IntoSystem::<((), Res<'static, Time>, Query<'static, (Entity, &'static mut MyComponent)>)>::into_system(change_component),
-            IntoSystem::<((), Res<'static, Time>, Query<'static, (Entity, &'static mut MyComponent)>)>::into_system(change_component_2),
-            IntoSystem::<((), Res<'static, Time>, ResMut<'static, MyResource>)>::into_system(change_resource),
-            IntoSystem::<((), Query<'static, Ref<'static, MyComponent>, Changed<MyComponent>>, Res<'static, MyResource>)>::into_system(change_detection),
+            time_sys,
+            change_comp_sys,
+            change_comp_2_sys,
+            change_res_sys,
+            detect_sys,
         ).chain(),
     );
     

@@ -252,6 +252,10 @@ impl<'w> EntityWorldMut<'w> {
         // 1. Insert components into storage
         world.insert_bundle_components_internal(entity, components_data);
         
+        // 2. Consume bundle to prevent Drop calls
+        // Since components are bitwise copied into Zig, we must not run Rust destructors
+        std::mem::forget(bundle);
+        
         EntityWorldMut { entity, world }
     }
     

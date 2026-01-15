@@ -191,23 +191,12 @@ pub const ObserverTrampolineFn = *const fn (
     world: *anyopaque,
 ) callconv(.c) void;
 
-pub const Observer = struct {
-    closure: RustClosure,
+pub const Observer = extern struct {
     trampoline: ObserverTrampolineFn,
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, closure: RustClosure, trampoline: ObserverTrampolineFn) !*Observer {
-        const obs = try allocator.create(Observer);
-        obs.* = .{
-            .allocator = allocator,
-            .closure = closure,
-            .trampoline = trampoline,
-        };
-        return obs;
-    }
+    closure: RustClosure,
 
     pub fn deinit(self: *Observer) void {
-        self.allocator.destroy(self);
+        g_allocator.destroy(self);
     }
 
     pub fn trigger(self: *Observer, entity: Entity, world: *anyopaque) void {
@@ -221,11 +210,13 @@ export fn schedule_build(schedule: *Schedule) bool {
 }
 
 export fn observer_create(data_ptr: *anyopaque, vtable_ptr: *anyopaque, trampoline: ObserverTrampolineFn) ?*Observer {
-    const closure = RustClosure{
+    var obs = g_allocator.create(Observer) catch return null;
+    obs.closure = .{
         .data_ptr = data_ptr,
         .vtable_ptr = vtable_ptr,
     };
-    return Observer.init(g_allocator, closure, trampoline) catch null;
+    obs.trampoline = trampoline;
+    return obs;
 }
 
 export fn observer_trigger(obs: *Observer, entity: Entity, world: *anyopaque) void {

@@ -5,6 +5,8 @@ use crate::system_param::{SystemParam, WorldAccessFlags};
 use crate::world::World;
 use std::marker::PhantomData;
 
+pub struct FunctionMarker<T>(pub PhantomData<T>);
+
 // Opaque pointer to Zig ClosureSystemRegistry
 #[repr(C)]
 pub struct ClosureRegistryOpaque {
@@ -89,8 +91,9 @@ impl Default for ClosureRegistry {
 pub use crate::system::{BoxedSystem, RawClosure, SystemTrampolineFn};
 
 /// IntoSystem trait - converts closures into systems
-pub trait IntoSystem<Params> {
-    fn into_system(self) -> crate::system::BoxedSystem;
+pub trait IntoSystem<Marker, In = (), Out = ()> {
+    type System: crate::system::System<In = In, Out = Out>;
+    fn into_system(self) -> Self::System;
 }
 
 use crate::system::System;
@@ -135,7 +138,7 @@ where
     F: SystemParamFunction<Marker, In = ()>,
 {
     type In = ();
-    type Out = ();
+    type Out = F::Out;
 
     fn initialize(&mut self, world: &mut World) {
         if self.state.is_none() {
@@ -143,8 +146,8 @@ where
         }
     }
 
-    fn run(&mut self, _input: (), world: &mut World) -> () {
-        let _ = self.run_with_out(world);
+    fn run(&mut self, _input: (), world: &mut World) -> F::Out {
+        self.run_with_out(world)
     }
 
     fn name(&self) -> &str {
@@ -152,22 +155,24 @@ where
     }
 }
 
-impl<S: System> IntoSystem<(), S::In, S::Out> for S {
+pub struct SystemMarker;
+
+impl<S: System> IntoSystem<SystemMarker, S::In, S::Out> for S {
     type System = S;
-    fn into_system(self) -> Self {
+    fn into_system(self) -> Self::System {
         self
     }
 }
 
-impl<Marker, F> IntoSystem<Marker, (), F::Out> for F
+impl<Marker, Out, F> IntoSystem<FunctionMarker<Marker>, (), Out> for F
 where
     Marker: Send + Sync + 'static,
-    F: SystemParamFunction<Marker, In = ()>,
+    F: SystemParamFunction<FunctionMarker<Marker>, In = (), Out = Out>,
 {
-    type System = ParamFunctionSystem<Marker, F>;
+    type System = ParamFunctionSystem<FunctionMarker<Marker>, F>;
     fn into_system(self) -> Self::System {
         let name = std::any::type_name::<F>();
-        ParamFunctionSystem::<Marker, F>::new(self, name)
+        ParamFunctionSystem::<FunctionMarker<Marker>, F>::new(self, name)
     }
 }
 
@@ -220,17 +225,17 @@ where
 macro_rules! impl_system_param_function {
     ($($param:ident),*) => {
         #[allow(non_snake_case)]
-        impl<Out, F, $($param),*> SystemParamFunction<(Out, $($param,)*)> for F
+        impl<Out, F, $($param),*> SystemParamFunction<FunctionMarker<(Out, $($param,)*)>> for F
         where
             F: FnMut($($param::Item<'_>),*) -> Out + Send + Sync + 'static,
             $($param: SystemParam),*
         {
-            type Param = ($($param),*);
+            type Param = ($($param,)*);
             type In = ();
             type Out = Out;
-            fn run(&mut self, _input: (), param: ($($param::Item<'_>),*)) -> Out {
+            fn run(&mut self, _input: (), param: <Self::Param as SystemParam>::Item<'_>) -> Out {
                 #[allow(non_snake_case)]
-                let ($($param),*) = param;
+                let ($($param,)*) = param;
                 self($($param),*)
             }
         }
@@ -255,3 +260,15 @@ impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P
 impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14);
 impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15);
 impl_system_param_function!(P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16);
+
+pub struct ExclusiveSystemMarker;
+
+impl<F> IntoSystem<ExclusiveSystemMarker, (), ()> for F
+where
+    F: FnMut(&mut crate::world::World) + Send + Sync + 'static,
+{
+    type System = crate::system::ExclusiveFunctionSystem<F>;
+    fn into_system(self) -> Self::System {
+        crate::system::ExclusiveFunctionSystem::new(self, std::any::type_name::<F>())
+    }
+}

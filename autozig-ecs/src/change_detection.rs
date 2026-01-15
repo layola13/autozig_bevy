@@ -9,6 +9,17 @@ use crate::query::QueryFilter;
 use crate::resource::{Res, ResMut};
 use std::marker::PhantomData;
 
+/// System to check for global tick wrapping
+pub fn check_change_ticks_system(world: &mut crate::world::World) {
+   let change_tick = world.read_change_tick();
+   if change_tick.is_newer_than(Tick::new(CHECK_TICK_THRESHOLD), 0) {
+       // TODO: Implement tick wrapping logic
+       // world.check_change_ticks();
+   }
+}
+
+pub const CHECK_TICK_THRESHOLD: u32 = 2_000_000_000;
+
 // ============================================================================
 // Zig FFI - 导入Zig实现
 // ============================================================================

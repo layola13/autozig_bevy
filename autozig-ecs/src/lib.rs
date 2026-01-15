@@ -37,6 +37,7 @@ pub mod change_detection;
 pub mod observer;
 pub mod archetype;
 pub mod table;
+pub mod message;
 
 // Additional required modules for complete API coverage
 pub mod removal_detection;
@@ -44,6 +45,7 @@ pub mod system_set;
 pub mod system_config;
 pub mod state;
 pub mod condition;
+pub mod common_conditions;
 pub mod combinator;
 pub mod exclusive_system;
 pub mod function_system;
@@ -110,12 +112,14 @@ pub mod prelude {
         BoxedSystem, In, ChainSystem
     };
     pub use crate::into_system::IntoSystem;
-    pub use crate::system_param::{SystemParam, ReadOnlySystemParam, StaticSystemParam};
+    pub use crate::system_param::{SystemParam, ReadOnlySystemParam, StaticSystemParam, SystemName, Local, Single};
     // pub use crate::param_set::ParamSet;
     // pub use crate::local::Local;
     // pub use crate::deferred::DeferredCommands;
     pub use crate::command::Commands;
     pub use crate::system_config::IntoSystemConfigs;
+    pub use crate::message::{Message, MessageWriter, MessageReader, MessageCursor, Messages, AppMessageExt};
+    // TODO: Uncomment when implemented:
     // TODO: Uncomment when implemented:
     // pub use crate::command::{CommandQueue, CommandBuffer};
     // pub use crate::into_system::{SystemParamFunction, IntoSystemConfig};
@@ -161,9 +165,15 @@ pub mod prelude {
     pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};
     
     // ==== Common Conditions ====
-    pub mod common_conditions {
-        pub use crate::common_conditions::*;
-    }
+    pub use crate::common_conditions::*;
+    
+    // ==== External Resources ====
+    pub use autozig_time::Time;
+
+    impl crate::resource::Resource for autozig_time::Time {}
+    impl crate::resource::Resource for autozig_time::Fixed {}
+    impl crate::resource::Resource for autozig_time::Virtual {}
+    impl crate::resource::Resource for autozig_time::Real {}
 
     // Re-export derive macros
     pub use autozig_macro::{Component, Resource, SystemSet};

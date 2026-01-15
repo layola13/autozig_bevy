@@ -85,19 +85,19 @@ pub trait System: Send + Sync {
 
 // BoxedSystem - 类型擦除的系统（Box包装）
 pub struct BoxedSystem {
-    inner: Box<dyn System<In=(), Out=()>>,
+    inner: Box<dyn System<In = (), Out = ()> + Send + Sync>,
     meta: SystemMeta,
 }
 
 impl BoxedSystem {
-    pub fn new<S: System<In=(), Out=()> + 'static>(system: S, name: &'static str) -> Self {
+    pub fn new<S: System<In = (), Out = ()> + Send + Sync + 'static>(system: S, name: &'static str) -> Self {
         Self {
             inner: Box::new(system),
             meta: SystemMeta::new(name),
         }
     }
     
-    pub fn from_inner(inner: Box<dyn System<In=(), Out=()>>, meta: SystemMeta) -> Self {
+    pub fn from_inner(inner: Box<dyn System<In = (), Out = ()> + Send + Sync>, meta: SystemMeta) -> Self {
         Self { inner, meta }
     }
     

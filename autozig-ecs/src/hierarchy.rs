@@ -300,18 +300,21 @@ pub trait SpawnableList {
 /// System to maintain Children component based on Parent component changes
 pub fn hierarchy_maintenance_system(
     mut commands: crate::command::Commands,
-    changed_parents: crate::query::Query<(crate::entity::Entity, &'static Parent), crate::query::filter::Changed<Parent>>,
-    mut parents: crate::query::Query<&'static mut Children>,
+    changed_child_query: crate::query::Query<crate::entity::Entity, crate::query::filter::Changed<Parent>>,
+    parent_query: crate::query::Query<&'static Parent>,
+    mut children_query: crate::query::Query<&'static mut Children>,
 ) {
     // Handle changed/added Parent components
     let mut updates: Vec<(crate::entity::Entity, crate::entity::Entity)> = Vec::new();
-    for (child, parent) in changed_parents.iter() {
-        updates.push((child, parent.entity));
+    for child in changed_child_query.iter() {
+        if let Ok(parent) = parent_query.get(child) {
+            updates.push((child, parent.entity));
+        }
     }
     
     for (child, parent_entity) in updates {
         // Add child to new parent
-        if let Ok(mut children) = parents.get_mut(parent_entity) {
+        if let Ok(mut children) = children_query.get_mut(parent_entity) {
             if !children.entities.contains(&child) {
                 children.entities.push(child);
             }
@@ -453,15 +456,21 @@ impl crate::plugin::Plugin for HierarchyPlugin {
         use crate::schedule::IntoSystemConfigs;
         use crate::into_system::IntoSystem;
         
-        type HierarchySystemMarker = (
+        let sys: crate::into_system::ParamFunctionSystem<crate::into_system::FunctionMarker<((), 
             crate::command::Commands<'static>,
-            crate::query::Query<'static, (crate::entity::Entity, &'static Parent), crate::query::filter::Changed<Parent>>,
-            crate::query::Query<'static, &'static mut Children>,
-        );
-        
+            crate::query::Query<'static, crate::entity::Entity, crate::query::filter::Changed<crate::hierarchy::Parent>>,
+            crate::query::Query<'static, &'static crate::hierarchy::Parent>,
+            crate::query::Query<'static, &'static mut crate::hierarchy::Children>
+        )>, _> = (|mut commands: crate::command::Commands,
+              changed_child_query: crate::query::Query<crate::entity::Entity, crate::query::filter::Changed<crate::hierarchy::Parent>>,
+              parent_query: crate::query::Query<&'static crate::hierarchy::Parent>,
+              mut children_query: crate::query::Query<&'static mut crate::hierarchy::Children>| {
+                hierarchy_maintenance_system(commands, changed_child_query, parent_query, children_query);
+            }).into_system();
+            
         app.add_systems(
             crate::schedule::PostUpdate, 
-            IntoSystem::<HierarchySystemMarker>::into_system(hierarchy_maintenance_system)
+            sys
         );
     }
 }

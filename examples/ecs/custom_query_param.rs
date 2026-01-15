@@ -22,11 +22,18 @@ pub struct CustomQuery {
 }
 
 fn main() {
-    println!("Starting Custom Query Param Example...");
     let mut app = App::new();
-    app.add_systems(Startup, IntoSystem::<((), Commands<'static>)>::into_system(setup));
-    app.add_systems(Update, IntoSystem::<((), Query<Entity>)>::into_system(print_all_entities));
-    app.add_systems(Update, IntoSystem::<((), Query<CustomQuery>)>::into_system(print_custom_query));
+    
+    use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
+    
+    // Explicitly typed systems to aid inference
+    let setup_sys: ParamFunctionSystem<FunctionMarker<((), Commands<'static>)>, _> = setup.into_system();
+    let print_entities_sys: ParamFunctionSystem<FunctionMarker<((), Query<'static, Entity>)>, _> = print_all_entities.into_system();
+    let print_custom_sys: ParamFunctionSystem<FunctionMarker<((), Query<'static, CustomQuery>)>, _> = print_custom_query.into_system();
+
+    app.add_systems(Startup, setup_sys);
+    app.add_systems(Update, (print_entities_sys, print_custom_sys).chain());
+    
     app.run();
 }
 

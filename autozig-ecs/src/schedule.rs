@@ -183,6 +183,13 @@ impl Schedule {
             Err(ScheduleBuildError::DependencyCycle(vec!["Unknown cycle".to_string()]))
         }
     }
+    
+    pub fn set_build_settings(&mut self, _settings: ScheduleBuildSettings) -> &mut Self {
+        // TODO: Pass settings to Zig or store locally
+        // For now, this is a no-op stub to satisfy API requirements
+        // println!("Schedule build settings set (ignored): {:?}", _settings);
+        self
+    }
 
     pub fn run(&mut self, world: &mut World) {
         if self.build().is_err() {
@@ -283,6 +290,12 @@ pub struct First;
 impl ScheduleLabel for First {
     fn label(&self) -> Cow<'static, str> { Cow::Borrowed("First") }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct StateTransition;
+impl ScheduleLabel for StateTransition {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("StateTransition") }
+}
 #[derive(Clone, Debug)]
 pub struct ScheduleBuildSettings {
     pub ambiguity_detection: LogLevel,
@@ -340,6 +353,7 @@ pub use crate::system_config::{SystemConfigs, IntoSystemConfigs};
 
 
 /// Stepping controller for debugging
+#[derive(Resource)]
 pub struct Stepping {
     enabled: bool,
     state: SteppingState,
@@ -363,6 +377,35 @@ impl Stepping {
     
     pub fn is_enabled(&self) -> bool {
         self.enabled
+    }
+    
+    pub fn add_schedule(&mut self, _label: impl ScheduleLabel) -> &mut Self {
+        // TODO: Implement schedule tracking
+        self
+    }
+    
+    pub fn step_frame(&mut self) {
+        // TODO: Implement step frame
+    }
+    
+    pub fn continue_frame(&mut self) {
+         // TODO: Implement continue frame
+    }
+    
+    pub fn always_run(&mut self, _schedule: impl ScheduleLabel, _system: impl Into<String>) {
+         // TODO
+    }
+    
+    pub fn never_run(&mut self, _schedule: impl ScheduleLabel, _system: impl Into<String>) {
+         // TODO
+    }
+    
+    pub fn set_breakpoint(&mut self, _schedule: impl ScheduleLabel, _system: impl Into<String>) {
+         // TODO
+    }
+    
+    pub fn clear_breakpoint(&mut self, _schedule: impl ScheduleLabel, _system: impl Into<String>) {
+         // TODO
     }
 }
 
@@ -647,7 +690,6 @@ impl Plugin for ScheduleRunnerPlugin {
         let wait = self.wait;
         app.set_runner(move |mut app| {
              // Helper to run a schedule by removing it temporarily
-             // Helper to run a schedule by removing it temporarily
              let run_schedule = |world: &mut crate::world::World, label: &dyn crate::schedule::ScheduleLabel| {
                  use crate::schedule::Schedules;
                  if let Some(mut schedules) = world.remove_resource::<Schedules>() {
@@ -665,13 +707,54 @@ impl Plugin for ScheduleRunnerPlugin {
 
              match mode {
                 RunMode::Once => {
+                    // In a single run, we typically expect everything to run at least once
+                    run_schedule(&mut app.world, &First);
+                    run_schedule(&mut app.world, &PreUpdate);
+                    run_schedule(&mut app.world, &StateTransition);
                     run_schedule(&mut app.world, &Update);
+                    run_schedule(&mut app.world, &PostUpdate);
                     run_schedule(&mut app.world, &Last);
                 }
                 RunMode::Loop => {
                     let mut ticks = 0;
                      loop {
+                        run_schedule(&mut app.world, &First);
+                        run_schedule(&mut app.world, &PreUpdate);
+                        run_schedule(&mut app.world, &StateTransition);
+                        
+                        // FixedUpdate logic
+                        {
+                            use autozig_time::{Time, Fixed};
+                            
+                            // 1. Accumulate time
+                            let mut delta_nanos = 0;
+                            if let Some(time) = app.world.get_resource::<Time>() {
+                                delta_nanos = time.delta_nanos();
+                            }
+                            
+                            if let Some(mut fixed) = app.world.get_resource_mut::<Fixed>() {
+                                fixed.accumulate(delta_nanos);
+                            }
+                            
+                            // 2. Loop FixedUpdate
+                            loop {
+                                let mut should_run_fixed = false;
+                                if let Some(mut fixed) = app.world.get_resource_mut::<Fixed>() {
+                                    if fixed.expend() {
+                                        should_run_fixed = true;
+                                    }
+                                }
+                                
+                                if should_run_fixed {
+                                    run_schedule(&mut app.world, &FixedUpdate);
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
                         run_schedule(&mut app.world, &Update);
+                        run_schedule(&mut app.world, &PostUpdate);
                         
                         // Update event queues (especially AppExit)
                         if let Some(mut events) = app.world.get_resource_mut::<Events<AppExit>>() {
@@ -682,8 +765,7 @@ impl Plugin for ScheduleRunnerPlugin {
                         
                         // Check for AppExit
                         let should_exit = if let Some(events) = app.world.get_resource::<Events<AppExit>>() {
-                            let reader = events.get_reader();
-                            reader.iter().count() > 0
+                             !events.is_empty()
                         } else {
                             false
                         };
@@ -691,7 +773,7 @@ impl Plugin for ScheduleRunnerPlugin {
                         if should_exit { break; }
 
                         ticks += 1;
-                        if ticks > 100 { break; } // Safety brake for CI/Test
+                        // if ticks > 100 { break; } // Safety brake for CI/Test - User might want real loop
                         
                         if let Some(w) = wait {
                             std::thread::sleep(w);

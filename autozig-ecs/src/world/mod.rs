@@ -45,6 +45,7 @@ use crate::{
 
 // Re-export Commands from root
 use crate::Commands;
+use crate::system::System;
 
 // Define missing types as placeholders
 // ComponentTicksMut - placeholder for mutable component ticks
@@ -142,27 +143,69 @@ impl World {
         }
     }
     
-    /// Synchronizes archetypes from Zig backend
-    pub fn update_archetypes(&self) {
+    /// Synchronizes archetypes and entity locations from Zig backend
+    pub fn update_archetypes(&mut self) {
         let zig_count = world_archetype_count(self.inner);
-        let mut archetypes = self.archetypes.write().unwrap();
-        while archetypes.archetypes.len() < zig_count {
-            let index = archetypes.archetypes.len();
-            let arch_ptr = world_get_archetype(self.inner, index);
-            if !arch_ptr.is_null() {
-                let count = crate::archetype::archetype_table_component_count(arch_ptr);
-                let mut component_ids = vec![0u32; count];
-                crate::archetype::archetype_get_table_components(arch_ptr, component_ids.as_mut_ptr(), count);
+        
+        // 1. Sync Archetypes list
+        {
+            let mut archetypes = self.archetypes.write().unwrap();
+            while archetypes.archetypes.len() < zig_count {
+                let index = archetypes.archetypes.len();
+                let arch_ptr = world_get_archetype(self.inner, index);
+                if !arch_ptr.is_null() {
+                    let count = crate::archetype::archetype_table_component_count(arch_ptr);
+                    let mut component_ids = vec![0u32; count];
+                    crate::archetype::archetype_get_table_components(arch_ptr, component_ids.as_mut_ptr(), count);
+                    
+                    let components: Vec<crate::component::ComponentId> = component_ids
+                        .into_iter()
+                        .map(|id| crate::component::ComponentId::new(id as usize))
+                        .collect();
+                    
+                    archetypes.archetypes.push(crate::archetype::Archetype::new(
+                        crate::archetype::ArchetypeId::new(index as u32),
+                        components
+                    ));
+                }
+            }
+        }
+
+        // 2. Sync Entities for each Archetype
+        let archetypes_len = { self.archetypes.read().unwrap().len() };
+        for i in 0..archetypes_len {
+            let arch_ptr = world_get_archetype(self.inner, i);
+            if arch_ptr.is_null() { continue; }
+            
+            let entity_count = crate::archetype::archetype_entity_count(arch_ptr);
+            let mut indices = vec![0u32; entity_count];
+            crate::archetype::archetype_get_entities(arch_ptr, indices.as_mut_ptr(), entity_count);
+            
+            let mut arch_entities = Vec::with_capacity(entity_count);
+            for (row, &index) in indices.iter().enumerate() {
+                // For now, assume generation 0 for synced entities if not found in allocator
+                // In a perfect impl, Zig would store and return the full Entity bits
+                let entity = Entity::from_raw(index); 
                 
-                let components: Vec<crate::component::ComponentId> = component_ids
-                    .into_iter()
-                    .map(|id| crate::component::ComponentId::new(id as usize))
-                    .collect();
+                arch_entities.push(crate::archetype::ArchetypeEntity {
+                    entity,
+                    table_row: row, // Simplification: assume row matches archetype row
+                });
                 
-                archetypes.archetypes.push(crate::archetype::Archetype::new(
-                    crate::archetype::ArchetypeId::new(index as u32),
-                    components
-                ));
+                // Update World's entity location map using unsafe internal mutability
+                let location = crate::entity::EntityLocation {
+                    archetype_id: i as u32,
+                    archetype_row: row,
+                    table_id: i as u32,
+                    table_row: row,
+                };
+                
+                self.entities.spawn(entity, location, 0, None);
+            }
+            
+            let mut archetypes = self.archetypes.write().unwrap();
+            if let Some(arch) = archetypes.get_mut(crate::archetype::ArchetypeId::new(i as u32)) {
+                arch.set_entities(arch_entities);
             }
         }
     }
@@ -192,6 +235,7 @@ impl World {
     pub fn insert_resource<R: Resource>(&mut self, resource: R) {
         self.resource_registry.insert(resource);
     }
+    
     
     /// Retrieves this World's unique ID
     #[inline]
@@ -535,63 +579,61 @@ impl World {
         let mut data_ptrs = Vec::with_capacity(count);
         let mut sizes = Vec::with_capacity(count);
 
-        for (id, ptr, size) in &components {
-            ids.push(id.index()); 
-            data_ptrs.push(*ptr);
-            sizes.push(*size);
+        // Pre-collection of hooks to run
+        // We capture: (HookFn, ComponentId, HookType)
+        enum HookType { OnAdd, OnInsert, OnReplace }
+        struct HookToRun {
+            hook: std::sync::Arc<dyn Fn(crate::world::DeferredWorld, crate::component::hooks::HookContext) + Send + Sync>,
+            id: crate::component::ComponentId,
+            type_: HookType,
+        }
+
+        let mut hooks_to_run = Vec::with_capacity(count * 2);
+
+        // Scope for lock
+        {
+            let components_guard = self.components.components.read().unwrap();
+            
+            for (id, ptr, size) in &components {
+                ids.push(id.index()); 
+                data_ptrs.push(*ptr);
+                sizes.push(*size);
+
+                // Check for hooks
+                if let Some(info) = components_guard.get(id) {
+                    let hooks = info.hooks();
+                    let has_add = hooks.has_on_add();
+                    let has_insert = hooks.has_on_insert();
+                    let has_replace = hooks.has_on_replace();
+
+                    if has_add || has_insert || has_replace {
+                        // Check if component exists
+                        let has_component = unsafe { 
+                             self.get_component_unsafe_by_id(entity, *id).is_some()
+                        };
+
+                        if !has_component {
+                            if let Some(hook) = &hooks.on_add {
+                                hooks_to_run.push(HookToRun { hook: hook.clone(), id: *id, type_: HookType::OnAdd });
+                            }
+                        } else {
+                            if let Some(hook) = &hooks.on_replace {
+                                hooks_to_run.push(HookToRun { hook: hook.clone(), id: *id, type_: HookType::OnReplace });
+                            }
+                        }
+                        
+                        if let Some(hook) = &hooks.on_insert {
+                            hooks_to_run.push(HookToRun { hook: hook.clone(), id: *id, type_: HookType::OnInsert });
+                        }
+                    }
+                }
+            }
         }
 
         let ids_u32: Vec<u32> = ids.iter().map(|&id| id as u32).collect();
-        // println!("insert_bundle_components_internal: ids={:?}", ids_u32);
 
-
-            
-            // Trigger Hooks
-            // We need to iterate again? Or collect hooks first?
-            // To trigger hooks we need DeferredWorld which needs &mut World.
-            // But we are holding &mut World in `self`.
-            // So we can create DeferredWorld wrapping `self`.
-            // BUT we can't do that while iterating if we hold references.
-            
-            // Strategy:
-            // 1. Collect components and check if they have hooks.
-            // 2. Perform insertion (Zig).
-            // 3. For each component with hooks, trigger them.
-            // Note: `on_add` runs if component didn't exist. `on_insert` runs always.
-            // To know if it existed, we needed to check beforehand?
-            // `world_insert_components` replaces if exists.
-            //
-            // Optimization: Only look up hooks if needed.
-            
-            let mut pre_hooks = Vec::new(); // (id, hooks) for on_replace
-            let mut post_hooks = Vec::new(); // (id, hooks, is_replace) for on_add/insert
-            
-            {
-                 let components_guard = self.components.components.read().unwrap();
-                 for (id, _, _) in &components {
-                     if let Some(info) = components_guard.get(&id) {
-                         let has_add = info.hooks().has_on_add();
-                         let has_insert = info.hooks().has_on_insert();
-                         let has_replace = info.hooks().has_on_replace();
-                         
-                         if has_add || has_insert || has_replace {
-                             let is_replace = self.contains_id(entity, *id);
-                             if is_replace && has_replace {
-                                 pre_hooks.push((*id, info.hooks().clone()));
-                             }
-                             post_hooks.push((*id, info.hooks().clone(), is_replace));
-                         }
-                     }
-                 }
-            }
-            
-            // Trigger Pre-hooks (on_replace)
-            for (id, hooks) in pre_hooks {
-                 let context = crate::component::hooks::HookContext::new(entity, id);
-                 hooks.trigger_replace(crate::world::DeferredWorld::new(self), context);
-            }
-
-            // Perform Insertion
+        // 2. Insert via FFI
+        unsafe {
             world_insert_components(
                 self.inner,
                 entity,
@@ -600,15 +642,28 @@ impl World {
                 data_ptrs.as_ptr(),
                 count,
             );
-            
-            // Trigger Post-hooks (on_add, on_insert)
-            for (id, hooks, is_replace) in post_hooks {
-                 let context = crate::component::hooks::HookContext::new(entity, id);
-                 if !is_replace {
-                     hooks.trigger_add(crate::world::DeferredWorld::new(self), context);
-                 }
-                 hooks.trigger_insert(crate::world::DeferredWorld::new(self), context);
-            }
+        }
+        
+        // Update archetypes (if needed for iteration correctness, though FFI handles storage)
+        // self.update_archetypes(); // Disabled to avoid double update if not strictly needed immediately
+
+        // 3. Run hooks
+        for hook_entry in hooks_to_run {
+            let dw = crate::world::DeferredWorld::new(self);
+            let context = crate::component::hooks::HookContext::new(entity, hook_entry.id);
+            (hook_entry.hook)(dw, context);
+        }
+    }
+
+    
+    /// Helper to check component existence by ID
+    pub unsafe fn get_component_unsafe_by_id(&self, entity: Entity, id: crate::component::ComponentId) -> Option<*const u8> {
+        let ptr = world_get_component(self.inner, entity, id.index() as u32);
+        if !ptr.is_null() {
+            Some(ptr)
+        } else {
+            None
+        }
     }
 
     /// Internal method to remove component types - used by EntityWorldMut to avoid recursion
@@ -624,15 +679,16 @@ impl World {
                      }
                      
                      // Track removal
-                     let type_id = info.type_id();
-                     if let Some(events_any) = self.removed_components.get_mut(&type_id) {
-                         if let Some(events) = events_any.downcast_mut::<crate::removal_detection::RemovedComponentEvents>() {
+                     if let Some(type_id) = info.type_id() {
+                         if let Some(events_any) = self.removed_components.get_mut(&type_id) {
+                             if let Some(events) = events_any.downcast_mut::<crate::removal_detection::RemovedComponentEvents>() {
+                                 events.send(entity, *id);
+                             }
+                         } else {
+                             let mut events = crate::removal_detection::RemovedComponentEvents::new();
                              events.send(entity, *id);
+                             self.removed_components.insert(type_id, Box::new(events));
                          }
-                     } else {
-                         let mut events = crate::removal_detection::RemovedComponentEvents::new();
-                         events.send(entity, *id);
-                         self.removed_components.insert(type_id, Box::new(events));
                      }
                  }
              }

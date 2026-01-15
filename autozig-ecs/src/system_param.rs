@@ -141,29 +141,6 @@ impl<T: Resource> SystemParam for ResMut<'static, T> {
     }
 }
 
-// Implement for Commands<'static>
-impl SystemParam for Commands<'static> {
-    type State = crate::command::CommandBuffer; 
-    type Item<'w> = Commands<'w>;
-
-    fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
-        crate::command::CommandBuffer::new()
-    }
-
-    fn get_param<'w, 's>(
-        state: &'s mut Self::State,
-        _system_meta: &SystemMeta,
-        _world: &'w World,
-        _change_tick: u32,
-    ) -> Self::Item<'w> {
-        // SAFETY: The Commands lifetime is tied to the state which lives beyond this call
-        unsafe { std::mem::transmute::<Commands<'s>, Commands<'w>>(state.commands()) }
-    }
-
-    fn apply(state: &mut Self::State, _system_meta: &SystemMeta, world: &mut World) {
-        state.apply_with_world(world);
-    }
-}
 
 // Implement for Query
 impl<Q: QueryData, F: QueryFilter> SystemParam for Query<'static, Q, F> {
@@ -509,7 +486,7 @@ impl<'w, D: QueryData, F: QueryFilter> std::ops::DerefMut for Single<'w, D, F> {
     }
 }
 
-impl<D: QueryData + 'static, F: QueryFilter + 'static> SystemParam for Single<'static, D, F> {
+impl<D: QueryData, F: QueryFilter> SystemParam for Single<'static, D, F> {
     type State = QueryState<D, F>;
     type Item<'w> = Single<'w, D, F>;
     
@@ -567,21 +544,50 @@ impl<T: Send + Sync + 'static> SystemParam for In<T> {
     }
 }
 
-/// RemovedComponents - Track removed components since the last update
-impl<T: 'static> SystemParam for crate::prelude::RemovedComponents<'static, T> {
-    type State = ();
-    type Item<'w> = crate::prelude::RemovedComponents<'w, T>;
-    
+// RemovedComponents impl removed (duplicate)
+
+// Implement for Commands
+impl SystemParam for crate::command::Commands<'static> {
+    type State = crate::command::CommandBuffer;
+    type Item<'w> = crate::command::Commands<'w>;
+
     fn init_state(_world: &mut World, _system_meta: &mut SystemMeta) -> Self::State {
-        ()
+        crate::command::CommandBuffer::new()
     }
-    
+
     fn get_param<'w, 's>(
-        _state: &'s mut Self::State,
+        state: &'s mut Self::State,
         _system_meta: &SystemMeta,
-        world: &'w World,
+        _world: &'w World,
         _change_tick: u32,
     ) -> Self::Item<'w> {
-        crate::prelude::RemovedComponents::new(world)
+        let cmds = crate::command::CommandBuffer::commands(state);
+        // SAFETY: Transmuting lifetime from 's to 'w.
+        unsafe { std::mem::transmute::<crate::command::Commands<'_>, crate::command::Commands<'w>>(cmds) }
+    }
+
+    fn apply(state: &mut Self::State, _system_meta: &SystemMeta, world: &mut World) {
+        crate::command::CommandBuffer::apply_with_world(state, world);
+        crate::command::CommandBuffer::clear(state);
+        state.resource_queue.clear();
+    }
+}
+// Implement for ParamSet
+impl<T: SystemParam> SystemParam for crate::param_set::ParamSet<'static, 'static, T> {
+    type State = T::State;
+    type Item<'w> = crate::param_set::ParamSet<'w, 'w, T>;
+
+    fn init_state(world: &mut World, system_meta: &mut SystemMeta) -> Self::State {
+        T::init_state(world, system_meta)
+    }
+
+    fn get_param<'w, 's>(
+        state: &'s mut Self::State,
+        system_meta: &SystemMeta,
+        world: &'w World,
+        change_tick: u32,
+    ) -> Self::Item<'w> {
+        let param = T::get_param(state, system_meta, world, change_tick);
+        crate::param_set::ParamSet::new(param)
     }
 }

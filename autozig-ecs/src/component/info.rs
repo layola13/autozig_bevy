@@ -487,4 +487,10 @@ impl Components {
         self.resource_indices.write().unwrap().insert(type_id, id);
         id
     }
+
+    pub fn set_hooks(&self, id: ComponentId, hooks: ComponentHooks) {
+        if let Some(info) = self.components.write().unwrap().get_mut(&id) {
+            info.hooks = hooks;
+        }
+    }
 }

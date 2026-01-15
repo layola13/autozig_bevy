@@ -6,9 +6,9 @@ publish = false
 
 [dependencies]
 autozig-ecs = { path = "../../autozig-ecs" }
+autozig-time = { path = "../../autozig-time" }
 rand = "0.8"
 log = "0.4"
-# Add other dependencies as needed by examples (e.g. autozig-app if runner is needed, but we try to use minimal ecs)
 
 [[bin]]
 name = "change_detection"
@@ -21,3 +21,107 @@ path = "component_hooks.rs"
 [[bin]]
 name = "custom_query_param"
 path = "custom_query_param.rs"
+
+[[bin]]
+name = "startup_system"
+path = "startup_system.rs"
+
+[[bin]]
+name = "system_param"
+path = "system_param.rs"
+
+[[bin]]
+name = "iter_combinations"
+path = "iter_combinations.rs"
+
+[[bin]]
+name = "fixed_timestep"
+path = "fixed_timestep.rs"
+
+[[bin]]
+name = "removal_detection"
+path = "removal_detection.rs"
+
+[[bin]]
+name = "run_conditions"
+path = "run_conditions.rs"
+
+[[bin]]
+name = "system_piping"
+path = "system_piping.rs"
+
+[[bin]]
+name = "hierarchy"
+path = "hierarchy.rs"
+
+[[bin]]
+name = "one_shot_systems"
+path = "one_shot_systems.rs"
+
+[[bin]]
+name = "error_handling"
+path = "error_handling.rs"
+
+[[bin]]
+name = "dynamic"
+path = "dynamic.rs"
+
+[[bin]]
+name = "fallible_params"
+path = "fallible_params.rs"
+
+[[bin]]
+name = "observers"
+path = "observers.rs"
+
+[[bin]]
+name = "parallel_query"
+path = "parallel_query.rs"
+
+[[bin]]
+name = "generic_system"
+path = "generic_system.rs"
+
+[[bin]]
+name = "ecs_guide"
+path = "ecs_guide.rs"
+
+[[bin]]
+name = "custom_schedule"
+path = "custom_schedule.rs"
+
+[[bin]]
+name = "state_scoped"
+path = "state_scoped.rs"
+
+[[bin]]
+name = "entity_disabling"
+path = "entity_disabling.rs"
+
+[[bin]]
+name = "immutable_components"
+path = "immutable_components.rs"
+
+[[bin]]
+name = "system_closure"
+path = "system_closure.rs"
+
+[[bin]]
+name = "observer_propagation"
+path = "observer_propagation.rs"
+
+[[bin]]
+name = "nondeterministic_system_order"
+path = "nondeterministic_system_order.rs"
+
+[[bin]]
+name = "system_stepping"
+path = "system_stepping.rs"
+
+[[bin]]
+name = "send_and_receive_messages"
+path = "send_and_receive_messages.rs"
+
+[[bin]]
+name = "hotpatching_systems"
+path = "hotpatching_systems.rs"

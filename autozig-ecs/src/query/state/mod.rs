@@ -83,13 +83,33 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
     }
     
     /// Get a component for an entity
-    pub fn get<'w, Q>(&self, _world: &'w World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> 
+    pub fn get<'w, Q>(&self, world: &'w World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> 
     where Q: QueryData<State=S>
     {
-        if self.matched_entities_cache.contains(&entity) {
-             Err(QueryEntityError::QueryDoesNotMatch(entity))
-        } else {
-            Err(QueryEntityError::NoSuchEntity(entity))
+        let location = world.entities().get(entity).ok_or(QueryEntityError::NoSuchEntity(entity))?;
+        if !self.matched_archetypes.read().unwrap().contains(&location.archetype_id) {
+             return Err(QueryEntityError::QueryDoesNotMatch(entity));
+        }
+        
+        // Use UnsafeWorldCell to avoid borrow conflicts
+        let cell = world.as_unsafe_world_cell_readonly();
+        unsafe {
+            let last_run = cell.last_change_tick();
+            let this_run = cell.read_change_tick();
+            let archetypes = cell.archetypes();
+            let archetype = archetypes.get(crate::archetype::ArchetypeId::new(location.archetype_id)).unwrap();
+            let table_ptr = world_get_table_for_archetype(cell.as_ptr() as *mut crate::world::WorldOpaque, location.archetype_id);
+            let table = Table { inner: table_ptr };
+            
+            let mut fetch = Q::init_fetch(
+                cell,
+                &self.state,
+                last_run,
+                this_run,
+            );
+            
+            fetch.set_archetype(&self.state, archetype, &table);
+            Ok(fetch.fetch(entity, location.table_row as usize))
         }
     }
     
@@ -97,7 +117,31 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
     pub fn get_mut<'w, Q>(&mut self, world: &'w mut World, entity: Entity) -> Result<Q::Item<'w>, QueryEntityError> 
     where Q: QueryData<State=S>
     {
-        self.get::<Q>(world, entity)
+        let location = world.entities().get(entity).ok_or(QueryEntityError::NoSuchEntity(entity))?;
+        if !self.matched_archetypes.read().unwrap().contains(&location.archetype_id) {
+             return Err(QueryEntityError::QueryDoesNotMatch(entity));
+        }
+        
+        // Use UnsafeWorldCell to avoid borrow conflicts
+        let cell = world.as_unsafe_world_cell();
+        unsafe {
+            let last_run = cell.last_change_tick();
+            let this_run = cell.read_change_tick();
+            let archetypes = cell.archetypes();
+            let archetype = archetypes.get(crate::archetype::ArchetypeId::new(location.archetype_id)).unwrap();
+            let table_ptr = world_get_table_for_archetype(cell.as_ptr() as *mut crate::world::WorldOpaque, location.archetype_id);
+            let table = Table { inner: table_ptr };
+            
+            let mut fetch = Q::init_fetch(
+                cell,
+                &self.state,
+                last_run,
+                this_run,
+            );
+            
+            fetch.set_archetype(&self.state, archetype, &table);
+            Ok(fetch.fetch(entity, location.table_row as usize))
+        }
     }
     
     /// Get many entities at once
@@ -133,8 +177,6 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
     pub fn iter<'w, Q, F>(&'w self, world: &'w World) -> QueryStateIter<'w, Q, F> 
     where Q: QueryData<State=S>, F: QueryFilter<State=FS>
     {
-        world.update_archetypes();
-
         // Lazy match
         {
             let archetypes = world.archetypes.read().unwrap();
@@ -243,7 +285,6 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
     pub fn iter_combinations<'w, const K: usize, Q, F>(&'w self, world: &'w World) -> QueryCombinationIter<'w, Q, F, K>
     where Q: QueryData<State=S>, F: QueryFilter<State=FS>
     {
-        world.update_archetypes();
         
         // Lazy match (Duplicate logic from iter - could be extracted)
         {

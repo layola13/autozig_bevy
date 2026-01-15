@@ -204,6 +204,67 @@ impl<'w> Commands<'w> {
         }));
     }
 
+    /// Trigger an event
+    pub fn trigger<E: crate::observer::TriggerEvent + Clone + 'static>(&mut self, event: E, entity: Entity) {
+        self.resource_queue.push(Box::new(move |world| {
+            // 1. Trigger Global Observers (if any)
+            use crate::observer::ObserverList;
+            if let Some(mut observers) = world.remove_resource::<ObserverList<E>>() {
+                 observers.trigger(entity, world);
+                 world.insert_resource(observers);
+            }
+
+            // 2. Trigger Entity Observers (Propagation)
+            // Walk parents
+            let mut entities = vec![entity];
+            let mut current = entity;
+            while let Some(parent) = world.get::<crate::hierarchy::Parent>(current) {
+                 current = parent.get();
+                 entities.push(current);
+            }
+
+            // Iterate all entities in chain
+            for target in entities {
+                // Find observers watching `target`
+                use crate::observer::{Observer, Observed};
+                // We create a temporary QueryState to find observers
+                // Manual archetype iteration to find observers
+                // This bypasses QueryData tuple limitations in autozig-ecs
+                
+                let observer_id = world.component_id::<crate::observer::Observer<E>>();
+                let observed_id = world.component_id::<crate::observer::Observed>();
+                
+                let mut observers_to_run: Vec<crate::observer::Observer<E>> = Vec::new();
+
+                if let (Some(observer_id), Some(observed_id)) = (observer_id, observed_id) {
+                    let archetypes_guard = world.archetypes();
+                    for archetype in archetypes_guard.iter() {
+                        if archetype.components().contains(&observer_id) && archetype.components().contains(&observed_id) {
+                            for arch_entity in archetype.entities() {
+                                let entity = arch_entity.entity;
+                                // We can safely get Observed because we checked component_id existence
+                                if let Some(observed) = world.get::<crate::observer::Observed>(entity) {
+                                    if observed.entity == target {
+                                        if let Some(observer) = world.get::<crate::observer::Observer<E>>(entity) {
+                                            unsafe {
+                                                observers_to_run.push(std::ptr::read(observer));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for observer in observers_to_run {
+                     observer.trigger(entity, world);
+                     std::mem::forget(observer);
+                }
+            }
+        }));
+    }
+
     /// Apply all commands
     pub fn apply(&mut self, world: &mut crate::world::World) {
         unsafe {
@@ -367,11 +428,27 @@ impl<'w> EntityCommands<'w> {
     
     pub fn despawn(&mut self) {
         let entity_idx = self.entity.map(|e| e.index()).unwrap_or(u32::MAX);
-        if entity_idx != u32::MAX { // Can only despawn known entity easily via OpCode? 
-             // Logic for despawning sentinel target requires explicit support or just assume "Latest".
+        if entity_idx != u32::MAX { 
              command_buffer_write_despawn(self.buffer, entity_idx);
         }
     }
 
+    /// Add an observer to the entity
+    pub fn observe<E, M>(&mut self, system: impl crate::observer::IntoObserverSystem<E, M>) -> &mut Self 
+    where
+        E: crate::observer::TriggerEvent + Default + Clone + 'static,
+    {
+         let entity = self.id();
+         // Create observer system
+         let observer_system = system.into_observer_system();
+         let observer_component = crate::observer::Observer::<E>::new(observer_system);
+         let observed_component = crate::observer::Observed { entity };
+         
+         // Queue command to spawn observer entity
+         self.add(move |world: &mut crate::world::World| {
+              world.spawn((observer_component, observed_component));
+         });
+         self
+    }
 }
 

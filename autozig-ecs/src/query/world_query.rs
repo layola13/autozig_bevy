@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Core trait for types that can be used in queries
-pub trait QueryData: Send + Sync + 'static {
+pub trait QueryData: Send + Sync {
     type Item<'w>;
     type Fetch<'w>: Fetch<'w, Item = Self::Item<'w>, State = Self::State>;
     /// The state type used to maintain persistent data for this query
@@ -67,7 +67,7 @@ impl QueryData for Entity {
 impl ReadOnlyWorldQuery for Entity {}
 
 // &T implementation
-impl<T: Component> QueryData for &'static T {
+impl<'a, T: Component> QueryData for &'a T {
     type Item<'w> = &'w T;
     type Fetch<'w> = ReadFetch<T>;
     type State = ComponentId;
@@ -81,10 +81,10 @@ impl<T: Component> QueryData for &'static T {
     fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) { access.add_component_read(*state); }
     fn matches_component_set(state: &<Self as QueryData>::State, set: &[ComponentId]) -> bool { set.contains(state) }
 }
-impl<T: Component> ReadOnlyWorldQuery for &'static T {}
+impl<'a, T: Component> ReadOnlyWorldQuery for &'a T {}
 
 // &mut T implementation
-impl<T: Component> QueryData for &'static mut T {
+impl<'a, T: Component> QueryData for &'a mut T {
     type Item<'w> = crate::change_detection::Mut<'w, T>;
     type Fetch<'w> = WriteFetch<T>;
     type State = ComponentId;
@@ -100,7 +100,7 @@ impl<T: Component> QueryData for &'static mut T {
 }
 
 // Ref<'static, T> implementation
-impl<T: Component> QueryData for crate::change_detection::Ref<'static, T> {
+impl<'a, T: Component> QueryData for crate::change_detection::Ref<'a, T> {
     type Item<'w> = crate::change_detection::Ref<'w, T>;
     type Fetch<'w> = RefFetch<T>;
     type State = ComponentId;
@@ -114,7 +114,7 @@ impl<T: Component> QueryData for crate::change_detection::Ref<'static, T> {
     fn update_component_access(state: &<Self as QueryData>::State, access: &mut FilteredAccess) { access.add_component_read(*state); }
     fn matches_component_set(state: &<Self as QueryData>::State, set: &[ComponentId]) -> bool { set.contains(state) }
 }
-impl<T: Component> ReadOnlyWorldQuery for crate::change_detection::Ref<'static, T> {}
+impl<'a, T: Component> ReadOnlyWorldQuery for crate::change_detection::Ref<'a, T> {}
 
 // Option<T> implementation
 impl<T: QueryData> QueryData for Option<T> {

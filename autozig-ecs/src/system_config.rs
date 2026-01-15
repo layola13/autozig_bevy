@@ -114,12 +114,20 @@ pub trait IntoSystemConfigs<Marker> {
         }
         configs
     }
+    
+    fn ambiguous_with(self, _system: impl Into<String>) -> SystemConfigs
+    where Self: Sized
+    {
+        // TODO: Implement ambiguity sets
+        self.into_configs()
+    }
 }
 
 // Implement for single system
-impl<S, P> IntoSystemConfigs<(P,)> for S
+impl<S, P> IntoSystemConfigs<P> for S
 where
     S: crate::into_system::IntoSystem<P, (), ()>,
+    <S as crate::into_system::IntoSystem<P, (), ()>>::System: 'static,
 {
     fn into_configs(self) -> SystemConfigs {
         let sys = self.into_system();

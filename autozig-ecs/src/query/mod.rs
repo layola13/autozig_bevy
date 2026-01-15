@@ -100,6 +100,11 @@ impl<'w, Q: QueryData, F: QueryFilter> Query<'w, Q, F> {
         Ok(first)
     }
 
+    /// Returns true if the query is empty
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
     /// Get component data for a specific entity
     pub fn get(&self, entity: crate::entity::Entity) -> Result<Q::Item<'w>, QueryEntityError> {
         unsafe { (*self.state).get::<Q>(self.world, entity) }

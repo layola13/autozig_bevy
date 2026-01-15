@@ -27,7 +27,7 @@ pub fn state_equals<S: crate::state::States>(state: Res<crate::state::State<S>>,
 /// Returns `true` if the current state is NOT `T`.
 pub fn not_in_state<S: crate::state::States>(state: S) -> impl Condition {
     use crate::resource::Res;
-    crate::condition::IntoCondition::<(bool, Res<crate::state::State<S>>)>::into_condition(move |current_state: Res<crate::state::State<S>>| {
+    crate::condition::IntoCondition::<crate::into_system::FunctionMarker<(bool, Res<crate::state::State<S>>)> >::into_condition(move |current_state: Res<crate::state::State<S>>| {
         *current_state.get() != state
     })
 }

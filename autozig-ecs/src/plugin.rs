@@ -84,10 +84,15 @@ impl App {
         world.insert_resource(Events::<AppExit>::default());
         
         // Initialize standard schedules
-        use crate::schedule::{Startup, Update, Last};
+        use crate::schedule::{First, PreUpdate, StateTransition, FixedUpdate, Update, PostUpdate, Last, Startup};
         let mut schedules = crate::schedule::Schedules::new();
         schedules.insert(crate::schedule::Schedule::new(Startup));
+        schedules.insert(crate::schedule::Schedule::new(First));
+        schedules.insert(crate::schedule::Schedule::new(PreUpdate));
+        schedules.insert(crate::schedule::Schedule::new(StateTransition));
+        schedules.insert(crate::schedule::Schedule::new(FixedUpdate));
         schedules.insert(crate::schedule::Schedule::new(Update));
+        schedules.insert(crate::schedule::Schedule::new(PostUpdate));
         schedules.insert(crate::schedule::Schedule::new(Last));
         world.insert_resource(schedules);
         
@@ -172,6 +177,38 @@ impl App {
         }
         self
     }
+
+    pub fn edit_schedule(&mut self, schedule: impl crate::schedule::ScheduleLabel, f: impl FnOnce(&mut crate::schedule::Schedule)) -> &mut Self {
+        let label_str = schedule.label().to_string();
+         let mut schedules = self.world.get_resource_mut::<crate::schedule::Schedules>()
+            .expect("Schedules resource missing");
+            
+        if let Some(sched) = schedules.get_mut(schedule) {
+            f(sched);
+        } else {
+            panic!("Schedule not found: {}", label_str);
+        }
+        self
+    }
+
+    /// Add an observer to the app
+    pub fn add_observer<E, M>(&mut self, system: impl crate::observer::IntoObserverSystem<E, M>) -> &mut Self 
+    where
+        E: crate::observer::TriggerEvent + Default + Clone + 'static,
+    {
+        // We'll spawn the observer entity directly into the world
+        // This requires access to spawn_empty and insert logic.
+        // For now, let's create the observer component and spawn an entity.
+        let observer_system = system.into_observer_system();
+        let observer_component = crate::observer::Observer::<E>::new(observer_system);
+        
+        // Spawn entity with Observer component
+        // Note: In real Bevy, this is handled more gracefully.
+        // Here we just spawn it.
+        self.world.spawn(observer_component);
+        
+        self
+    }
     
     pub fn init_resource<R: crate::resource::Resource + Default>(&mut self) -> &mut Self {
         self.world.insert_resource(R::default());
@@ -180,6 +217,15 @@ impl App {
 
     pub fn insert_resource<R: crate::resource::Resource>(&mut self, resource: R) -> &mut Self {
         self.world.insert_resource(resource);
+        self
+    }
+    
+    /// Initialize a state
+    pub fn init_state<S: crate::state::States>(&mut self) -> &mut Self {
+        self.world.insert_resource(crate::state::State::<S>::default());
+        self.world.insert_resource(crate::state::NextState::<S>::default());
+        // We should also register state transition schedule/systems here if they were automated.
+        // For now, simple resource init is enough for manual use.
         self
     }
 
@@ -260,9 +306,11 @@ impl Plugin for TimePlugin {
         app.insert_resource(Time::new());
         
         // Add time update system at the start of the frame
-        app.add_systems(crate::schedule::First, |mut time: crate::prelude::ResMut<Time>| {
+        use crate::into_system::IntoSystem;
+        let sys: crate::into_system::ParamFunctionSystem<crate::into_system::FunctionMarker<((), crate::prelude::ResMut<'static, Time>)>, _> = (|mut time: crate::prelude::ResMut<Time>| {
             time.update();
-        });
+        }).into_system();
+        app.add_systems(crate::schedule::First, sys);
     }
 }
 
