@@ -19,6 +19,14 @@ path = "src/bench_autozig_raw.rs"
 name = "bench_autozig_simd"
 path = "src/bench_autozig_simd.rs"
 
+[[bin]]
+name = "bench_autozig_safe"
+path = "src/bench_autozig_safe.rs"
+
+[[bin]]
+name = "bench_autozig_safe_simd"
+path = "src/bench_autozig_safe_simd.rs"
+
 [profile.release]
 lto = "fat"
 codegen-units = 1
