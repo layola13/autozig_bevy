@@ -24,6 +24,9 @@ include_zig!("src/zig/table.zig", {
     fn table_get_entity_row(table: *const TableOpaque, entity: u32) -> i64;
     fn table_get_entity(table: *const TableOpaque, row: usize) -> Entity;
     fn table_clear(table: *mut TableOpaque);
+    fn table_get_entity_list_ptr(table: *const TableOpaque) -> *const u32;
+    fn table_get_column_data_ptr(table: *const TableOpaque, component_id: u32) -> *mut u8;
+    fn table_get_column_ticks_base_ptr(table: *const TableOpaque, component_id: u32) -> *mut crate::change_detection::ComponentTicks;
 });
 
 /// TableId - 表ID
@@ -66,6 +69,23 @@ impl Table {
     
     pub fn get_entity(&self, row: usize) -> Entity {
         table_get_entity(self.inner, row)
+    }
+
+    /// Returns pointer to contiguous entity IDs
+    pub fn get_entity_list_ptr(&self) -> *const u32 {
+        unsafe { table_get_entity_list_ptr(self.inner) }
+    }
+
+    /// Returns pointer to contiguous column data
+    pub fn get_column_data_ptr(&self, component_id: ComponentId) -> Option<*mut u8> {
+        let ptr = unsafe { table_get_column_data_ptr(self.inner, component_id.index() as u32) };
+        if ptr.is_null() { None } else { Some(ptr) }
+    }
+
+    /// Returns pointer to contiguous column ticks
+    pub fn get_column_ticks_ptr(&self, component_id: ComponentId) -> Option<*mut crate::change_detection::ComponentTicks> {
+        let ptr = unsafe { table_get_column_ticks_base_ptr(self.inner, component_id.index() as u32) };
+        if ptr.is_null() { None } else { Some(ptr) }
     }
 }
 

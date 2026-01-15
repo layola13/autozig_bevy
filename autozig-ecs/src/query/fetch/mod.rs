@@ -60,6 +60,7 @@ impl Default for EntityFetch {
 /// Read fetch - fetches immutable component data
 pub struct ReadFetch<T: Component> {
     pub(crate) inner: *mut FetchCoreOpaque,
+    pub(crate) ptr: *const T,
     component_id: ComponentId,
     pub(crate) last_run: Tick,
     pub(crate) this_run: Tick,
@@ -70,6 +71,7 @@ impl<T: Component> ReadFetch<T> {
     pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
         Self {
             inner: fetch_create(),
+            ptr: std::ptr::null(),
             component_id,
             last_run,
             this_run,
@@ -91,6 +93,8 @@ impl<T: Component> Drop for ReadFetch<T> {
 /// Write fetch - fetches mutable component data
 pub struct WriteFetch<T: Component> {
     pub(crate) inner: *mut FetchCoreOpaque,
+    pub(crate) ptr: *mut T,
+    pub(crate) ticks_ptr: *mut ComponentTicks,
     component_id: ComponentId,
     pub(crate) last_run: Tick,
     pub(crate) this_run: Tick,
@@ -106,6 +110,8 @@ impl<T: Component> WriteFetch<T> {
     pub fn new(component_id: ComponentId, last_run: Tick, this_run: Tick) -> Self {
         Self {
             inner: fetch_create(),
+            ptr: std::ptr::null_mut(),
+            ticks_ptr: std::ptr::null_mut(),
             component_id,
             last_run,
             this_run,
@@ -124,7 +130,11 @@ impl<T: Component> Drop for WriteFetch<T> {
     }
 }
 
-/// Ref fetch - fetches immutable component data with change detection info
+// ... RefFetch omitted for brevity, focusing on Read/Write first ...
+
+
+
+
 pub struct RefFetch<T: Component> {
     pub(crate) inner: *mut FetchCoreOpaque,
     component_id: ComponentId,

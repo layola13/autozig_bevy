@@ -17,3 +17,9 @@ path = "src/bench_autozig.rs"
 [[bin]]
 name = "bench_bevy"
 path = "src/bench_bevy.rs"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"

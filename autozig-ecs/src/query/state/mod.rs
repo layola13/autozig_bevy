@@ -219,6 +219,7 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             archetype_index: 0,
             row_index: 0,
             current_table_len: 0,
+            entities_ptr: std::ptr::null(), // Initialized to null
             fetch,
             filter_fetch,
             state: &self.state,
@@ -274,6 +275,7 @@ impl<S: Send + Sync + 'static, FS: Send + Sync + 'static> QueryStateInner<S, FS>
             archetype_index: 0,
             row_index: 0,
             current_table_len: 0,
+            entities_ptr: std::ptr::null(), // Initialized to null
             fetch,
             filter_fetch,
             state: &self.state,
@@ -350,6 +352,7 @@ pub struct QueryStateIter<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
+    pub(crate) entities_ptr: *const u32,
     pub(crate) fetch: Q::Fetch<'w>,
     pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
@@ -362,13 +365,13 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
     
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            // Inner loop: Iterate over rows in the current table
             if self.row_index < self.current_table_len {
-                // Get archetype to find the table (we could cache the table too)
-                let archetype_id = self.matched_archetypes[self.archetype_index - 1];
-                let table_ptr = unsafe { world_get_table_for_archetype(self.world.inner, archetype_id) };
-                let table = Table { inner: table_ptr };
-                
-                let entity = table.get_entity(self.row_index);
+                // Optimized: Get entity from cached pointer without FFI
+                // SAFETY: row_index checked against current_table_len, entities_ptr valid for this table
+                let entity_id = unsafe { *self.entities_ptr.add(self.row_index) };
+                // Creating Entity with generation 0 to match previous FFI implementation behavior
+                let entity = Entity::from_raw(entity_id);
                 
                 // Runtime Filtering
                 if !self.filter_fetch.matches(entity, self.row_index) {
@@ -381,6 +384,7 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
                 return result;
             }
             
+            // Outer loop: Advance to next archetype/table
             if self.archetype_index >= self.matched_archetypes.len() {
                 return None;
             }
@@ -398,6 +402,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
             self.row_index = 0;
             
             if self.current_table_len > 0 {
+                // Optimization: Cache entity list pointer to avoid FFI in inner loop
+                self.entities_ptr = table.get_entity_list_ptr();
+
                 unsafe {
                     let archetypes = self.world.archetypes();
                     let archetype = archetypes.get(crate::archetype::ArchetypeId::new(archetype_id)).unwrap();
@@ -422,6 +429,7 @@ pub struct QueryStateIterMut<'w, Q: QueryData, F: QueryFilter> {
     pub(crate) archetype_index: usize,
     pub(crate) row_index: usize,
     pub(crate) current_table_len: usize,
+    pub(crate) entities_ptr: *const u32,
     pub(crate) fetch: Q::Fetch<'w>,
     pub(crate) filter_fetch: F::Fetch<'w>,
     pub(crate) state: &'w Q::State,
@@ -435,11 +443,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if self.row_index < self.current_table_len {
-                let archetype_id = self.matched_archetypes[self.archetype_index - 1];
-                let table_ptr = unsafe { world_get_table_for_archetype(self.world_ptr, archetype_id) };
-                let table = Table { inner: table_ptr };
-                
-                let entity = table.get_entity(self.row_index);
+                // Optimized: Get entity from cached pointer
+                let entity_id = unsafe { *self.entities_ptr.add(self.row_index) };
+                let entity = Entity::from_raw(entity_id);
                 
                 // Runtime Filtering
                 if !self.filter_fetch.matches(entity, self.row_index) {
@@ -469,6 +475,9 @@ impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> 
             self.row_index = 0;
             
             if self.current_table_len > 0 {
+                // Optimization: Cache entity list pointer
+                self.entities_ptr = table.get_entity_list_ptr();
+
                 unsafe {
                     self.fetch.set_table(self.state, &table);
                     self.filter_fetch.set_table(self.filter_state, &table);

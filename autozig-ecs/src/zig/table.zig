@@ -265,3 +265,17 @@ export fn table_get_entity(table_ptr: *const Table, row: usize) Entity {
     if (row >= table_ptr.entity_list.items.len) return Entity{ .index = 0, .generation = 0 };
     return Entity{ .index = table_ptr.entity_list.items[row], .generation = 0 };
 }
+
+export fn table_get_entity_list_ptr(table_ptr: *const Table) [*]const u32 {
+    return table_ptr.entity_list.items.ptr;
+}
+
+export fn table_get_column_data_ptr(table_ptr: *const Table, component_id: u32) ?[*]u8 {
+    const column = table_ptr.getColumnConst(component_id) orelse return null;
+    return column.data.items.ptr;
+}
+
+export fn table_get_column_ticks_base_ptr(table_ptr: *const Table, component_id: u32) ?[*]ComponentTicks {
+    const column = table_ptr.getColumnConst(component_id) orelse return null;
+    return column.ticks.items.ptr;
+}
