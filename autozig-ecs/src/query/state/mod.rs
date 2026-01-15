@@ -363,6 +363,7 @@ pub struct QueryStateIter<'w, Q: QueryData, F: QueryFilter> {
 impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIter<'w, Q, F> {
     type Item = Q::Item<'w>;
     
+    #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Inner loop: Iterate over rows in the current table
@@ -440,6 +441,7 @@ pub struct QueryStateIterMut<'w, Q: QueryData, F: QueryFilter> {
 impl<'w, Q: QueryData, F: QueryFilter> Iterator for QueryStateIterMut<'w, Q, F> {
     type Item = Q::Item<'w>;
     
+    #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if self.row_index < self.current_table_len {

@@ -279,22 +279,34 @@ impl<'w, T: Component> Fetch<'w> for ReadFetch<T> {
     type Item = &'w T;
     type State = ComponentId;
 
+    #[inline(always)]
     fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
         Self::new(*state, last_run, this_run)
     }
 
+    #[inline(always)]
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
         fetch_set_table(self.inner, table.inner, state.index() as u32);
+        if let Some(ptr) = table.get_column_data_ptr(*state) {
+            self.ptr = ptr as *const T;
+        } else {
+            self.ptr = std::ptr::null();
+        }
     }
 
     unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
         self.set_table(state, table);
     }
 
+    #[inline(always)]
     fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
         unsafe {
-            let ptr = fetch_get_at(self.inner, index);
-            &*(ptr as *const T)
+            if !self.ptr.is_null() {
+                &*(self.ptr.add(index))
+            } else {
+                let ptr = fetch_get_at(self.inner, index);
+                &*(ptr as *const T)
+            }
         }
     }
 
@@ -307,29 +319,53 @@ impl<'w, T: Component> Fetch<'w> for WriteFetch<T> {
     type Item = Mut<'w, T>;
     type State = ComponentId;
 
+    #[inline(always)]
     fn init(state: &Self::State, _world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
         Self::new(*state, last_run, this_run)
     }
 
+    #[inline(always)]
     unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
         fetch_set_table(self.inner, table.inner, state.index() as u32);
+        if let Some(ptr) = table.get_column_data_ptr(*state) {
+            self.ptr = ptr as *mut T;
+        } else {
+             self.ptr = std::ptr::null_mut();
+        }
+        
+        if let Some(ticks) = table.get_column_ticks_ptr(*state) {
+            self.ticks_ptr = ticks;
+        } else {
+            self.ticks_ptr = std::ptr::null_mut();
+        }
     }
 
     unsafe fn set_archetype(&mut self, state: &Self::State, _archetype: &crate::archetype::Archetype, table: &crate::storage::Table) {
         self.set_table(state, table);
     }
 
+    #[inline(always)]
     fn fetch(&mut self, _entity: Entity, index: usize) -> Self::Item {
         unsafe {
-            let ptr = fetch_get_at(self.inner, index);
-            let ticks_ptr = fetch_get_ticks_at(self.inner, index);
-            Mut::new(
-                &mut *(ptr as *mut T),
-                &mut *ticks_ptr,
-                self.this_run, // current_tick
-                self.last_run,
-                self.this_run,
-            )
+             if !self.ptr.is_null() && !self.ticks_ptr.is_null() {
+                Mut::new(
+                    &mut *(self.ptr.add(index)),
+                    &mut *(self.ticks_ptr.add(index)),
+                    self.this_run, 
+                    self.last_run,
+                    self.this_run,
+                )
+             } else {
+                 let ptr = fetch_get_at(self.inner, index);
+                 let ticks_ptr = fetch_get_ticks_at(self.inner, index);
+                 Mut::new(
+                    &mut *(ptr as *mut T),
+                    &mut *ticks_ptr,
+                    self.this_run,
+                    self.last_run,
+                    self.this_run,
+                )
+             }
         }
     }
 
@@ -474,12 +510,14 @@ macro_rules! impl_fetch_tuple {
             type Item = ($($name::Item,)*);
             type State = ($($name::State,)*);
 
+            #[inline(always)]
             fn init(state: &Self::State, world: crate::world::unsafe_world_cell::UnsafeWorldCell<'w>, last_run: crate::change_detection::Tick, this_run: crate::change_detection::Tick) -> Self {
                 #[allow(non_snake_case)]
                 let ($($state,)*) = state;
                 ($($name::init($state, world, last_run, this_run),)*)
             }
 
+            #[inline(always)]
             unsafe fn set_table(&mut self, state: &Self::State, table: &crate::storage::Table) {
                 #[allow(non_snake_case)]
                 let ($($name,)*) = self;
@@ -496,6 +534,7 @@ macro_rules! impl_fetch_tuple {
                 $($name.set_archetype($state, archetype, table);)*
             }
 
+            #[inline(always)]
             fn fetch(&mut self, entity: Entity, index: usize) -> Self::Item {
                 #[allow(non_snake_case)]
                 let ($($name,)*) = self;

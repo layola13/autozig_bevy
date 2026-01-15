@@ -7,16 +7,9 @@ edition = "2021"
 autozig-ecs = { path = "../../autozig-ecs" }
 rand = "0.8"
 
-# Comparative Bevy version
-bevy = { version = "0.14", default-features = false } 
-
 [[bin]]
 name = "bench_autozig"
 path = "src/bench_autozig.rs"
-
-[[bin]]
-name = "bench_bevy"
-path = "src/bench_bevy.rs"
 
 [profile.release]
 lto = "fat"
