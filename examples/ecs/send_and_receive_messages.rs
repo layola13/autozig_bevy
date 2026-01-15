@@ -3,13 +3,13 @@
 //! Ported from Bevy examples/ecs/send_and_receive_messages.rs
 
 use autozig_ecs::prelude::*;
-use autozig_ecs::into_system::IntoSystem;
+use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
 use autozig_ecs::param_set::ParamSet;
 
-#[derive(Message, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct A;
 
-#[derive(Message, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct B;
 
 // Helper to derive Message for A and B since macro isn't real
@@ -43,7 +43,6 @@ fn main() {
                 // send_and_receive_manual_message_reader, 
                 debug_sys3,
             )
-            .chain(),
         );
 
     // We're just going to run a few frames, so we can see and understand the output.
@@ -59,7 +58,7 @@ fn main() {
 
 // This works fine, because the types are different,
 // so the borrows of the `MessageWriter` and `MessageReader` don't overlap.
-fn read_and_write_different_message_types(mut a: MessageWriter<'static, A>, mut b: MessageReader<'static, 'static, B>) {
+fn read_and_write_different_message_types(mut a: MessageWriter<A>, mut b: MessageReader<B>) {
     for _ in b.read() {}
     a.write(A);
 }
@@ -83,7 +82,7 @@ impl Default for DebugMessage {
 }
 
 /// A system that sends all combinations of messages.
-fn send_messages(mut debug_messages: MessageWriter<'static, DebugMessage>, frame_count: Res<autozig_time::Time>) {
+fn send_messages(mut debug_messages: MessageWriter<DebugMessage>, _frame_count: Res<autozig_time::Time>) {
     // println!("Sending messages for frame {}", frame_count.frame_count());
 
     debug_messages.write(DebugMessage {
@@ -96,11 +95,10 @@ fn send_messages(mut debug_messages: MessageWriter<'static, DebugMessage>, frame
         resend_from_local_message_reader: false,
         times_sent: 1,
     });
-    // ...
 }
 
 /// A system that prints all messages sent since the last time this system ran.
-fn debug_messages(mut messages: MessageReader<'static, 'static, DebugMessage>) {
+fn debug_messages(mut messages: MessageReader<DebugMessage>) {
     for message in messages.read() {
         println!("{message:?}");
     }
@@ -112,7 +110,7 @@ fn send_and_receive_param_set(
         MessageReader<'static, 'static, DebugMessage>,
         MessageWriter<'static, DebugMessage>,
     )>,
-    frame_count: Res<autozig_time::Time>,
+    _frame_count: Res<autozig_time::Time>,
 ) {
     // println!(
     //     "Sending and receiving messages for frame {} with a `ParamSet`",

@@ -134,7 +134,7 @@ where
 
 impl<Marker, F> System for ParamFunctionSystem<Marker, F>
 where
-    Marker: Send + Sync + 'static,
+    Marker: 'static,
     F: SystemParamFunction<Marker, In = ()>,
 {
     type In = ();
@@ -166,7 +166,7 @@ impl<S: System> IntoSystem<SystemMarker, S::In, S::Out> for S {
 
 impl<Marker, Out, F> IntoSystem<FunctionMarker<Marker>, (), Out> for F
 where
-    Marker: Send + Sync + 'static,
+    Marker: 'static,
     F: SystemParamFunction<FunctionMarker<Marker>, In = (), Out = Out>,
 {
     type System = ParamFunctionSystem<FunctionMarker<Marker>, F>;
@@ -178,7 +178,7 @@ where
 
 impl<Marker, F> ParamFunctionSystem<Marker, F>
 where
-    Marker: Send + Sync + 'static,
+    Marker: 'static,
     F: SystemParamFunction<Marker, In = ()>,
 {
     pub fn run_with_out(&mut self, world: &mut World) -> F::Out {
@@ -201,7 +201,7 @@ use crate::condition::{Condition, IntoCondition};
 impl<Marker, F> Condition for ParamFunctionSystem<Marker, F>
 where
     F: SystemParamFunction<Marker, In = (), Out = bool>,
-    Marker: Send + Sync + 'static,
+    Marker: 'static,
 {
     fn run(&mut self, world: &mut World) -> bool {
         self.run_with_out(world)
@@ -211,7 +211,7 @@ where
 impl<Marker, F> IntoCondition<Marker> for F
 where
     F: SystemParamFunction<Marker, In = (), Out = bool>,
-    Marker: Send + Sync + 'static,
+    Marker: 'static,
 {
     type Condition = ParamFunctionSystem<Marker, F>;
     fn into_condition(self) -> Self::Condition {

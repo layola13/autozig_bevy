@@ -4,9 +4,10 @@
 
 use autozig_ecs::prelude::*;
 use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
+use autozig_ecs::state::{States, State, NextState, OnExit};
 use autozig_time::{Time, Timer, TimerMode};
 
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Hash, States)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Hash)]
 enum AppState {
     #[default]
     MainMenu,
@@ -43,13 +44,20 @@ fn main() {
     // Manual state init if needed:
     app.insert_resource(State::<AppState>::default());
     app.insert_resource(NextState::<AppState>::default());
-    app.init_resource::<crate::state::State<AppState>>();
+    app.init_resource::<State<AppState>>(); // Corrected path
 
     // Register components (autozig-ecs safety)
     app.world_mut().register_component::<TextToPrint>();
     app.world_mut().register_component::<PrinterTick>();
     app.world_mut().register_component::<MenuClose>();
     app.world_mut().register_component::<LevelUnload>();
+
+    // Initializate state schedules manually since we don't have StatesPlugin yet
+    {
+        let mut schedules = app.world_mut().resource_mut::<Schedules>();
+        schedules.insert(Schedule::new(OnExit(AppState::MainMenu)));
+        schedules.insert(Schedule::new(OnExit(AppState::InGame)));
+    }
 
     // Systems
     let setup_sys: ParamFunctionSystem<FunctionMarker<((), Commands<'static>)>, _> = 
@@ -113,6 +121,7 @@ fn setup_system(mut commands: Commands) {
     ));
 }
 
+fn print_text_system(time: Res<Time>, mut query: Query<(&mut PrinterTick, &TextToPrint)>) {
     for (mut timer, text) in &mut query {
         timer.tick(time.delta_nanos());
         if timer.just_finished() {
