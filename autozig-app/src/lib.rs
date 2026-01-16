@@ -12,7 +12,7 @@
 //! - AppExit: 退出状态管理
 //! - MainScheduleOrder: 调度标签系统
 
-#![forbid(unsafe_code)]
+#![allow(unsafe_code)]
 
 pub mod plugin_group;
 pub mod default_plugins;
@@ -24,6 +24,16 @@ use core::ptr::NonNull;
 // Re-export plugin group types
 pub use plugin_group::{PluginGroup, PluginGroupBuilder, PluginGroupExt};
 pub use default_plugins::{DefaultPlugins, MinimalPlugins};
+
+/// Common imports for autozig apps
+pub mod prelude {
+    pub use crate::{
+        App, AppExit, DefaultPlugins, MinimalPlugins, Plugin, PluginGroup,
+        MainScheduleOrder, Startup, Update, FixedUpdate,
+        First, PreStartup, PostStartup, PreUpdate, PostUpdate, Last,
+        FixedFirst, FixedPreUpdate, FixedPostUpdate, FixedLast,
+    };
+}
 
 // ============================================================================
 // Schedule Label Types (Zero-Sized Types for type-safe schedule identification)
@@ -717,8 +727,8 @@ pub struct ZigPlugin {
 
 // Include Zig FFI functions
 include_zig!("src/zig/app.zig", {
-    fn app_create() -> *mut ZigApp;
-    fn app_create_empty() -> *mut ZigApp;
+    fn app_create(world: *mut u8) -> *mut ZigApp;
+    fn app_create_empty(world: *mut u8) -> *mut ZigApp;
     fn app_destroy(app: *mut ZigApp);
     fn app_update(app: *mut ZigApp);
     fn app_run(app: *mut ZigApp) -> u8;
@@ -730,13 +740,15 @@ include_zig!("src/zig/app.zig", {
     fn app_get_sub_app(app: *mut ZigApp, name_ptr: *const u8, name_len: usize) -> *mut ZigSubApp;
     fn app_insert_resource(app: *mut ZigApp, type_id: u64, data_ptr: *const u8, data_len: usize);
     fn app_has_resource(app: *mut ZigApp, type_id: u64) -> bool;
+    fn app_get_resource(app: *mut ZigApp, type_id: u64) -> *mut u8;
+    fn app_get_world(app: *mut ZigApp) -> *mut u8;
 });
 
 include_zig!("src/zig/schedule.zig", {
-    fn schedule_add_system(app: *mut ZigApp, schedule: u8, system: SystemFn);
-    fn schedule_configure_set(app: *mut ZigApp, schedule: u8, set_id: u64);
-    fn schedule_run(app: *mut ZigApp, schedule: u8, is_first_run: bool);
-    fn schedule_init_resource(app: *mut ZigApp, type_id: u64);
+    fn app_schedule_add_system(app: *mut ZigApp, schedule: u8, system: SystemFn);
+    fn app_schedule_configure_set(app: *mut ZigApp, schedule: u8, set_id: u64);
+    fn app_schedule_run(app: *mut ZigApp, schedule: u8, is_first_run: bool);
+    fn app_schedule_init_resource(app: *mut ZigApp, type_id: u64);
 });
 
 include_zig!("src/zig/sub_app.zig", {
@@ -750,7 +762,8 @@ include_zig!("src/zig/plugin.zig", {
     fn plugin_create(
         name_ptr: *const u8,
         name_len: usize,
-        build_fn: extern "C" fn(*mut ZigApp),
+        build_fn: extern "C" fn(*mut std::ffi::c_void, *mut ZigApp),
+        context: *mut std::ffi::c_void,
         is_unique: bool
     ) -> *mut ZigPlugin;
     fn plugin_destroy(plugin: *mut ZigPlugin);
@@ -797,25 +810,32 @@ impl Default for AppExit {
     }
 }
 
+use autozig_ecs::world::World;
+
 /// Main application structure
 pub struct App {
     inner: NonNull<ZigApp>,
+    pub world: World,
 }
 
 impl App {
     /// Create a new application with default configuration
     pub fn new() -> Self {
-        let ptr = app_create();
+        let mut world = World::new();
+        let ptr = app_create(world.as_raw_ptr());
         Self {
-            inner: NonNull::new(ptr).expect("app creation failed")
+            inner: NonNull::new(ptr).expect("app creation failed"),
+            world,
         }
     }
     
     /// Create an empty application without default plugins
     pub fn empty() -> Self {
-        let ptr = app_create_empty();
+        let mut world = World::new();
+        let ptr = app_create_empty(world.as_raw_ptr());
         Self {
-            inner: NonNull::new(ptr).expect("empty app creation failed")
+            inner: NonNull::new(ptr).expect("empty app creation failed"),
+            world,
         }
     }
     
@@ -829,6 +849,70 @@ impl App {
     pub fn run(self) -> AppExit {
         let code = app_run(self.inner.as_ptr());
         AppExit::from_code(code)
+    }
+
+    /// Get raw pointer to the underlying Zig App
+    pub fn as_ptr(&self) -> *mut ZigApp {
+        self.inner.as_ptr()
+    }
+
+    /// Get raw pointer to the ECS World from Zig App
+    pub unsafe fn get_world_raw(&self) -> *mut u8 {
+        app_get_world(self.inner.as_ptr())
+    }
+
+    /// Static helper to get world from raw ZigApp pointer (for systems)
+    pub unsafe fn get_world_from_ptr(app_ptr: *mut ZigApp) -> *mut u8 {
+        app_get_world(app_ptr)
+    }
+
+    /// RAW API: Update the application for one frame (unsafe)
+    /// Intended for custom runners who have the raw pointers.
+    pub unsafe fn update_raw(app_ptr: *mut ZigApp) {
+        app_update(app_ptr);
+    }
+
+    /// RAW API: Check if application should exit (unsafe)
+    pub unsafe fn should_exit_raw(app_ptr: *mut ZigApp) -> Option<AppExit> {
+        let code = app_should_exit(app_ptr);
+        if code < 0 {
+            None
+        } else {
+            Some(AppExit::from_code(code as u8))
+        }
+    }
+
+    /// RAW API: Insert a resource into the application (unsafe)
+    pub unsafe fn insert_resource_raw<T: 'static>(app_ptr: *mut ZigApp, resource: T) {
+        let type_id = core::any::TypeId::of::<T>();
+        let type_id_u64 = type_id_to_u64(type_id);
+        
+        // Serialize resource to bytes (using crate-level helper)
+        let bytes = resource_to_bytes(&resource);
+        
+        app_insert_resource(
+            app_ptr,
+            type_id_u64,
+            bytes.as_ptr(),
+            bytes.len()
+        );
+        
+        // Keep resource alive
+        core::mem::forget(resource);
+    }
+
+    /// RAW API: Get a resource from the application (unsafe)
+    pub unsafe fn get_resource_raw<T: 'static>(app_ptr: *mut ZigApp) -> Option<&'static T> {
+        let type_id = core::any::TypeId::of::<T>();
+        let type_id_u64 = type_id_to_u64(type_id);
+        let ptr = app_get_resource(app_ptr, type_id_u64);
+        
+        if ptr.is_null() {
+            None
+        } else {
+            // Unsafe cast to reference. Lifetime 'static is bounded by caller's unsafe scope really.
+            Some(&*(ptr as *const T))
+        }
     }
     
     /// Set a custom runner function
@@ -872,7 +956,7 @@ impl App {
         );
         SubApp {
             inner: NonNull::new(ptr).expect("sub app creation failed"),
-            owned: false,  // 不拥有所有权，由App管理
+            owned: false,  // ????????????????App????
         }
     }
     
@@ -885,7 +969,7 @@ impl App {
         );
         NonNull::new(ptr).map(|inner| SubApp { inner, owned: false })
     }
-    
+
     /// Insert a resource into the application
     pub fn insert_resource<T: 'static>(&mut self, resource: T) -> &mut Self {
         let type_id = core::any::TypeId::of::<T>();
@@ -906,6 +990,32 @@ impl App {
         self
     }
     
+    /// Get a resource from the application
+    pub fn get_resource<T: 'static>(&self) -> Option<&T> {
+        let type_id = core::any::TypeId::of::<T>();
+        let type_id_u64 = type_id_to_u64(type_id);
+        let ptr = app_get_resource(self.inner.as_ptr(), type_id_u64);
+        
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe { Some(&*(ptr as *const T)) }
+        }
+    }
+    
+    /// Get a mutable resource from the application
+    pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        let type_id = core::any::TypeId::of::<T>();
+        let type_id_u64 = type_id_to_u64(type_id);
+        let ptr = app_get_resource(self.inner.as_ptr(), type_id_u64);
+        
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe { Some(&mut *(ptr as *mut T)) }
+        }
+    }
+
     /// Check if a resource exists
     pub fn has_resource<T: 'static>(&self) -> bool {
         let type_id = core::any::TypeId::of::<T>();
@@ -947,7 +1057,7 @@ impl App {
     /// }
     /// ```
     pub fn add_systems(&mut self, schedule: MainScheduleOrder, system: SystemFn) -> &mut Self {
-        schedule_add_system(self.inner.as_ptr(), schedule as u8, system);
+        app_schedule_add_system(self.inner.as_ptr(), schedule as u8, system);
         self
     }
     
@@ -961,7 +1071,7 @@ impl App {
     /// app.configure_sets(MainScheduleOrder::Update, my_set);
     /// ```
     pub fn configure_sets(&mut self, schedule: MainScheduleOrder, set: SystemSet) -> &mut Self {
-        schedule_configure_set(self.inner.as_ptr(), schedule as u8, set.id);
+        app_schedule_configure_set(self.inner.as_ptr(), schedule as u8, set.id);
         self
     }
     
@@ -988,11 +1098,13 @@ impl App {
             self.insert_resource(resource);
         } else {
             // Just register the type ID with the scheduler
-            schedule_init_resource(self.inner.as_ptr(), type_id_u64);
+            app_schedule_init_resource(self.inner.as_ptr(), type_id_u64);
         }
         
         self
     }
+
+
 }
 
 impl Drop for App {
@@ -1081,22 +1193,48 @@ pub trait Plugin: 'static {
     where
         Self: Sized,
     {
-        // Create trampoline function
-        extern "C" fn build_trampoline<P: Plugin>(app: *mut ZigApp) {
-            // This is a simplified version - in real implementation,
-            // we'd store the plugin data and call it properly
-            let _ = app;
+        // Box self to keep it alive and get a context pointer
+        let context = Box::into_raw(Box::new(self));
+
+        // Trampoline function that recovers the context
+        extern "C" fn build_trampoline<P: Plugin>(context: *mut std::ffi::c_void, app: *mut ZigApp) {
+            unsafe {
+                let plugin = &*(context as *const P);
+                
+                // Create temporary App wrapper
+                // Note: We used World::from_raw assuming standard World layout/pointer
+                // Since App owns World, we must be careful not to drop it
+                let world_ptr = app_get_world(app);
+                // Cast to opaque pointer first if needed, but World::from_raw usually takes *mut WorldOpaque
+                let world = World::from_raw(world_ptr as *mut _);
+                
+                let mut app_wrapper = App {
+                    inner: NonNull::new_unchecked(app),
+                    world,
+                };
+                
+                plugin.build(&mut app_wrapper);
+                
+                // IMPORTANT: Do NOT drop the world as it belongs to ZigApp (and App wrapper)
+                core::mem::forget(app_wrapper);
+            }
         }
         
-        let name = self.name();
-        let is_unique = self.is_unique();
+        // We reuse the boxed instance to call name/is_unique safely before passing to C
+        // Actually, we already have context. Reference is safe.
+        let plugin_ref = unsafe { &*(context as *const Self) };
+        let name = plugin_ref.name();
+        let is_unique = plugin_ref.is_unique();
         
-        plugin_create(
-            name.as_ptr(),
-            name.len(),
-            build_trampoline::<Self>,
-            is_unique
-        )
+        unsafe {
+            plugin_create(
+                name.as_ptr(),
+                name.len(),
+                build_trampoline::<Self>,
+                context as *mut std::ffi::c_void,
+                is_unique
+            )
+        }
     }
 }
 
@@ -1132,29 +1270,11 @@ fn type_id_to_u64(type_id: core::any::TypeId) -> u64 {
     hasher.finish()
 }
 
-fn resource_to_bytes<T>(_resource: &T) -> &'static [u8] {
-    // 完全安全的实现：
-    // 策略1：对于简单类型，我们可以返回类型大小信息
-    // 策略2：实际上Zig侧应该处理空数据的情况
-    //
-    // 由于#![forbid(unsafe_code)]，我们不能直接访问内存
-    // 最佳方案是返回一个包含类型ID和大小信息的描述符
-    // 但当前API设计要求返回&[u8]
-    //
-    // 解决方案：使用静态的虚拟数据，让Zig侧知道这是占位符
-    // Zig侧应该根据type_id和data_len来正确处理资源
-    
+fn resource_to_bytes<T>(resource: &T) -> &[u8] {
+    let ptr = resource as *const T as *const u8;
     let size = core::mem::size_of::<T>();
-    
-    // 返回一个静态的占位符切片，长度表示类型大小
-    // Zig侧可以通过data_len参数知道类型大小
-    static DUMMY_DATA: [u8; 1024] = [0u8; 1024];
-    
-    if size <= 1024 {
-        &DUMMY_DATA[..size]
-    } else {
-        // 对于超大类型，返回固定大小的占位符
-        &DUMMY_DATA[..]
+    unsafe {
+        core::slice::from_raw_parts(ptr, size)
     }
 }
 

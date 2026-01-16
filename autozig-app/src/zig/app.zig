@@ -14,6 +14,7 @@ pub const ZigApp = struct {
     exit_code: ?u8,
     plugin_state: PluginState,
     schedule_manager: ?*ScheduleManager,
+    world: ?*anyopaque,
 
     const PluginState = enum {
         Adding,
@@ -27,7 +28,7 @@ pub const ZigApp = struct {
         type_id: u64,
     };
 
-    pub fn create() !*ZigApp {
+    pub fn create(world: ?*anyopaque) !*ZigApp {
         const allocator = std.heap.page_allocator;
         const app = try allocator.create(ZigApp);
 
@@ -46,12 +47,13 @@ pub const ZigApp = struct {
             .exit_code = null,
             .plugin_state = .Adding,
             .schedule_manager = null,
+            .world = world,
         };
 
         return app;
     }
 
-    pub fn createEmpty() !*ZigApp {
+    pub fn createEmpty(world: ?*anyopaque) !*ZigApp {
         const allocator = std.heap.page_allocator;
         const app = try allocator.create(ZigApp);
 
@@ -68,6 +70,7 @@ pub const ZigApp = struct {
             .exit_code = null,
             .plugin_state = .Adding,
             .schedule_manager = null,
+            .world = world,
         };
 
         return app;
@@ -250,12 +253,16 @@ pub const SubApp = @import("sub_app.zig").SubApp;
 pub const ZigPlugin = @import("plugin.zig").ZigPlugin;
 
 // FFI exports
-export fn app_create() ?*ZigApp {
-    return ZigApp.create() catch null;
+export fn app_create(world: ?*anyopaque) ?*ZigApp {
+    return ZigApp.create(world) catch null;
 }
 
-export fn app_create_empty() ?*ZigApp {
-    return ZigApp.createEmpty() catch null;
+export fn app_create_empty(world: ?*anyopaque) ?*ZigApp {
+    return ZigApp.createEmpty(world) catch null;
+}
+
+export fn app_get_world(app: *ZigApp) ?*anyopaque {
+    return app.world;
 }
 
 export fn app_destroy(app: *ZigApp) void {
@@ -303,4 +310,12 @@ export fn app_insert_resource(app: *ZigApp, type_id: u64, data_ptr: [*]const u8,
 
 export fn app_has_resource(app: *ZigApp, type_id: u64) bool {
     return app.hasResource(type_id);
+}
+
+export fn app_get_resource(app: *ZigApp, type_id: u64) ?*anyopaque {
+    if (app.resources.get(type_id)) |entry| {
+        // Remove const-ness to matches C API
+        return @constCast(entry.data.ptr);
+    }
+    return null;
 }

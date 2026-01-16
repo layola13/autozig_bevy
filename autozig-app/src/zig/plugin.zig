@@ -5,14 +5,16 @@ const ZigApp = @import("app.zig").ZigApp;
 pub const ZigPlugin = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
-    build_fn: *const fn (*ZigApp) callconv(.c) void,
+    build_fn: *const fn (?*anyopaque, *ZigApp) callconv(.c) void,
+    context: ?*anyopaque,
     is_unique: bool,
     ready_state: bool,
 
     pub fn create(
         allocator: std.mem.Allocator,
         name: []const u8,
-        build_fn: *const fn (*ZigApp) callconv(.c) void,
+        build_fn: *const fn (?*anyopaque, *ZigApp) callconv(.c) void,
+        context: ?*anyopaque,
         is_unique: bool,
     ) !*ZigPlugin {
         const plugin = try allocator.create(ZigPlugin);
@@ -24,6 +26,7 @@ pub const ZigPlugin = struct {
             .allocator = allocator,
             .name = name_copy,
             .build_fn = build_fn,
+            .context = context,
             .is_unique = is_unique,
             .ready_state = true,
         };
@@ -37,7 +40,7 @@ pub const ZigPlugin = struct {
     }
 
     pub fn build(self: *ZigPlugin, app: *ZigApp) void {
-        self.build_fn(app);
+        self.build_fn(self.context, app);
     }
 
     pub fn isReady(self: *ZigPlugin, app: *ZigApp) bool {
@@ -70,12 +73,13 @@ pub const ZigPlugin = struct {
 export fn plugin_create(
     name_ptr: [*]const u8,
     name_len: usize,
-    build_fn: *const fn (*ZigApp) callconv(.c) void,
+    build_fn: *const fn (?*anyopaque, *ZigApp) callconv(.c) void,
+    context: ?*anyopaque,
     is_unique: bool,
 ) ?*ZigPlugin {
     const allocator = std.heap.page_allocator;
     const name = name_ptr[0..name_len];
-    return ZigPlugin.create(allocator, name, build_fn, is_unique) catch null;
+    return ZigPlugin.create(allocator, name, build_fn, context, is_unique) catch null;
 }
 
 export fn plugin_destroy(plugin: *ZigPlugin) void {

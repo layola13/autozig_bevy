@@ -1,0 +1,17 @@
+[package]
+name = "cube_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig-app = { path = "../../autozig-app" }
+autozig-ecs = { path = "../../autozig-ecs" }
+autozig-window = { path = "../../autozig-window" }
+autozig-winit = { path = "../../autozig-winit" }
+autozig-render = { path = "../../autozig-render" }
+autozig-math = { path = "../../autozig-math" }
+autozig-transform = { path = "../../autozig-transform" }
+autozig-camera = { path = "../../autozig-camera" }
+wgpu = "0.19"
+winit = "0.29"
+pollster = "0.3"

@@ -1,5 +1,7 @@
 # AutoZig Bevy
 
+![AutoZig Logo](assets/demo1.png)
+
 > [!WARNING]
 > **UNDER ACTIVE DEVELOPMENT**: This project is currently in an early development stage. APIs are subject to change and implementation is incomplete.
 
@@ -59,6 +61,20 @@ bash scripts/verify_all.sh
 
 # Skip tests (compile only)
 RUN_TESTS=no bash scripts/verify_all.sh
+
+## 3D Cube Demo
+
+A working 3D rendering demonstration is available.
+
+```bash
+cargo run -p cube_demo
+```
+
+**Functionality:**
+- Renders a 3D cube using `autozig-render` (WGPU).
+- Uses `autozig-ecs` for entity and component management.
+- Demonstrates `Camera3d` and `Transform` systems.
+- **Controls**: The camera rotates automatically.
 ```
 
 ## Performance Benchmarks

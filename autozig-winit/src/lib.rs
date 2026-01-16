@@ -398,3 +398,67 @@ impl TouchEvent {
         self
     }
 }
+
+// ========== Winit Plugin & Runner ==========
+
+use autozig_app::{App, Plugin, ZigApp};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+
+/// WinitPlugin - Configures the application to use the Winit event loop
+#[derive(Default)]
+pub struct WinitPlugin;
+
+impl Plugin for WinitPlugin {
+    fn build(&self, app: &mut App) {
+        app.set_runner(winit_runner);
+    }
+    
+    fn name(&self) -> &str {
+        "WinitPlugin"
+    }
+}
+
+/// The runner function that drives the event loop
+pub extern "C" fn winit_runner(app_ptr: *mut ZigApp) -> u8 {
+    let event_loop = winit::event_loop::EventLoop::new().unwrap();
+    let window = winit::window::WindowBuilder::new()
+        .with_title("AutoZig 3D Demo")
+        .with_inner_size(winit::dpi::PhysicalSize::new(1280, 720))
+        .build(&event_loop)
+        .unwrap();
+
+    let raw_handle = autozig_window::WindowRawHandle {
+        window_handle: window.raw_window_handle().unwrap(),
+        display_handle: window.raw_display_handle().unwrap(),
+    };
+    
+    unsafe {
+        App::insert_resource_raw(app_ptr, raw_handle);
+    }
+
+    event_loop.run(move |event, target| {
+        match event {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::CloseRequested,
+                ..
+            } => {
+                target.exit();
+            }
+            winit::event::Event::AboutToWait => {
+                // Main update loop
+                unsafe {
+                    autozig_app::App::update_raw(app_ptr);
+                }
+                
+                if let Some(_exit) = unsafe { autozig_app::App::should_exit_raw(app_ptr) } {
+                    target.exit();
+                }
+                
+                window.request_redraw();
+            }
+            _ => {}
+        }
+    }).unwrap();
+    
+    0
+}

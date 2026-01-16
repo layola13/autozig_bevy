@@ -623,3 +623,9 @@ impl TransformPoint for GlobalTransform {
         result
     }
 }
+
+// Implement Component for Transform types
+impl autozig_ecs::component::Component for Transform {}
+impl autozig_ecs::component::Component for GlobalTransform {}
+impl autozig_ecs::component::Component for Hierarchy {}
+impl autozig_ecs::component::Component for LocalToWorld {}

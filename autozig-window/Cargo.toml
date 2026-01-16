@@ -5,6 +5,8 @@ edition = "2021"
 
 [dependencies]
 autozig = { path = "../../autozig" }
+autozig-app = { path = "../autozig-app" }
+raw-window-handle = "0.6"
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build" }

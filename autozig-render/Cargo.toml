@@ -9,6 +9,17 @@ build = "build.rs"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
+autozig-app = { path = "../autozig-app" }
+autozig-window = { path = "../autozig-window" }
+autozig-ecs = { path = "../autozig-ecs" }
+autozig-math = { path = "../autozig-math" }
+autozig-transform = { path = "../autozig-transform" }
+autozig-camera = { path = "../autozig-camera" }
+bytemuck = { version = "1.14", features = ["derive"] }
+wgpu = "0.19"
+log = "0.4"
+pollster = "0.3"
+raw-window-handle = "0.6"
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }

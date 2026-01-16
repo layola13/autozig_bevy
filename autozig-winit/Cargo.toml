@@ -7,6 +7,9 @@ build = "build.rs"
 [dependencies]
 autozig = { path = "../../autozig" }
 autozig-window = { path = "../autozig-window" }
+autozig-app = { path = "../autozig-app" }
+winit = "0.29"
+raw-window-handle = "0.6"
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build" }

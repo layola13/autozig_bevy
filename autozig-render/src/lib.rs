@@ -1640,11 +1640,468 @@ pub struct RunGraphOnViewNode {
     _private: (),
 }
 
-// 插件类型
+// ============================================================================
+// PART 13: Mesh & Geometry
+// ============================================================================
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PrimitiveTopology {
+    PointList = 0,
+    LineList = 1,
+    LineStrip = 2,
+    #[default]
+    TriangleList = 3,
+    TriangleStrip = 4,
+}
+
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VertexFormat {
+    Float32 = 0,
+    Float32x2 = 1,
+    Float32x3 = 2,
+    Float32x4 = 3,
+    Uint32 = 4,
+    Uint32x2 = 5,
+    Uint32x3 = 6,
+    Uint32x4 = 7,
+    Sint32 = 8,
+    Sint32x2 = 9,
+    Sint32x3 = 10,
+    Sint32x4 = 11,
+}
+
+#[derive(Debug, Clone)]
+pub struct Mesh {
+    pub primitive_topology: PrimitiveTopology,
+    pub attributes: Vec<(u32, VertexFormat, Vec<u8>)>, // (Location, Format, Data)
+    pub indices: Option<Vec<u32>>,
+}
+
+impl Mesh {
+    pub const ATTRIBUTE_POSITION: u32 = 0;
+    pub const ATTRIBUTE_NORMAL: u32 = 1;
+    pub const ATTRIBUTE_UV_0: u32 = 2;
+
+    pub fn new(topology: PrimitiveTopology) -> Self {
+        Self {
+            primitive_topology: topology,
+            attributes: Vec::new(),
+            indices: None,
+        }
+    }
+
+    pub fn insert_attribute_data(&mut self, id: u32, format: VertexFormat, data: Vec<u8>) {
+        // Remove existing if any
+        self.attributes.retain(|(i, _, _)| *i != id);
+        self.attributes.push((id, format, data));
+    }
+    
+    pub fn insert_attribute<T: bytemuck::Pod>(&mut self, id: u32, format: VertexFormat, values: Vec<T>) {
+        let bytes: Vec<u8> = values.iter().flat_map(|v| bytemuck::bytes_of(v).to_vec()).collect();
+        self.insert_attribute_data(id, format, bytes);
+    }
+
+    pub fn set_indices(&mut self, indices: Vec<u32>) {
+        self.indices = Some(indices);
+    }
+    
+    pub fn cube(size: f32) -> Self {
+        let half = size / 2.0;
+        
+        // 24 vertices (4 per face * 6 faces)
+        // Positions
+        let positions: Vec<[f32; 3]> = vec![
+            // Front
+            [-half, -half,  half], [ half, -half,  half], [ half,  half,  half], [-half,  half,  half],
+            // Back
+            [ half, -half, -half], [-half, -half, -half], [-half,  half, -half], [ half,  half, -half],
+            // Top
+            [-half,  half,  half], [ half,  half,  half], [ half,  half, -half], [-half,  half, -half],
+            // Bottom
+            [-half, -half, -half], [ half, -half, -half], [ half, -half,  half], [-half, -half,  half],
+            // Right
+            [ half, -half,  half], [ half, -half, -half], [ half,  half, -half], [ half,  half,  half],
+            // Left
+            [-half, -half, -half], [-half, -half,  half], [-half,  half,  half], [-half,  half, -half],
+        ];
+
+        // Normals (simplified)
+        // UVs (simplified)
+        
+        let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, VertexFormat::Float32x3, positions);
+        
+        // Indices
+        let indices = vec![
+             0,  1,  2,  2,  3,  0, // Front
+             4,  5,  6,  6,  7,  4, // Back
+             8,  9, 10, 10, 11,  8, // Top
+            12, 13, 14, 14, 15, 12, // Bottom
+            16, 17, 18, 18, 19, 16, // Right
+            20, 21, 22, 22, 23, 20, // Left
+        ];
+        mesh.set_indices(indices);
+        
+        mesh
+    }
+}
+
+// Marker component for Mesh
+impl autozig_ecs::component::Component for Mesh {}
+
+use std::sync::Mutex;
+use autozig_app::{ZigApp, MainScheduleOrder};
+use autozig_window::WindowRawHandle;
+use autozig_ecs::world::World;
+use autozig_camera::Camera3d;
+use autozig_transform::GlobalTransform;
+use autozig_math::Mat4;
+use wgpu::util::DeviceExt;
+
 #[repr(C)]
-#[derive(Debug)]
-pub struct RenderPlugin {
-    _private: (),
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct Uniforms {
+    view_proj: [f32; 16],
+}
+
+impl Uniforms {
+    fn new() -> Self {
+        Self {
+            view_proj: unsafe { std::mem::transmute(Mat4::IDENTITY.cols) },
+        }
+    }
+}
+
+// Global App Pointer for C-systems
+pub static mut APP_PTR: *mut ZigApp = std::ptr::null_mut();
+
+// Render State Holder
+struct RenderState {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    surface: wgpu::Surface<'static>,
+    config: wgpu::SurfaceConfiguration,
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    index_count: u32,
+}
+
+// Global Render State
+static RENDER_STATE: Mutex<Option<RenderState>> = Mutex::new(None);
+
+unsafe impl Send for RenderState {}
+unsafe impl Sync for RenderState {}
+
+// WGSL Shader with Uniforms
+const SHADER_SOURCE: &str = r#"
+struct Uniforms {
+    view_proj: mat4x4<f32>,
+}
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+};
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) color: vec3<f32>,
+};
+
+@vertex
+fn vs_main(model: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    // Apply View-Projection Matrix
+    out.clip_position = uniforms.view_proj * vec4<f32>(model.position, 1.0);
+    // Color based on normal/position
+    out.color = model.position * 0.5 + 0.5;
+    return out;
+}
+
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(in.color, 1.0);
+}
+"#;
+
+extern "C" fn init_wgpu_system() {
+    unsafe {
+        if APP_PTR.is_null() { return; }
+        
+        let window_handle_res = autozig_app::App::get_resource_raw::<WindowRawHandle>(APP_PTR);
+        
+        if let Some(handle_res) = window_handle_res {
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+            
+            // Create surface
+            let surface = instance.create_surface(handle_res).unwrap();
+            let surface: wgpu::Surface<'static> = std::mem::transmute(surface);
+            
+            let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::default(),
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })).expect("Failed to find an appropriate adapter");
+            
+            let (device, queue) = pollster::block_on(adapter.request_device(
+                &wgpu::DeviceDescriptor {
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None, // Trace path
+            )).expect("Failed to create device");
+            
+            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("Shader"),
+                source: wgpu::ShaderSource::Wgsl(SHADER_SOURCE.into()),
+            });
+            
+            let caps = surface.get_capabilities(&adapter);
+            let config = wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: caps.formats[0],
+                width: 1280,
+                height: 720,
+                present_mode: wgpu::PresentMode::Fifo,
+                alpha_mode: caps.alpha_modes[0],
+                view_formats: vec![],
+                desired_maximum_frame_latency: 2,
+            };
+            surface.configure(&device, &config);
+            
+            // Uniform Buffer
+            let mut uniforms = Uniforms::new();
+            let uniform_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Uniform Buffer"),
+                    contents: bytemuck::cast_slice(&[uniforms]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+
+            // Bind Group Layout
+            let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    }
+                ],
+                label: Some("camera_bind_group_layout"),
+            });
+
+            // Bind Group
+            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &camera_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: uniform_buffer.as_entire_binding(),
+                    }
+                ],
+                label: Some("camera_bind_group"),
+            });
+            
+            // Create Pipeline
+            let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            
+            let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                layout: Some(&render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &[wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 0,
+                            format: wgpu::VertexFormat::Float32x3,
+                        }],
+                    }],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    unclipped_depth: false,
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                multiview: None,
+            });
+            
+            // Create Cube
+            let positions: &[[f32; 3]] = &[
+                [-0.5, -0.5,  0.5], [ 0.5, -0.5,  0.5], [ 0.5,  0.5,  0.5], [-0.5,  0.5,  0.5], // Front
+                [ 0.5, -0.5, -0.5], [-0.5, -0.5, -0.5], [-0.5,  0.5, -0.5], [ 0.5,  0.5, -0.5], // Back
+                [-0.5,  0.5,  0.5], [ 0.5,  0.5,  0.5], [ 0.5,  0.5, -0.5], [-0.5,  0.5, -0.5], // Top
+                [-0.5, -0.5, -0.5], [ 0.5, -0.5, -0.5], [ 0.5, -0.5,  0.5], [-0.5, -0.5,  0.5], // Bottom
+                [ 0.5, -0.5,  0.5], [ 0.5, -0.5, -0.5], [ 0.5,  0.5, -0.5], [ 0.5,  0.5,  0.5], // Right
+                [-0.5, -0.5, -0.5], [-0.5, -0.5,  0.5], [-0.5,  0.5,  0.5], [-0.5,  0.5, -0.5], // Left
+            ];
+            
+            let indices: &[u32] = &[
+                 0,  1,  2,  2,  3,  0,
+                 4,  5,  6,  6,  7,  4,
+                 8,  9, 10, 10, 11,  8,
+                12, 13, 14, 14, 15, 12,
+                16, 17, 18, 18, 19, 16,
+                20, 21, 22, 22, 23, 20,
+            ];
+            
+            let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cube Vertex Buffer"),
+                contents: bytemuck::cast_slice(positions),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            
+            let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cube Index Buffer"),
+                contents: bytemuck::cast_slice(indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+            
+            *RENDER_STATE.lock().unwrap() = Some(RenderState {
+                device,
+                queue,
+                surface,
+                config,
+                render_pipeline,
+                vertex_buffer,
+                index_buffer,
+                uniform_buffer,
+                bind_group,
+                index_count: indices.len() as u32,
+            });
+            
+            println!("WGPU Initialized!");
+        } else {
+            println!("Failed to get WindowRawHandle!");
+        }
+    }
+}
+
+extern "C" fn render_system() {
+    let mut guard = RENDER_STATE.lock().unwrap();
+    if let Some(state) = guard.as_mut() {
+        
+        // --- Dynamic Camera Update ---
+        unsafe {
+            if !APP_PTR.is_null() {
+                let world_ptr = autozig_app::App::get_world_from_ptr(APP_PTR);
+                if !world_ptr.is_null() {
+                    let mut world = autozig_ecs::world::World::from_raw(world_ptr as *mut autozig_ecs::world::WorldOpaque);
+                    world.update_archetypes();
+
+                    let mut query = world.query::<(&Camera3d, &GlobalTransform)>();
+                    
+                    for (camera, transform) in query.iter::<(&Camera3d, &GlobalTransform), ()>(&world) {
+                        let vp: [f32; 16] = camera.view_projection_matrix;
+                        let uniforms = Uniforms {
+                            view_proj: vp,
+                        };
+                        
+                        state.queue.write_buffer(&state.uniform_buffer, 0, bytemuck::cast_slice(&[uniforms]));
+                        break; // Use first camera
+                    }
+                    
+                    // IMPORTANT: Forget the world so we don't drop the underlying Zig world
+                    std::mem::forget(world);
+                }
+            }
+        }
+        // -----------------------------
+
+        let output = match state.surface.get_current_texture() {
+            Ok(output) => output,
+            Err(_) => return,
+        };
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+        
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            
+            render_pass.set_pipeline(&state.render_pipeline);
+            render_pass.set_bind_group(0, &state.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..state.index_count, 0, 0..1);
+        }
+        
+        state.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct RenderPlugin;
+
+impl autozig_app::Plugin for RenderPlugin {
+    fn build(&self, app: &mut autozig_app::App) {
+        unsafe { APP_PTR = app.as_ptr(); }
+        app.add_systems(MainScheduleOrder::Startup, init_wgpu_system);
+        app.add_systems(MainScheduleOrder::Update, render_system);
+    }
+    
+    fn name(&self) -> &str {
+        "RenderPlugin"
+    }
 }
 
 // Wgpu设置类型  
@@ -1724,482 +2181,3 @@ pub struct VisibilityRange {
     pub max: f32,
 }
 
-// 相机驱动
-#[repr(C)]
-#[derive(Debug)]
-pub struct CameraDriver {
-    _private: (),
-}
-
-// 2D相机
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Camera2d {
-    pub clear_color: [f32; 4],
-}
-
-// 3D相机
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Camera3d {
-    pub clear_color: [f32; 4],
-    pub depth_load_op: u32,
-}
-
-// 3D相机深度纹理使用
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Camera3dDepthTextureUsage {
-    pub usage: u32,
-}
-
-// 相机主纹理使用
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CameraMainTextureUsages {
-    pub usages: u32,
-}
-
-// 相机投影插件
-#[repr(C)]
-#[derive(Debug)]
-pub struct CameraProjectionPlugin<T> {
-    _phantom: std::marker::PhantomData<T>,
-}
-
-// 相机更新系统
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CameraUpdateSystems {
-    UpdateProjections,
-    UpdateFrusta,
-}
-
-// 级联视锥体
-#[repr(C)]
-#[derive(Debug)]
-pub struct CascadesFrusta {
-    pub frusta: Vec<Frustum>,
-}
-
-// 级联可见实体
-#[repr(C)]
-#[derive(Debug)]
-pub struct CascadesVisibleEntities {
-    pub entities: Vec<Vec<u32>>,
-}
-
-// 清除颜色
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ClearColor {
-    pub color: [f32; 4],
-}
-
-// 计算相机值
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ComputedCameraValues {
-    pub projection_matrix: [f32; 16],
-    pub view_matrix: [f32; 16],
-}
-
-// 立方体贴图面
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CubeMapFace {
-    PositiveX,
-    NegativeX,
-    PositiveY,
-    NegativeY,
-    PositiveZ,
-    NegativeZ,
-}
-
-// 立方体贴图视锥体
-#[repr(C)]
-#[derive(Debug)]
-pub struct CubemapFrusta {
-    pub frusta: [Frustum; 6],
-}
-
-// 立方体贴图可见实体
-#[repr(C)]
-#[derive(Debug)]
-pub struct CubemapVisibleEntities {
-    pub entities: [Vec<u32>; 6],
-}
-
-// 自定义投影
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CustomProjection {
-    pub matrix: [f32; 16],
-}
-
-// 曝光
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct Exposure {
-    pub ev100: f32,
-}
-
-// 图像复制缓冲区
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ImageCopyBuffer {
-    pub buffer: Buffer,
-    pub layout: ImageDataLayout,
-}
-
-// 图像复制纹理
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ImageCopyTexture {
-    pub texture: Texture,
-    pub mip_level: u32,
-    pub origin: [u32; 3],
-    pub aspect: u32,
-}
-
-// 图像数据布局
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ImageDataLayout {
-    pub offset: u64,
-    pub bytes_per_row: Option<u32>,
-    pub rows_per_image: Option<u32>,
-}
-
-// 渲染目标
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RenderTarget {
-    pub texture: Texture,
-    pub view: TextureView,
-}
-
-// 存储图像
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct StorageImage {
-    pub texture: Texture,
-    pub view: TextureView,
-}
-
-// 材质管线密钥
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct MaterialPipelineKey {
-    pub key: u64,
-}
-
-// 材质管线
-#[repr(C)]
-#[derive(Debug)]
-pub struct MaterialPipeline<M> {
-    pub pipeline: Option<RenderPipeline>,
-    _phantom: std::marker::PhantomData<M>,
-}
-
-// WGPU功能
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct WgpuFeatures {
-    pub bits: u64,
-}
-
-// 命令编码器
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CommandEncoder {
-    pub handle: Option<*mut std::ffi::c_void>,
-}
-
-// 渲染束
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RenderBundle {
-    pub handle: Option<*mut std::ffi::c_void>,
-}
-
-// 渲染束编码器
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct RenderBundleEncoder {
-    pub handle: Option<*mut std::ffi::c_void>,
-}
-
-// ============================================================================
-// 包含Zig FFI绑定
-// ============================================================================
-
-include_zig!("src/zig/wgpu_context.zig", {
-    fn wgpu_context_create() -> WgpuContext;
-    fn wgpu_context_init(ctx: *mut WgpuContext);
-    fn wgpu_context_set_canvas(ctx: *mut WgpuContext, canvas_id: *const u8, len: u32);
-    fn wgpu_context_set_instance(ctx: *mut WgpuContext, instance: Option<*mut std::ffi::c_void>);
-    fn wgpu_context_set_adapter(ctx: *mut WgpuContext, adapter: Option<*mut std::ffi::c_void>);
-    fn wgpu_context_set_device(ctx: *mut WgpuContext, device: Option<*mut std::ffi::c_void>);
-    fn wgpu_context_set_queue(ctx: *mut WgpuContext, queue: Option<*mut std::ffi::c_void>);
-    fn wgpu_context_set_surface(ctx: *mut WgpuContext, surface: Option<*mut std::ffi::c_void>);
-    fn wgpu_context_mark_initialized(ctx: *mut WgpuContext);
-    fn wgpu_context_is_initialized(ctx: *const WgpuContext) -> bool;
-    fn wgpu_context_has_device(ctx: *const 
-WgpuContext) -> bool;
-    fn wgpu_context_has_surface(ctx: *const WgpuContext) -> bool;
-    fn wgpu_context_get_canvas_id(ctx: *const WgpuContext, out_buffer: *mut u8, buffer_size: u32) -> u32;
-    fn wgpu_context_deinit(ctx: *mut WgpuContext);
-});
-
-// ============================================================================
-// Rust实现代码
-// ============================================================================
-
-impl WgpuContext {
-    pub fn new() -> Self {
-        wgpu_context_create()
-    }
-
-    pub fn init(&mut self) {
-        wgpu_context_init(self);
-    }
-
-    pub fn set_canvas(&mut self, canvas_id: &str) {
-        wgpu_context_set_canvas(self, canvas_id.as_ptr(), canvas_id.len() as u32);
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        wgpu_context_is_initialized(self)
-    }
-
-    pub fn has_device(&self) -> bool {
-        wgpu_context_has_device(self)
-    }
-
-    pub fn has_surface(&self) -> bool {
-        wgpu_context_has_surface(self)
-    }
-}
-
-impl Default for WgpuContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Default for RenderDevice {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for RenderQueue {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            size: 0,
-            usage: 0,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for Texture {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            width: 0,
-            height: 0,
-            depth: 1,
-            format: 0,
-            mip_levels: 1,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for TextureView {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            texture: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for Sampler {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for BindGroup {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for BindGroupLayout {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for RenderPipeline {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for ComputePipeline {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for ShaderModule {
-    fn default() -> Self {
-        Self {
-            handle: None,
-            entry_point: [0; 64],
-            entry_point_len: 0,
-            stage: 0,
-            is_valid: false,
-        }
-    }
-}
-
-impl Default for RenderGraph {
-    fn default() -> Self {
-        Self {
-            nodes: [RenderNode {
-                name: [0; 64],
-                name_len: 0,
-                inputs: [0; 8],
-                input_count: 0,
-                outputs: [0; 8],
-                output_count: 0,
-                execute_fn: None,
-                user_data: None,
-                is_enabled: true,
-            }; 32],
-            node_count: 0,
-            execution_order: [0; 32],
-            is_dirty: false,
-        }
-    }
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            projection_type: 0,
-            viewport: Viewport {
-                x: 0.0,
-                y: 0.0,
-                width: 800.0,
-                height: 600.0,
-                min_depth: 0.0,
-                max_depth: 1.0,
-            },
-            fov: std::f32::consts::PI / 4.0,
-            aspect_ratio: 4.0 / 3.0,
-            near: 0.1,
-            far: 1000.0,
-            left: -1.0,
-            right: 1.0,
-            bottom: -1.0,
-            top: 1.0,
-            projection_matrix: [0.0; 16],
-            matrix_dirty: true,
-        }
-    }
-}
-
-impl Default for Material {
-    fn default() -> Self {
-        Self {
-            base_color: [1.0, 1.0, 1.0, 1.0],
-            metallic: 0.0,
-            roughness: 0.5,
-            emissive: [0.0, 0.0, 0.0],
-            padding: 0.0,
-            textures: [None; 4],
-            texture_count: 0,
-            has_base_color_texture: false,
-            has_normal_texture: false,
-            has_metallic_roughness_texture: false,
-            has_emissive_texture: false,
-        }
-    }
-}
-
-impl Default for ColorAttachment {
-    fn default() -> Self {
-        Self {
-            view: None,
-            resolve_target: None,
-            clear_color: [0.0, 0.0, 0.0, 1.0],
-            load_op: 0,
-            store_op: 1,
-        }
-    }
-}
-
-impl Default for RenderPass {
-    fn default() -> Self {
-        Self {
-            encoder: None,
-            pass_encoder: None,
-            is_active: false,
-        }
-    }
-}
-
-// ============================================================================
-// 类型统计总结
-// ============================================================================
-
-// 本文件实现了290+个render API类型，包括:
-// - GPU核心类型（约100个）: RenderDevice, Buffer, Texture, BindGroup等
-// - 渲染图类型（约60个）: RenderGraph, Node, Edge, SubGraph等
-// - 渲染资源类型（约50个）: UniformBuffer, BatchedInstanceBuffer等
-// - 相机和视图类型（约30个）: Camera, ExtractedView, ViewTarget等
-// - 材质管线类型（约20个）: Material, Pipeline, PipelineDescriptor等
-// - 枚举类型（约30个）: AlphaMode, CachedPipelineState, SlotType等
-// - Trait类型（约40个）: PhaseItem, RenderCommand, Node等
-//
-// 架构特点:
-// - 90% Zig核心实现 + 10% Rust FFI包装
-// - 所有跨FFI边界的struct使用#[repr(C)]
-// - 符合Bevy官方API设计
-// - 支持WebGPU/WASM平台

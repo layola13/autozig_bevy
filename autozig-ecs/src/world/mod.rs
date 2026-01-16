@@ -142,6 +142,33 @@ impl World {
             archetypes: std::sync::RwLock::new(Archetypes::new()),
         }
     }
+
+    /// Creates a World wrapper from a raw pointer.
+    /// 
+    /// # Safety
+    /// The pointer must be a valid pointer to a Zig WorldOpaque created by `world_create`.
+    /// The caller is responsible for ensuring the World is not dropped while this wrapper exists,
+    /// or using `ManuallyDrop`.
+    pub unsafe fn from_raw(ptr: *mut WorldOpaque) -> Self {
+        let world_id = WorldId::new().expect("Failed to create WorldId");
+        
+        Self {
+            inner: ptr,
+            id: world_id,
+            entities: Entities::new(),
+            allocator: EntityAllocator::default(),
+            components: Components::default(),
+            storages: Storages::default(),
+            bundles: Bundles::default(),
+            observers: Observers::default(),
+            change_tick: AtomicU32::new(1),
+            last_change_tick: Tick::new(0),
+            last_check_tick: Tick::new(0),
+            removed_components: HashMap::new(),
+            resource_registry: crate::resource::ResourceRegistry::new(),
+            archetypes: std::sync::RwLock::new(Archetypes::new()),
+        }
+    }
     
     /// Synchronizes archetypes and entity locations from Zig backend
     pub fn update_archetypes(&mut self) {

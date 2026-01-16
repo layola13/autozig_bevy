@@ -9,6 +9,7 @@ build = "build.rs"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
+autozig-ecs = { path = "../autozig-ecs", version = "0.1.0" }
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }

@@ -13,6 +13,15 @@
 
 use autozig::include_zig;
 
+/// Common imports for autozig windowing
+pub mod prelude {
+    pub use crate::{
+        Window, WindowPlugin, WindowDescriptor, WindowResolution, 
+        WindowPosition, CursorIcon, WindowMode, Monitor, VideoMode,
+        PrimaryWindow, PrimaryMonitor,
+    };
+}
+
 // ========== CursorIcon ==========
 
 /// CursorIcon - Maps to CSS cursor property
@@ -782,6 +791,39 @@ impl Default for EnabledButtons {
     }
 }
 
+// ========== Window Handle Resource ==========
+
+use raw_window_handle::{
+    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, HandleError,
+    HasWindowHandle, HasDisplayHandle, WindowHandle, DisplayHandle,
+};
+
+/// Resource containing raw handles for WGPU initialization
+#[derive(Debug, Clone)]
+pub struct WindowRawHandle {
+    pub window_handle: RawWindowHandle,
+    pub display_handle: RawDisplayHandle,
+}
+
+
+
+impl HasWindowHandle for WindowRawHandle {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // SAFETY: We hold a valid raw window handle.
+        unsafe { Ok(WindowHandle::borrow_raw(self.window_handle)) }
+    }
+}
+
+impl HasDisplayHandle for WindowRawHandle {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // SAFETY: We hold a valid raw display handle.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.display_handle)) }
+    }
+}
+
+unsafe impl Send for WindowRawHandle {}
+unsafe impl Sync for WindowRawHandle {}
+
 /// WindowPlugin - Plugin configuration for window system
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -798,6 +840,23 @@ impl Default for WindowPlugin {
             exit_condition: ExitCondition::OnPrimaryClosed,
             close_when_requested: true,
         }
+    }
+}
+
+impl autozig_app::Plugin for WindowPlugin {
+    fn build(&self, app: &mut autozig_app::App) {
+        // Init default descriptor if missing
+        app.init_resource::<WindowDescriptor>();
+        
+        if self.primary_window_enabled {
+            // Create the window
+            let window = Window::new(1280, 720, "3D Cube Demo");
+            app.insert_resource(window);
+        }
+    }
+    
+    fn name(&self) -> &str {
+        "WindowPlugin"
     }
 }
 

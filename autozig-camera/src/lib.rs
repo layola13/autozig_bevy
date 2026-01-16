@@ -998,6 +998,7 @@ impl ProjectionUtils {
         projection_extract_aspect(matrix)
     }
 
+
     /// Extract near plane from projection matrix
     pub fn extract_near(matrix: &[f32; 16]) -> f32 {
         projection_extract_near(matrix)
@@ -1018,3 +1019,9 @@ impl ProjectionUtils {
         projection_is_orthographic(matrix)
     }
 }
+
+// Implement Component for Camera types
+impl autozig_ecs::component::Component for Camera3d {}
+impl autozig_ecs::component::Component for Camera2d {}
+impl autozig_ecs::component::Component for PerspectiveProjection {}
+impl autozig_ecs::component::Component for OrthographicProjection {}

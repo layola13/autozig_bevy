@@ -182,7 +182,7 @@ pub const ScheduleManager = struct {
 };
 
 // FFI exports
-export fn schedule_add_system(app: *ZigApp, schedule: u8, system: SystemFn) void {
+export fn app_schedule_add_system(app: *ZigApp, schedule: u8, system: SystemFn) void {
     // Ensure schedule manager exists
     if (app.schedule_manager == null) {
         app.schedule_manager = ScheduleManager.create(app.allocator) catch return;
@@ -193,7 +193,7 @@ export fn schedule_add_system(app: *ZigApp, schedule: u8, system: SystemFn) void
     }
 }
 
-export fn schedule_configure_set(app: *ZigApp, schedule: u8, set_id: u64) void {
+export fn app_schedule_configure_set(app: *ZigApp, schedule: u8, set_id: u64) void {
     // Ensure schedule manager exists
     if (app.schedule_manager == null) {
         app.schedule_manager = ScheduleManager.create(app.allocator) catch return;
@@ -204,14 +204,14 @@ export fn schedule_configure_set(app: *ZigApp, schedule: u8, set_id: u64) void {
     }
 }
 
-export fn schedule_run(app: *ZigApp, schedule: u8, is_first_run: bool) void {
+export fn app_schedule_run(app: *ZigApp, schedule: u8, is_first_run: bool) void {
     if (app.schedule_manager) |manager| {
         manager.is_first_run = is_first_run;
         manager.runSchedule(schedule);
     }
 }
 
-export fn schedule_init_resource(app: *ZigApp, type_id: u64) void {
+export fn app_schedule_init_resource(app: *ZigApp, type_id: u64) void {
     // Mark resource type as initialized for scheduling purposes
     // The resource itself is managed by app.resources
     _ = app;
