@@ -116,7 +116,7 @@ impl<E: TriggerEvent> Default for ObserverList<E> {
 
 unsafe impl<E: TriggerEvent> Send for ObserverList<E> {}
 unsafe impl<E: TriggerEvent> Sync for ObserverList<E> {}
-impl<E: TriggerEvent + 'static> crate::resource::Resource for ObserverList<E> {}
+
 
 // Remove previously defined CachedComponentObservers and CachedObservers as they are superseded by generic ObserverList
 #[repr(C)]
@@ -237,7 +237,7 @@ use crate::system::{SystemMeta, System};
 struct CurrentTrigger<E: TriggerEvent>(Trigger<E>);
 unsafe impl<E: TriggerEvent> Send for CurrentTrigger<E> {}
 unsafe impl<E: TriggerEvent> Sync for CurrentTrigger<E> {}
-impl<E: TriggerEvent + 'static> crate::resource::Resource for CurrentTrigger<E> {}
+
 
 // Impl SystemParam for Trigger
 impl<E: Clone + TriggerEvent> crate::system_param::SystemParam for Trigger<E> {

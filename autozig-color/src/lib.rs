@@ -273,6 +273,10 @@ impl Color {
     pub const CYAN: Color = Color::Srgba(Srgba { red: 0.0, green: 1.0, blue: 1.0, alpha: 1.0 });
     pub const MAGENTA: Color = Color::Srgba(Srgba { red: 1.0, green: 0.0, blue: 1.0, alpha: 1.0 });
     pub const TRANSPARENT: Color = Color::Srgba(Srgba { red: 0.0, green: 0.0, blue: 0.0, alpha: 0.0 });
+    pub const ORANGE: Color = Color::Srgba(Srgba { red: 1.0, green: 0.647, blue: 0.0, alpha: 1.0 });
+    pub const ORANGE_RED: Color = Color::Srgba(Srgba { red: 1.0, green: 0.27, blue: 0.0, alpha: 1.0 });
+    pub const NONE: Color = Color::TRANSPARENT;
+
 
     pub fn rgb(r: f32, g: f32, b: f32) -> Self {
         Color::Srgba(srgba_rgb(r, g, b))
@@ -280,6 +284,19 @@ impl Color {
 
     pub fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Color::Srgba(srgba_new(r, g, b, a))
+    }
+    
+    pub fn srgb(r: f32, g: f32, b: f32) -> Self {
+        Color::Srgba(srgba_rgb(r, g, b))
+    }
+
+    pub fn srgb_u8(r: u8, g: u8, b: u8) -> Self {
+         Color::Srgba(Srgba {
+            red: r as f32 / 255.0,
+            green: g as f32 / 255.0,
+            blue: b as f32 / 255.0,
+            alpha: 1.0,
+        })
     }
 
     pub fn hex(hex: &str) -> Result<Self, HexColorError> {
@@ -302,6 +319,18 @@ impl Color {
             Color::Srgba(c) => linear_rgba_from_rgba(*c),
             _ => linear_rgba_from_rgba(self.to_srgba()),
         }
+    }
+}
+
+impl From<Srgba> for Color {
+    fn from(c: Srgba) -> Self {
+        Color::Srgba(c)
+    }
+}
+
+impl From<LinearRgba> for Color {
+    fn from(c: LinearRgba) -> Self {
+        Color::LinearRgba(c)
     }
 }
 

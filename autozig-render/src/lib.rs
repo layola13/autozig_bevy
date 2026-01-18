@@ -1829,7 +1829,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 "#;
 
-extern "C" fn init_wgpu_system() {
+/// Rust system wrapper for init_wgpu
+pub fn init_wgpu_system_wrapper(_world: &mut autozig_ecs::world::World) {
+    init_wgpu_c_impl();
+}
+
+extern "C" fn init_wgpu_c_impl() {
     unsafe {
         if APP_PTR.is_null() { return; }
         
@@ -2015,7 +2020,12 @@ extern "C" fn init_wgpu_system() {
     }
 }
 
-extern "C" fn render_system() {
+/// Rust system wrapper for render
+pub fn render_system_wrapper(_world: &mut autozig_ecs::world::World) {
+    render_c_impl();
+}
+
+extern "C" fn render_c_impl() {
     let mut guard = RENDER_STATE.lock().unwrap();
     if let Some(state) = guard.as_mut() {
         
@@ -2095,8 +2105,8 @@ pub struct RenderPlugin;
 impl autozig_app::Plugin for RenderPlugin {
     fn build(&self, app: &mut autozig_app::App) {
         unsafe { APP_PTR = app.as_ptr(); }
-        app.add_systems(MainScheduleOrder::Startup, init_wgpu_system);
-        app.add_systems(MainScheduleOrder::Update, render_system);
+        app.add_systems::<autozig_ecs::into_system::ExclusiveSystemMarker>(autozig_ecs::schedule::Startup, init_wgpu_system_wrapper);
+        app.add_systems::<autozig_ecs::into_system::ExclusiveSystemMarker>(autozig_ecs::schedule::Update, render_system_wrapper);
     }
     
     fn name(&self) -> &str {

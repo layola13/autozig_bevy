@@ -443,3 +443,14 @@ fn test_lighting_calculations_accuracy() {
     let atten = LightingUtils::calculate_attenuation(dist, range);
     assert!(atten > 0.0 && atten < 1.0);
 }
+
+// ============================================================================
+// Bevy Parity Tests (Phase 2-3)
+// ============================================================================
+
+#[test]
+fn test_light_systems_enum() {
+    // Verify system set enum values
+    assert_ne!(LightSystems::UpdateDirectionalLightCascades, LightSystems::UpdatePointLightFrusta);
+    assert_ne!(LightSystems::UpdatePointLightFrusta, LightSystems::ExtractLights);
+}

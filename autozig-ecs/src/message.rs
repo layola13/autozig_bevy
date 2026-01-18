@@ -19,7 +19,7 @@ pub struct Messages<M: Message> {
     queue: Vec<M>,
 }
 
-impl<M: Message> Resource for Messages<M> {}
+
 
 impl<M: Message> Default for Messages<M> {
     fn default() -> Self {

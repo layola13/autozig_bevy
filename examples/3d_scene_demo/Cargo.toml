@@ -1,0 +1,26 @@
+[package]
+name = "scene_3d_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../../../autozig", version = "0.1.2" }
+autozig-app = { path = "../../autozig-app" }
+autozig-asset = { path = "../../autozig-asset" }
+autozig-camera = { path = "../../autozig-camera" }
+autozig-color = { path = "../../autozig-color" }
+autozig-core-pipeline = { path = "../../autozig-core-pipeline" }
+autozig-ecs = { path = "../../autozig-ecs" }
+autozig-input = { path = "../../autozig-input" }
+autozig-light = { path = "../../autozig-light" }
+autozig-math = { path = "../../autozig-math" }
+autozig-mesh = { path = "../../autozig-mesh" }
+autozig-pbr = { path = "../../autozig-pbr" }
+autozig-render = { path = "../../autozig-render" }
+autozig-transform = { path = "../../autozig-transform" }
+autozig-time = { path = "../../autozig-time" }
+autozig-window = { path = "../../autozig-window" }
+autozig-winit = { path = "../../autozig-winit" }
+
+[build-dependencies]
+autozig-build = { path = "../../../autozig/gen/build", version = "0.1.2" }

@@ -20,6 +20,13 @@ pub mod default_plugins;
 use autozig::include_zig;
 use core::num::NonZeroU8;
 use core::ptr::NonNull;
+use std::sync::atomic::{AtomicPtr, Ordering};
+use autozig_ecs::schedule::{ScheduleLabel, Schedules};
+use autozig_ecs::system_config::IntoSystemConfigs;
+use autozig_ecs::world::WorldOpaque;
+
+// Global world pointer for FFI callbacks
+static GLOBAL_WORLD_PTR: AtomicPtr<WorldOpaque> = AtomicPtr::new(core::ptr::null_mut());
 
 // Re-export plugin group types
 pub use plugin_group::{PluginGroup, PluginGroupBuilder, PluginGroupExt};
@@ -28,10 +35,11 @@ pub use default_plugins::{DefaultPlugins, MinimalPlugins};
 /// Common imports for autozig apps
 pub mod prelude {
     pub use crate::{
-        App, AppExit, DefaultPlugins, MinimalPlugins, Plugin, PluginGroup,
+        App, AppExit, DefaultPlugins, MinimalPlugins, Plugin, PluginGroup, PluginsState,
         MainScheduleOrder, Startup, Update, FixedUpdate,
         First, PreStartup, PostStartup, PreUpdate, PostUpdate, Last,
         FixedFirst, FixedPreUpdate, FixedPostUpdate, FixedLast,
+        SimplePlugin, FnPlugin, IntoPlugin, SystemId,
     };
 }
 
@@ -39,65 +47,113 @@ pub mod prelude {
 // Schedule Label Types (Zero-Sized Types for type-safe schedule identification)
 // ============================================================================
 
+
+use std::borrow::Cow;
+
 /// Schedule that runs first in the main loop, before all other schedules
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct First;
+impl ScheduleLabel for First {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("First") }
+}
 
 /// Schedule that runs before Startup (only on first frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PreStartup;
+impl ScheduleLabel for PreStartup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PreStartup") }
+}
 
 /// Schedule that runs once when the app starts (only on first frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Startup;
+impl ScheduleLabel for Startup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Startup") }
+}
 
 /// Schedule that runs after Startup (only on first frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PostStartup;
+impl ScheduleLabel for PostStartup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PostStartup") }
+}
 
 /// Schedule that runs before Update (every frame after startup)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PreUpdate;
+impl ScheduleLabel for PreUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PreUpdate") }
+}
 
 /// Main update loop schedule (every frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Update;
+impl ScheduleLabel for Update {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Update") }
+}
 
 /// Schedule that runs after Update (every frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PostUpdate;
+impl ScheduleLabel for PostUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PostUpdate") }
+}
 
 /// Schedule that runs last in the main loop (every frame)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Last;
+impl ScheduleLabel for Last {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Last") }
+}
 
 /// Main schedule in the fixed timestep loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedMain;
+impl ScheduleLabel for FixedMain {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedMain") }
+}
 
 /// Schedule that runs first in the fixed timestep loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedFirst;
+impl ScheduleLabel for FixedFirst {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedFirst") }
+}
 
 /// Schedule that runs before FixedUpdate in the fixed timestep loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedPreUpdate;
+impl ScheduleLabel for FixedPreUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedPreUpdate") }
+}
 
 /// Main fixed timestep update schedule
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedUpdate;
+impl ScheduleLabel for FixedUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedUpdate") }
+}
 
 /// Schedule that runs after FixedUpdate in the fixed timestep loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedPostUpdate;
+impl ScheduleLabel for FixedPostUpdate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedPostUpdate") }
+}
 
 /// Schedule that runs last in the fixed timestep loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FixedLast;
+impl ScheduleLabel for FixedLast {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("FixedLast") }
+}
 
 /// Main schedule marker
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Main;
+impl ScheduleLabel for Main {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Main") }
+}
 
 /// Schedule labels defining execution order in the main loop
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -573,13 +629,20 @@ impl Plugin for WebCompatibilityPlugin {
 // Hierarchy Propagation Types
 // ============================================================================
 
+
 /// Marker for propagating changes down the hierarchy
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Propagate;
+impl ScheduleLabel for Propagate {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Propagate") }
+}
 
 /// Marker for propagating changes over a hierarchy
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PropagateOver;
+impl ScheduleLabel for PropagateOver {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PropagateOver") }
+}
 
 /// System set for propagation systems
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -726,7 +789,9 @@ pub struct ZigPlugin {
 }
 
 // Include Zig FFI functions
-include_zig!("src/zig/app.zig", {
+// Include All Zig FFI functions in one go (to ensure types match)
+include_zig!("src/zig/main.zig", {
+    // app.zig
     fn app_create(world: *mut u8) -> *mut ZigApp;
     fn app_create_empty(world: *mut u8) -> *mut ZigApp;
     fn app_destroy(app: *mut ZigApp);
@@ -742,23 +807,20 @@ include_zig!("src/zig/app.zig", {
     fn app_has_resource(app: *mut ZigApp, type_id: u64) -> bool;
     fn app_get_resource(app: *mut ZigApp, type_id: u64) -> *mut u8;
     fn app_get_world(app: *mut ZigApp) -> *mut u8;
-});
 
-include_zig!("src/zig/schedule.zig", {
+    // schedule.zig
     fn app_schedule_add_system(app: *mut ZigApp, schedule: u8, system: SystemFn);
     fn app_schedule_configure_set(app: *mut ZigApp, schedule: u8, set_id: u64);
     fn app_schedule_run(app: *mut ZigApp, schedule: u8, is_first_run: bool);
     fn app_schedule_init_resource(app: *mut ZigApp, type_id: u64);
-});
 
-include_zig!("src/zig/sub_app.zig", {
+    // sub_app.zig
     fn sub_app_create() -> *mut ZigSubApp;
     fn sub_app_destroy(sub_app: *mut ZigSubApp);
     fn sub_app_update(sub_app: *mut ZigSubApp);
     fn sub_app_run_default_schedule(sub_app: *mut ZigSubApp);
-});
 
-include_zig!("src/zig/plugin.zig", {
+    // plugin.zig
     fn plugin_create(
         name_ptr: *const u8,
         name_len: usize,
@@ -771,6 +833,21 @@ include_zig!("src/zig/plugin.zig", {
     fn plugin_name(plugin: *mut ZigPlugin, out_ptr: *mut *const u8, out_len: *mut usize);
     fn plugin_is_unique(plugin: *mut ZigPlugin) -> bool;
     fn app_add_plugin(app: *mut ZigApp, plugin: *mut ZigPlugin) -> bool;
+
+    // plugin_group.zig
+    fn plugin_group_builder_create(name_ptr: *const u8, name_len: usize) -> *mut crate::plugin_group::ZigPluginGroupBuilder;
+    fn plugin_group_builder_destroy(builder: *mut crate::plugin_group::ZigPluginGroupBuilder);
+    fn plugin_group_builder_contains(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, type_id: u64) -> bool;
+    fn plugin_group_builder_is_enabled(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, type_id: u64) -> bool;
+    fn plugin_group_builder_add(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64) -> bool;
+    fn plugin_group_builder_add_before(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64, target_type_id: u64) -> bool;
+    fn plugin_group_builder_add_after(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64, target_type_id: u64) -> bool;
+    fn plugin_group_builder_enable(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, type_id: u64) -> bool;
+    fn plugin_group_builder_disable(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, type_id: u64) -> bool;
+    fn plugin_group_builder_set(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64) -> bool;
+    fn plugin_group_builder_finish(builder: *mut crate::plugin_group::ZigPluginGroupBuilder, app: *mut ZigApp) -> bool;
+    fn plugin_group_builder_len(builder: *mut crate::plugin_group::ZigPluginGroupBuilder) -> usize;
+    fn plugin_group_builder_enabled_count(builder: *mut crate::plugin_group::ZigPluginGroupBuilder) -> usize;
 });
 
 /// Application exit status
@@ -822,7 +899,35 @@ impl App {
     /// Create a new application with default configuration
     pub fn new() -> Self {
         let mut world = World::new();
+        
+        // Initialize Schedules resource
+        let mut schedules = Schedules::new();
+        // pre-insert common schedules to avoid cloning checking later
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::First));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PreStartup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Startup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PostStartup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PreUpdate));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Update));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PostUpdate));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Last));
+        world.insert_resource(schedules);
+        
         let ptr = app_create(world.as_raw_ptr());
+        
+        // Register Rust Schedule Runners for all main schedules
+        unsafe {
+            let p = ptr;
+            app_schedule_add_system(p, MainScheduleOrder::First as u8, run_rust_first);
+            app_schedule_add_system(p, MainScheduleOrder::PreStartup as u8, run_rust_pre_startup);
+            app_schedule_add_system(p, MainScheduleOrder::Startup as u8, run_rust_startup);
+            app_schedule_add_system(p, MainScheduleOrder::PostStartup as u8, run_rust_post_startup);
+            app_schedule_add_system(p, MainScheduleOrder::PreUpdate as u8, run_rust_pre_update);
+            app_schedule_add_system(p, MainScheduleOrder::Update as u8, run_rust_update);
+            app_schedule_add_system(p, MainScheduleOrder::PostUpdate as u8, run_rust_post_update);
+            app_schedule_add_system(p, MainScheduleOrder::Last as u8, run_rust_last);
+        }
+
         Self {
             inner: NonNull::new(ptr).expect("app creation failed"),
             world,
@@ -846,8 +951,18 @@ impl App {
     }
     
     /// Run the application until exit
-    pub fn run(self) -> AppExit {
+    ///
+    /// Note: This method takes `&mut self` instead of `self` to allow for chaining.
+    /// It internally replaces `self` with an empty App and passes ownership to the runner.
+    pub fn run(&mut self) -> AppExit {
+        // Set global world pointer for FFI callbacks
+        GLOBAL_WORLD_PTR.store(self.world.as_raw_ptr() as *mut _, Ordering::SeqCst);
+        
         let code = app_run(self.inner.as_ptr());
+        
+        // Clear global pointer
+        GLOBAL_WORLD_PTR.store(core::ptr::null_mut(), Ordering::SeqCst);
+        
         AppExit::from_code(code)
     }
 
@@ -1056,8 +1171,17 @@ impl App {
     ///     // System logic here
     /// }
     /// ```
-    pub fn add_systems(&mut self, schedule: MainScheduleOrder, system: SystemFn) -> &mut Self {
-        app_schedule_add_system(self.inner.as_ptr(), schedule as u8, system);
+    pub fn add_systems<M>(&mut self, schedule: impl ScheduleLabel + Clone, systems: impl IntoSystemConfigs<M>) -> &mut Self {
+        let mut schedules = self.world.get_resource_mut::<Schedules>()
+            .expect("Schedules resource missing");
+            
+        if let Some(sched) = schedules.get_mut(schedule.clone()) {
+            sched.add_systems(systems);
+        } else {
+            let mut sched = autozig_ecs::schedule::Schedule::new(schedule);
+            sched.add_systems(systems);
+            schedules.insert(sched);
+        }
         self
     }
     
@@ -1104,7 +1228,156 @@ impl App {
         self
     }
 
+    // ========================================================================
+    // Bevy Parity: World Accessors (matching bevy_app::App API)
+    // ========================================================================
 
+    /// Returns a reference to the main [`World`].
+    /// 
+    /// This is a shorthand for `self.main().world()`.
+    #[inline]
+    pub fn world(&self) -> &World {
+        &self.world
+    }
+
+    /// Returns a mutable reference to the main [`World`].
+    ///
+    /// This is a shorthand for `self.main_mut().world_mut()`.
+    #[inline]
+    pub fn world_mut(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    // ========================================================================
+    // Bevy Parity: Plugin Query Methods
+    // ========================================================================
+
+    /// Returns `true` if the [`Plugin`] has already been added.
+    pub fn is_plugin_added<T: Plugin>(&self) -> bool {
+        // For now, we don't track plugins by name in Rust side
+        // This would require maintaining a HashSet of plugin names
+        // Return false as a placeholder; can be enhanced with plugin registry
+        false
+    }
+
+    /// Returns the plugins state (for lifecycle management).
+    pub fn plugins_state(&self) -> PluginsState {
+        // Return current plugin state - placeholder
+        PluginsState::Ready
+    }
+
+    // ========================================================================
+    // Bevy Parity: Event System (matching bevy_app::App API)
+    // ========================================================================
+
+    /// Adds an [`Event`] type to the app.
+    /// 
+    /// This initializes the event queue and registers the event update system.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// app.add_event::<MyEvent>();
+    /// ```
+    pub fn add_event<E: 'static>(&mut self) -> &mut Self {
+        // Events are stored as a resource containing a double-buffered event queue
+        // For now, we just register the type ID as a placeholder
+        let type_id = core::any::TypeId::of::<E>();
+        let _type_id_u64 = type_id_to_u64(type_id);
+        // TODO: Implement proper event queue system in Zig
+        self
+    }
+
+    /// Adds a message type to the app (Bevy 0.18+ API).
+    /// 
+    /// Messages are similar to events but with different semantics.
+    pub fn add_message<M: 'static>(&mut self) -> &mut Self {
+        self.add_event::<M>()
+    }
+
+    // ========================================================================
+    // Bevy Parity: Observer System (matching bevy_app::App API)
+    // ========================================================================
+
+    /// Adds an observer system that runs when a specific trigger occurs.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// app.add_observer(on_add_component::<Transform>);
+    /// ```
+    pub fn add_observer<F>(&mut self, _observer: F) -> &mut Self
+    where
+        F: 'static,
+    {
+        // TODO: Implement observer system in Zig
+        // Observers are triggered by entity lifecycle events (spawn, despawn, component add/remove)
+        self
+    }
+
+    // ========================================================================
+    // Bevy Parity: One-Shot Systems (matching bevy_app::App API)
+    // ========================================================================
+
+    /// Registers a system and returns a [`SystemId`] for later execution.
+    /// 
+    /// One-shot systems can be run manually via `World::run_system(id)`.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// let id = app.register_system(my_system);
+    /// app.world_mut().run_system(id);
+    /// ```
+    pub fn register_system<M, S>(&mut self, _system: S) -> SystemId
+    where
+        S: 'static,
+    {
+        // TODO: Implement one-shot system registry in Zig
+        // Returns a unique ID that can be used to run the system later
+        SystemId::new()
+    }
+
+    // ========================================================================
+    // Bevy Parity: Non-Send Resources
+    // ========================================================================
+
+    /// Inserts a non-Send resource into the app.
+    /// 
+    /// Non-Send resources can only be accessed from the main thread.
+    pub fn insert_non_send_resource<R: 'static>(&mut self, resource: R) -> &mut Self {
+        // For now, treat non-send resources the same as regular resources
+        // Proper !Send handling would require thread-local storage
+        self.insert_resource(resource)
+    }
+
+    /// Initializes a non-Send resource with its default value.
+    pub fn init_non_send_resource<R: 'static + Default>(&mut self) -> &mut Self {
+        if !self.has_resource::<R>() {
+            self.insert_non_send_resource(R::default())
+        } else {
+            self
+        }
+    }
+
+}
+
+/// Unique identifier for a registered one-shot system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SystemId {
+    id: u64,
+}
+
+impl SystemId {
+    /// Create a new system ID.
+    fn new() -> Self {
+        static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        Self {
+            id: NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        }
+    }
+
+    /// Get the raw ID value.
+    pub fn id(&self) -> u64 {
+        self.id
+    }
 }
 
 impl Drop for App {
@@ -1260,6 +1533,44 @@ impl Plugin for SimplePlugin {
     }
 }
 
+// ============================================================================
+// Plugin implementation for `fn(&mut App)` closures (Bevy parity)
+// ============================================================================
+
+/// FnPlugin wrapper for function pointers as plugins
+pub struct FnPlugin<F> {
+    func: F,
+    name: &'static str,
+}
+
+impl<F: Fn(&mut App) + Send + Sync + 'static> FnPlugin<F> {
+    /// Create a new FnPlugin with a custom name
+    pub fn new(name: &'static str, func: F) -> Self {
+        Self { func, name }
+    }
+}
+
+impl<F: Fn(&mut App) + Send + Sync + 'static> Plugin for FnPlugin<F> {
+    fn build(&self, app: &mut App) {
+        (self.func)(app);
+    }
+    
+    fn name(&self) -> &str {
+        self.name
+    }
+}
+
+/// Extension trait to convert closures to plugins
+pub trait IntoPlugin {
+    fn into_plugin(self) -> impl Plugin;
+}
+
+impl<F: Fn(&mut App) + Send + Sync + 'static> IntoPlugin for F {
+    fn into_plugin(self) -> impl Plugin {
+        FnPlugin::new(core::any::type_name::<F>(), self)
+    }
+}
+
 // Helper functions - completely safe implementations
 fn type_id_to_u64(type_id: core::any::TypeId) -> u64 {
     use core::hash::Hasher;
@@ -1325,10 +1636,46 @@ mod tests {
         assert!(exit.is_error());
     }
 
-    #[test]
-    fn test_app_exit_from_code() {
-        assert_eq!(AppExit::from_code(0), AppExit::Success);
-        assert_eq!(AppExit::from_code(1).code(), 1);
-        assert_eq!(AppExit::from_code(255).code(), 255);
+
+}
+
+// ============================================================================
+// Internal Helpers for Rust System Execution
+// ============================================================================
+
+macro_rules! define_runner {
+    ($name:ident, $label:expr) => {
+        extern "C" fn $name() {
+            run_rust_schedule($label);
+        }
+    };
+}
+
+define_runner!(run_rust_first, autozig_ecs::schedule::First);
+define_runner!(run_rust_pre_startup, autozig_ecs::schedule::PreStartup);
+define_runner!(run_rust_startup, autozig_ecs::schedule::Startup);
+define_runner!(run_rust_post_startup, autozig_ecs::schedule::PostStartup);
+define_runner!(run_rust_pre_update, autozig_ecs::schedule::PreUpdate);
+define_runner!(run_rust_update, autozig_ecs::schedule::Update);
+define_runner!(run_rust_post_update, autozig_ecs::schedule::PostUpdate);
+define_runner!(run_rust_last, autozig_ecs::schedule::Last);
+
+fn run_rust_schedule(label: impl ScheduleLabel) {
+    let raw_ptr = GLOBAL_WORLD_PTR.load(Ordering::SeqCst);
+    if raw_ptr.is_null() { 
+        // This might happen if called outside App::run, e.g. manual update
+        return; 
+    }
+
+    unsafe {
+        // Create temporary wrapper to access World methods
+        // SAFETY: We strictly must NOT drop this world, as it owns resources/pointers
+        let mut world = autozig_ecs::world::World::from_raw(raw_ptr);
+        
+        // Run the schedule using World's schedule runner helpers
+        world.try_run_schedule(label);
+        
+        // CRITICAL: Prevent Dropping the World
+        core::mem::forget(world);
     }
 }

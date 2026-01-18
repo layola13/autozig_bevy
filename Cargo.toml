@@ -19,6 +19,7 @@ members = [
     "autozig-mesh",
     "autozig-pbr",
     "autozig-ptr",
+    "autozig-random",
     "autozig-reflect",
     "autozig-render",
     "autozig-shader",

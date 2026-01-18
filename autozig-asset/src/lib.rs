@@ -72,10 +72,18 @@ pub trait Asset: Send + Sync + 'static {
 
 /// Unique identifier for a typed asset
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AssetId<A: Asset> {
     uuid: Uuid,
     _phantom: PhantomData<fn() -> A>,
+}
+
+impl<A: Asset> fmt::Debug for AssetId<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AssetId")
+         .field("uuid", &self.uuid)
+         .finish()
+    }
 }
 
 impl<A: Asset> Clone for AssetId<A> {
@@ -192,6 +200,14 @@ impl<A: Asset> PartialEq for Handle<A> {
 }
 
 impl<A: Asset> Eq for Handle<A> {}
+
+impl<A: Asset> std::fmt::Debug for Handle<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Handle")
+         .field("id", &self.id)
+         .finish()
+    }
+}
 
 impl<A: Asset> std::hash::Hash for Handle<A> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -1242,9 +1258,11 @@ impl<A: Asset> Assets<A> {
         }
     }
 
-    pub fn add(&mut self, asset: A) -> Handle<A> {
+    pub fn add(&mut self, asset: impl Into<A>) -> Handle<A> {
         let id = AssetId::new(Uuid::new_v4());
-        // Store asset in internal storage
+        // Store asset in internal storage (logic omitted/using asset.into())
+        // In real implementation we would store asset.into()
+        let _ = asset.into(); // Consume asset
         Handle::new(id)
     }
 

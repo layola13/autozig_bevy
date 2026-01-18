@@ -7,6 +7,7 @@ edition = "2021"
 autozig = { path = "../../autozig" }
 autozig-ecs = { path = "../autozig-ecs" }
 
+
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build" }
 

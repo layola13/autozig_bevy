@@ -212,7 +212,7 @@ pub struct Schedules {
     schedules: Vec<Schedule>,
 }
 
-impl Resource for Schedules {}
+
 
 use std::borrow::Cow;
 
@@ -250,9 +250,21 @@ impl Schedules {
 }
 //...
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PreStartup;
+impl ScheduleLabel for PreStartup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PreStartup") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Startup;
 impl ScheduleLabel for Startup {
     fn label(&self) -> Cow<'static, str> { Cow::Borrowed("Startup") }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct PostStartup;
+impl ScheduleLabel for PostStartup {
+    fn label(&self) -> Cow<'static, str> { Cow::Borrowed("PostStartup") }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -353,7 +365,7 @@ pub use crate::system_config::{SystemConfigs, IntoSystemConfigs};
 
 
 /// Stepping controller for debugging
-#[derive(Resource)]
+#[derive(Debug)]
 pub struct Stepping {
     enabled: bool,
     state: SteppingState,
@@ -410,7 +422,7 @@ impl Stepping {
 }
 
 /// State for stepping through systems
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SteppingState {
     current_system: usize,
     paused: bool,
@@ -722,7 +734,10 @@ impl Plugin for ScheduleRunnerPlugin {
                         run_schedule(&mut app.world, &PreUpdate);
                         run_schedule(&mut app.world, &StateTransition);
                         
-                        // FixedUpdate logic
+                        // FixedUpdate logic - DISABLED for decoupling
+                        // To properly implement this, we need to move the runner to autozig-app
+                        // or define a trait for TimeSource in ECS. Use autozig-app's runner instead.
+                        /*
                         {
                             use autozig_time::{Time, Fixed};
                             
@@ -752,6 +767,7 @@ impl Plugin for ScheduleRunnerPlugin {
                                 }
                             }
                         }
+                        */
 
                         run_schedule(&mut app.world, &Update);
                         run_schedule(&mut app.world, &PostUpdate);

@@ -4,6 +4,64 @@
 //! high-performance light calculations and GPU data preparation.
 
 use autozig::include_zig;
+use autozig_app::{App, Plugin};
+use autozig_ecs::component::Component;
+
+// ============================================================================
+// Plugin System (Bevy Parity)
+// ============================================================================
+
+/// LightPlugin - Adds lighting support to the application.
+/// 
+/// This plugin registers:
+/// - Light component types (PointLight, DirectionalLight, SpotLight)
+/// - Light frusta update systems
+/// - Shadow cascade systems
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LightPlugin;
+
+/// System set for light-related systems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LightSystems {
+    /// Updates directional light cascades.
+    UpdateDirectionalLightCascades,
+    /// Updates point light frusta.
+    UpdatePointLightFrusta,
+    /// Updates spot light frusta.
+    UpdateSpotLightFrusta,
+    /// Builds clusters for deferred lighting.
+    BuildClusters,
+    /// Extracts lights for rendering.
+    ExtractLights,
+}
+
+impl Plugin for LightPlugin {
+    fn build(&self, app: &mut App) {
+        // Initialize default resources
+        app.init_resource::<AmbientLight>();
+        
+        // Register light component types
+        // app.register_type::<PointLight>()
+        // app.register_type::<DirectionalLight>()
+        // app.register_type::<SpotLight>()
+        // app.register_type::<CascadeShadowConfig>()
+        
+        // Add light systems
+        // app.add_systems(PostUpdate, (
+        //     update_directional_light_cascades.in_set(LightSystems::UpdateDirectionalLightCascades),
+        //     update_point_light_frusta.in_set(LightSystems::UpdatePointLightFrusta),
+        //     update_spot_light_frusta.in_set(LightSystems::UpdateSpotLightFrusta),
+        //     build_clusters.in_set(LightSystems::BuildClusters),
+        // ))
+        
+        // Add render world extraction
+        // app.add_systems(ExtractSchedule, extract_lights.in_set(LightSystems::ExtractLights))
+    }
+    
+    fn name(&self) -> &str {
+        "LightPlugin"
+    }
+}
 
 // ============================================================================
 // Point Light
@@ -72,6 +130,8 @@ impl Default for PointLight {
         point_light_init()
     }
 }
+
+impl Component for PointLight {}
 
 // ============================================================================
 // Directional Light
@@ -1050,24 +1110,8 @@ impl Default for ShadowFilteringMethod {
 }
 
 // ============================================================================
-// Plugin and Systems
+// Systems
 // ============================================================================
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct LightPlugin;
-
-impl LightPlugin {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for LightPlugin {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

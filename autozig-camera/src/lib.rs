@@ -4,6 +4,7 @@
 //! Zig implementations for projection, view matrices, and frustum culling.
 
 use autozig::include_zig;
+use autozig_app::{App, Plugin};
 
 // ============================================================================
 // Core Camera Types
@@ -68,6 +69,101 @@ pub struct Plane {
 }
 
 // ============================================================================
+// Plugin System (Bevy Parity)
+// ============================================================================
+
+/// CameraPlugin - Adds camera support to the application.
+/// 
+/// This plugin registers:
+/// - ClearColor resource
+/// - Camera projection systems
+/// - Visibility propagation
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CameraPlugin;
+
+/// System set for camera-related systems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CameraSystems {
+    /// Updates camera projections.
+    UpdateProjections,
+    /// Propagates visibility.
+    PropagateVisibility,
+    /// Checks entity visibility.
+    CheckVisibility,
+    /// Extracts cameras for rendering.
+    ExtractCameras,
+}
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        // Initialize ClearColor resource
+        app.init_resource::<ClearColor>();
+        
+        // Add visibility plugins
+        // app.add_plugins((VisibilityPlugin, VisibilityRangePlugin));
+        
+        // Add camera systems
+        // app.add_systems(PostUpdate, (
+        //     update_frusta::<Projection>.in_set(CameraSystems::UpdateProjections),
+        //     visibility_propagate_system.in_set(CameraSystems::PropagateVisibility),
+        //     check_visibility.in_set(CameraSystems::CheckVisibility),
+        // ))
+        
+        // Add render world extraction
+        // app.add_systems(ExtractSchedule, extract_cameras.in_set(CameraSystems::ExtractCameras))
+    }
+    
+    fn name(&self) -> &str {
+        "CameraPlugin"
+    }
+}
+
+/// Camera projection plugin for specific projection types
+#[derive(Debug, Clone, Default)]
+pub struct CameraProjectionPlugin<T> {
+    _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: 'static> Plugin for CameraProjectionPlugin<T> {
+    fn build(&self, _app: &mut App) {
+        // Add camera projection update systems
+    }
+    
+    fn name(&self) -> &str {
+        "CameraProjectionPlugin"
+    }
+}
+
+/// VisibilityPlugin - Handles visibility propagation
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VisibilityPlugin;
+
+impl Plugin for VisibilityPlugin {
+    fn build(&self, _app: &mut App) {
+        // Register visibility components and systems
+        // app.add_systems(PostUpdate, visibility_propagate_system)
+    }
+    
+    fn name(&self) -> &str {
+        "VisibilityPlugin"
+    }
+}
+
+/// VisibilityRangePlugin - Handles LOD-based visibility ranges
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VisibilityRangePlugin;
+
+impl Plugin for VisibilityRangePlugin {
+    fn build(&self, _app: &mut App) {
+        // Register visibility range systems
+    }
+    
+    fn name(&self) -> &str {
+        "VisibilityRangePlugin"
+    }
+}
+
+// ============================================================================
 // NEW API TYPES - STRUCTS (38个)
 // ============================================================================
 
@@ -93,16 +189,6 @@ pub struct CameraMainTextureUsages {
     pub usage_flags: u32,
 }
 
-/// Camera plugin configuration
-#[derive(Debug, Clone)]
-pub struct CameraPlugin;
-
-/// Camera projection plugin
-#[derive(Debug, Clone)]
-pub struct CameraProjectionPlugin<T> {
-    _phantom: std::marker::PhantomData<T>,
-}
-
 /// Camera update system labels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CameraUpdateSystems;
@@ -123,7 +209,7 @@ pub struct CascadesVisibleEntities {
 
 /// Clear color for camera background
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ClearColor {
     pub r: f32,
     pub g: f32,
@@ -195,10 +281,30 @@ pub struct ImageRenderTarget {
 }
 
 /// Inherited visibility from parent
+/// 
+/// Bevy parity: bevy_render::view::visibility::InheritedVisibility
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct InheritedVisibility {
-    pub visible: bool,
+    visible: bool,
+}
+
+impl InheritedVisibility {
+    /// Visible constant.
+    pub const VISIBLE: Self = Self { visible: true };
+    
+    /// Hidden constant.
+    pub const HIDDEN: Self = Self { visible: false };
+
+    /// Create new inherited visibility.
+    pub fn new(visible: bool) -> Self {
+        Self { visible }
+    }
+
+    /// Get visibility state.
+    pub fn get(&self) -> bool {
+        self.visible
+    }
 }
 
 /// Main pass resolution override
@@ -272,10 +378,35 @@ pub struct SubCameraView {
 }
 
 /// View visibility (per-camera visibility)
+/// 
+/// Bevy parity: bevy_render::view::visibility::ViewVisibility
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ViewVisibility {
-    pub visible: bool,
+    visible: bool,
+}
+
+impl ViewVisibility {
+    /// Create a new visible ViewVisibility.
+    pub const VISIBLE: Self = Self { visible: true };
+    
+    /// Create a new hidden ViewVisibility.
+    pub const HIDDEN: Self = Self { visible: false };
+
+    /// Create new ViewVisibility.
+    pub fn new(visible: bool) -> Self {
+        Self { visible }
+    }
+
+    /// Get visibility state.
+    pub fn get(&self) -> bool {
+        self.visible
+    }
+
+    /// Set visibility state.
+    pub fn set(&mut self, visible: bool) {
+        self.visible = visible;
+    }
 }
 
 /// Viewport configuration
@@ -296,10 +427,6 @@ pub enum VisibilityClass {
     Inherited = 2,
 }
 
-/// Visibility plugin
-#[derive(Debug, Clone)]
-pub struct VisibilityPlugin;
-
 /// Visibility range for LOD
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -307,10 +434,6 @@ pub struct VisibilityRange {
     pub start_margin: f32,
     pub end_margin: f32,
 }
-
-/// Visibility range plugin
-#[derive(Debug, Clone)]
-pub struct VisibilityRangePlugin;
 
 /// List of visible entities
 #[repr(C)]

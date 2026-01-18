@@ -27,6 +27,21 @@ fn main() {
     std::env::set_var("AUTOZIG_MODE", "modular_buildzig");
     println!("cargo:warning=Using MODULAR_BUILDZIG compilation mode for autozig-app");
     
+    // Copy all Zig source files to OUT_DIR so they can be imported by the generated main.zig
+    let src_zig_dir = std::path::Path::new("src/zig");
+    if src_zig_dir.exists() {
+        for entry in std::fs::read_dir(src_zig_dir).expect("Failed to read src/zig directory") {
+            let entry = entry.expect("Failed to read entry");
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "zig") {
+                let file_name = path.file_name().unwrap();
+                let dest = std::path::Path::new(&out_dir).join(file_name);
+                std::fs::copy(&path, &dest).expect("Failed to copy zig file");
+                println!("cargo:warning=Copied {} to OUT_DIR", file_name.to_string_lossy()); 
+            }
+        }
+    }
+
     // Scan src directory for include_zig! macros
     autozig_build::build("src").expect("Failed to build Zig code");
 }

@@ -9,6 +9,7 @@ autozig-ecs = { path = "../../autozig-ecs" }
 autozig-window = { path = "../../autozig-window" }
 autozig-winit = { path = "../../autozig-winit" }
 autozig-render = { path = "../../autozig-render" }
+autozig-time = { path = "../../autozig-time" }
 autozig-math = { path = "../../autozig-math" }
 autozig-transform = { path = "../../autozig-transform" }
 autozig-camera = { path = "../../autozig-camera" }

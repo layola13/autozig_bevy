@@ -162,18 +162,17 @@ pub mod prelude {
     // Note: RemovedComponents is re-exported from removal_detection above
     
     // ==================== Plugin System ====================
-    pub use crate::plugin::{Plugin, App, CorePlugin, TimePlugin, DefaultPlugins};
+    pub use crate::plugin::{Plugin, App, CorePlugin, DefaultPlugins};
+    
+    // ==== Common Conditions ====
+    pub use crate::common_conditions::*;
     
     // ==== Common Conditions ====
     pub use crate::common_conditions::*;
     
     // ==== External Resources ====
-    pub use autozig_time::Time;
+    // Time resources moved to autozig-time crate to avoid cycles
 
-    impl crate::resource::Resource for autozig_time::Time {}
-    impl crate::resource::Resource for autozig_time::Fixed {}
-    impl crate::resource::Resource for autozig_time::Virtual {}
-    impl crate::resource::Resource for autozig_time::Real {}
 
     // Re-export derive macros
     pub use autozig_macro::{Component, Resource, SystemSet};

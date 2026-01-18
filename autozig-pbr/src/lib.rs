@@ -4,6 +4,30 @@
 //! using Zig for high-performance material processing and GPU data preparation.
 
 use autozig::include_zig;
+use autozig_asset::{Asset, Handle};
+use autozig_ecs::component::Component;
+
+/// Marker trait for materials.
+pub trait Material: Asset + Clone + Sized {}
+
+impl Material for StandardMaterial {}
+
+/// Component that links an entity to a Material asset.
+#[derive(Debug, Clone)]
+pub struct MeshMaterial3d<M: Material>(pub Handle<M>);
+
+impl<M: Material> Component for MeshMaterial3d<M> {}
+
+use autozig_color::{Color, ColorToComponents};
+
+impl From<Color> for StandardMaterial {
+    fn from(color: Color) -> Self {
+        Self {
+            base_color: color.to_srgba().to_f32_array(),
+            ..Default::default()
+        }
+    }
+}
 
 // ============================================================================
 // Core Enumerations (19 types)
@@ -220,6 +244,14 @@ impl Default for StandardMaterial {
         }
     }
 }
+
+impl Asset for StandardMaterial {
+    fn type_uuid() -> autozig_asset::Uuid {
+        autozig_asset::Uuid::from_u128(0xbe52961316484e56999201D47F77852) // Random UUID for now
+    }
+}
+
+
 
 include_zig!("zig/standard_material.zig", {
     fn standard_material_init() -> StandardMaterial;

@@ -445,6 +445,13 @@ pub extern "C" fn winit_runner(app_ptr: *mut ZigApp) -> u8 {
                 target.exit();
             }
             winit::event::Event::AboutToWait => {
+                // Set global pointers for systems that need world access
+                unsafe {
+                    autozig_render::APP_PTR = app_ptr;
+                    let world_ptr = autozig_app::App::get_world_from_ptr(app_ptr);
+                    autozig_transform::WORLD_PTR = world_ptr;
+                }
+                
                 // Main update loop
                 unsafe {
                     autozig_app::App::update_raw(app_ptr);

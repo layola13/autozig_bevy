@@ -554,6 +554,54 @@ impl TimePlugin {
     }
 }
 
+use autozig_app::{App, Plugin};
+
+impl Plugin for TimePlugin {
+    fn name(&self) -> &str {
+        "TimePlugin"
+    }
+    
+    fn build(&self, app: &mut App) {
+        // 1. Initialize Time resource
+        let time = Time::new();
+        app.insert_resource(time);
+        
+        // 2. Register time update system
+        // Note: Using a raw function pointer for now as system registration
+        // needs to interact with ECS directly.
+        // In a full implementation, we would use:
+        // app.add_systems(First, time_system);
+        
+        app.add_systems::<autozig_ecs::into_system::ExclusiveSystemMarker>(autozig_ecs::schedule::First, time_system_wrapper);
+    }
+}
+
+/// Rust system wrapper for time_system
+pub fn time_system_wrapper(_world: &mut autozig_ecs::world::World) {
+    time_system_c_impl();
+}
+
+/// System to update the Time resource (C implementation)
+#[no_mangle]
+pub extern "C" fn time_system_c_impl() {
+    unsafe {
+        // TODO: retrieve APP_PTR safely or context
+        // For now, we rely on the fact that App::update_raw calls this
+        // But wait, systems don't take arguments in this FFI model yet?
+        // We need to fetch the resource from the World.
+        
+        // Use the autozig-render APP_PTR hack for now until Tier 1 cleanup
+        let app_ptr = autozig_render::APP_PTR;
+        if !app_ptr.is_null() {
+            if let Some(time) = autozig_app::App::get_resource_raw::<Time>(app_ptr) {
+                // Must cast const reference to mut pointer to call update
+                let time_mut = time as *const Time as *mut Time;
+                (*time_mut).update();
+            }
+        }
+    }
+}
+
 // ========== Time Systems ==========
 
 /// 时间系统标签
@@ -584,3 +632,21 @@ pub fn create_time_channels() -> (TimeSender, TimeReceiver) {
     let (s, r) = crossbeam_channel::bounded::<u64>(2);
     (TimeSender(s), TimeReceiver(r))
 }
+
+// ========== Trait Implementations ==========
+// Implement Resource/Component for Time types to allow ECS storage
+
+use autozig_ecs::resource::Resource;
+use autozig_ecs::component::Component;
+
+// impl Resource for Time {} -> Covered by blanket impl
+impl Component for Time {} // Resources are often implemented as Components in AutoZig ECS for flexibility
+
+// impl Resource for Fixed {} -> Covered by blanket impl
+impl Component for Fixed {}
+
+// impl Resource for Virtual {} -> Covered by blanket impl
+impl Component for Virtual {}
+
+// impl Resource for Real {} -> Covered by blanket impl
+impl Component for Real {}

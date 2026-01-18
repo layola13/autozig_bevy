@@ -5,6 +5,12 @@ edition = "2021"
 
 [dependencies]
 autozig = { path = "../../autozig" }
+autozig-ecs = { path = "../autozig-ecs" }
+autozig-app = { path = "../autozig-app" }
+autozig-render = { path = "../autozig-render" }  # Temporary reuse of APP_PTR
+
+[features]
+std = []
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build" }

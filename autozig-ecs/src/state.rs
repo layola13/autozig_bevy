@@ -23,7 +23,7 @@ impl<S: States> State<S> {
     }
 }
 
-impl<S: States> crate::resource::Resource for State<S> {}
+
 
 /// Next state resource
 #[derive(Default, Debug)]
@@ -35,7 +35,7 @@ impl<S: States> NextState<S> {
     }
 }
 
-impl<S: States> crate::resource::Resource for NextState<S> {}
+
 
 /// Schedule: Run when entering a state
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -3,6 +3,7 @@ use autozig_window::WindowPlugin;
 use autozig_render::RenderPlugin;
 use autozig_camera::Camera3d;
 use autozig_transform::{Transform, GlobalTransform};
+use autozig_time::{Time, TimePlugin};
 
 // Need to access APP_PTR from autozig-render
 use autozig_render::APP_PTR;
@@ -51,7 +52,14 @@ pub extern "C" fn rotate_camera() {
         let mut world = autozig_ecs::world::World::from_raw(world_ptr as *mut autozig_ecs::world::WorldOpaque);
         world.update_archetypes();
 
-        ANGLE += 0.01;
+        // Fetch Time resource to get delta_seconds
+        let delta = if let Some(time) = world.get_resource::<Time>() {
+            time.delta_seconds()
+        } else {
+            0.016 // Fallback ~60fps
+        };
+        
+        ANGLE += 0.5 * delta;
         let radius = 5.0;
         let x = radius * ANGLE.sin();
         let z = radius * ANGLE.cos();
@@ -76,13 +84,9 @@ pub extern "C" fn rotate_camera() {
 fn main() {
     let mut app = App::new();
     app.add_plugin(WindowPlugin::default());
-    // Winit runner is needed for window loop!
-    // autozig-render's RenderPlugin does NOT add winit runner?
-    // autozig-winit provides WinitPlugin.
-    // WindowPlugin does not install runner.
-    // So we need WinitPlugin as well.
     app.add_plugin(autozig_winit::WinitPlugin::default());
     app.add_plugin(RenderPlugin);
+    app.add_plugin(TimePlugin::default()); // Add TimePlugin
     
     app.add_systems(MainScheduleOrder::Startup, setup);
     app.add_systems(MainScheduleOrder::Update, rotate_camera);
@@ -94,3 +98,4 @@ fn main() {
     
     app.run();
 }
+

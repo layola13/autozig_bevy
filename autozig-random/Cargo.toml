@@ -1,0 +1,10 @@
+[package]
+name = "autozig-random"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig = { path = "../../autozig", version = "0.1.2" }
+
+[build-dependencies]
+autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }

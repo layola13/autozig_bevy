@@ -8,6 +8,8 @@ build = "build.rs"
 autozig = { path = "../../autozig" }
 autozig-window = { path = "../autozig-window" }
 autozig-app = { path = "../autozig-app" }
+autozig-transform = { path = "../autozig-transform" }  # For WORLD_PTR sync
+autozig-render = { path = "../autozig-render" }  # For APP_PTR sync
 winit = "0.29"
 raw-window-handle = "0.6"
 

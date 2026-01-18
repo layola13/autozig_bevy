@@ -17,22 +17,14 @@ pub struct ZigPluginGroupBuilder {
     _private: [u8; 0],
 }
 
-// Include Zig FFI functions
-include_zig!("src/zig/plugin_group.zig", {
-    fn plugin_group_builder_create(name_ptr: *const u8, name_len: usize) -> *mut ZigPluginGroupBuilder;
-    fn plugin_group_builder_destroy(builder: *mut ZigPluginGroupBuilder);
-    fn plugin_group_builder_contains(builder: *mut ZigPluginGroupBuilder, type_id: u64) -> bool;
-    fn plugin_group_builder_is_enabled(builder: *mut ZigPluginGroupBuilder, type_id: u64) -> bool;
-    fn plugin_group_builder_add(builder: *mut ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64) -> bool;
-    fn plugin_group_builder_add_before(builder: *mut ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64, target_type_id: u64) -> bool;
-    fn plugin_group_builder_add_after(builder: *mut ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64, target_type_id: u64) -> bool;
-    fn plugin_group_builder_enable(builder: *mut ZigPluginGroupBuilder, type_id: u64) -> bool;
-    fn plugin_group_builder_disable(builder: *mut ZigPluginGroupBuilder, type_id: u64) -> bool;
-    fn plugin_group_builder_set(builder: *mut ZigPluginGroupBuilder, plugin: *mut ZigPlugin, type_id: u64) -> bool;
-    fn plugin_group_builder_finish(builder: *mut ZigPluginGroupBuilder, app: *mut crate::ZigApp) -> bool;
-    fn plugin_group_builder_len(builder: *mut ZigPluginGroupBuilder) -> usize;
-    fn plugin_group_builder_enabled_count(builder: *mut ZigPluginGroupBuilder) -> usize;
-});
+// Include Zig FFI functions from crate root
+use crate::{
+    plugin_group_builder_create, plugin_group_builder_destroy, plugin_group_builder_contains,
+    plugin_group_builder_is_enabled, plugin_group_builder_add, plugin_group_builder_add_before,
+    plugin_group_builder_add_after, plugin_group_builder_enable, plugin_group_builder_disable,
+    plugin_group_builder_set, plugin_group_builder_finish, plugin_group_builder_len,
+    plugin_group_builder_enabled_count
+};
 
 /// Combines multiple [`Plugin`]s into a single unit
 ///

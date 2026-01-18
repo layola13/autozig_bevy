@@ -82,7 +82,7 @@ pub use dir3::Dir3;
 pub use isometry2d::Isometry2d;
 pub use isometry3d::Isometry3d;
 pub use affine2::Affine2;
-pub use affine3::Affine3;
+pub use affine3::Affine3A;
 pub use primitives::{Circle, Sphere};
 pub use bounding::{Aabb2d, Aabb3d};
 pub use curve::CubicBezier3d;
@@ -109,8 +109,8 @@ pub use int_vectors::{
     BVec3A, BVec4A,
 };
 
-// Extended affine transform types (3 new types)
-pub use affine_ext::{DAffine2, DAffine3, Affine3A};
+// Extended affine transform types (2 new types - Affine3A is in affine3 module)
+pub use affine_ext::{DAffine2, DAffine3};
 
 // Extended shapes, curves, bounds, and other types (70+ new types)
 pub use extended_types::{

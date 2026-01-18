@@ -158,7 +158,7 @@ pub struct EventCursor<E: Event>(u64, PhantomData<E>);
 pub struct EventRegistry;
 pub struct EventParIter;
 
-impl<E: Event> Resource for Events<E> {}
+
 
 /// Event sent when the application should exit
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -168,7 +168,7 @@ pub enum AppExit {
     Error(u8),
 }
 
-impl Resource for AppExit {}
+
 
 /// Standard system to update events every frame
 pub fn event_update_system<E: Event>(mut events: ResMut<Events<E>>) {

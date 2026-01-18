@@ -2,14 +2,23 @@
 name = "autozig-mesh"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/your-repo/autozig"
+description = "Bevy mesh system for WebGPU/WASM platforms"
+build = "build.rs"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
+autozig-app = { path = "../autozig-app" }
+autozig-asset = { path = "../autozig-asset" }
+autozig-ecs = { path = "../autozig-ecs" }
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
 
-[dev-dependencies]
-
 [lib]
-crate-type = ["lib", "staticlib"]
+crate-type = ["lib"]
+
+[[test]]
+name = "mesh_tests"
+path = "tests/mesh_tests.rs"

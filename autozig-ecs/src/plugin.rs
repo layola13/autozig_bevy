@@ -297,30 +297,12 @@ impl Plugin for CorePlugin {
     }
 }
 
-/// Time plugin providing time tracking
-pub struct TimePlugin;
-
-impl Plugin for TimePlugin {
-    fn build(&self, app: &mut App) {
-        use autozig_time::Time;
-        app.insert_resource(Time::new());
-        
-        // Add time update system at the start of the frame
-        use crate::into_system::IntoSystem;
-        let sys: crate::into_system::ParamFunctionSystem<crate::into_system::FunctionMarker<((), crate::prelude::ResMut<'static, Time>)>, _> = (|mut time: crate::prelude::ResMut<Time>| {
-            time.update();
-        }).into_system();
-        app.add_systems(crate::schedule::First, sys);
-    }
-}
-
 /// Default plugins bundle (Bevy-style)
 pub struct DefaultPlugins;
 
 impl Plugin for DefaultPlugins {
     fn build(&self, app: &mut App) {
         app.add_plugin(CorePlugin)
-           .add_plugin(TimePlugin)
            .add_plugin(crate::hierarchy::HierarchyPlugin);
     }
 }

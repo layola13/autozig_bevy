@@ -461,3 +461,48 @@ fn test_perspective_vs_orthographic() {
     assert!(ProjectionUtils::is_perspective(&persp_matrix));
     assert!(ProjectionUtils::is_orthographic(&ortho_matrix));
 }
+
+// ============================================================================
+// Bevy Parity Tests (Phase 2-3)
+// ============================================================================
+
+#[test]
+fn test_view_visibility_constants() {
+    let visible = ViewVisibility::VISIBLE;
+    let hidden = ViewVisibility::HIDDEN;
+    
+    assert!(visible.get());
+    assert!(!hidden.get());
+}
+
+#[test]
+fn test_view_visibility_set() {
+    let mut v = ViewVisibility::new(false);
+    assert!(!v.get());
+    
+    v.set(true);
+    assert!(v.get());
+}
+
+#[test]
+fn test_inherited_visibility_constants() {
+    let visible = InheritedVisibility::VISIBLE;
+    let hidden = InheritedVisibility::HIDDEN;
+    
+    assert!(visible.get());
+    assert!(!hidden.get());
+}
+
+#[test]
+fn test_clear_color_default() {
+    let color = ClearColor::default();
+    // Default should be a reasonable color (not zero/black typically)
+    let _ = color; // Just verify it compiles with Default
+}
+
+#[test]
+fn test_camera_systems_enum() {
+    // Verify system set enum values
+    assert_ne!(CameraSystems::UpdateProjections, CameraSystems::PropagateVisibility);
+    assert_ne!(CameraSystems::CheckVisibility, CameraSystems::ExtractCameras);
+}

@@ -222,21 +222,37 @@ where
 
 
 // Macro to implement SystemParamFunction for tuples
+// This implementation follows Bevy's pattern of using `for<'a> &'a mut Func: FnMut(...)`
+// which allows function items with explicit lifetime parameters to work correctly
 macro_rules! impl_system_param_function {
     ($($param:ident),*) => {
         #[allow(non_snake_case)]
-        impl<Out, F, $($param),*> SystemParamFunction<FunctionMarker<(Out, $($param,)*)>> for F
+        impl<Out, Func, $($param),*> SystemParamFunction<FunctionMarker<(Out, $($param,)*)>> for Func
         where
-            F: FnMut($($param::Item<'_>),*) -> Out + Send + Sync + 'static,
+            Func: Send + Sync + 'static,
+            for<'a> &'a mut Func:
+                FnMut($($param),*) -> Out +
+                FnMut($($param::Item<'_>),*) -> Out,
             $($param: SystemParam),*
         {
             type Param = ($($param,)*);
             type In = ();
             type Out = Out;
+            
+            #[allow(non_snake_case)]
             fn run(&mut self, _input: (), param: <Self::Param as SystemParam>::Item<'_>) -> Out {
+                // Helper function to call the system function
+                // This pattern is from Bevy and helps rustc understand the function call
+                fn call_inner<Out, $($param,)*>(
+                    mut f: impl FnMut($($param,)*) -> Out,
+                    $($param: $param,)*
+                ) -> Out {
+                    f($($param,)*)
+                }
+                
                 #[allow(non_snake_case)]
                 let ($($param,)*) = param;
-                self($($param),*)
+                call_inner(self, $($param),*)
             }
         }
     };
