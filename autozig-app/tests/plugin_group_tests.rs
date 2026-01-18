@@ -211,7 +211,7 @@ fn test_minimal_plugins() {
 #[test]
 fn test_app_add_plugin_group() {
     let mut app = App::empty();
-    app.add_plugin_group(MinimalPlugins);
+    app.add_plugins(MinimalPlugins);
     
     // App should be configured with the plugin group
     // This test just verifies it doesn't panic
@@ -220,7 +220,7 @@ fn test_app_add_plugin_group() {
 #[test]
 fn test_app_add_custom_plugin_group() {
     let mut app = App::empty();
-    app.add_plugin_group(TestPluginGroup);
+    app.add_plugins(TestPluginGroup);
     
     // Should successfully add custom plugin group
 }

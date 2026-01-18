@@ -5,7 +5,7 @@ struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        extern "C" fn game_plugin_build(_app_ptr: *mut std::ffi::c_void) {
+        fn game_plugin_build(_app_ptr: *mut std::ffi::c_void) {
             println!("  → GamePlugin initialized");
         }
         
@@ -17,7 +17,7 @@ struct PhysicsPlugin;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        extern "C" fn physics_plugin_build(_app_ptr: *mut std::ffi::c_void) {
+        fn physics_plugin_build(_app_ptr: *mut std::ffi::c_void) {
             println!("  → PhysicsPlugin initialized");
         }
         
@@ -37,8 +37,8 @@ fn main() {
     app.add_plugin(CorePlugin);
     println!("✓ 添加 CorePlugin");
     
-    app.add_plugin(TimePlugin);
-    println!("✓ 添加 TimePlugin");
+    // app.add_plugin(TimePlugin);
+    // println!("✓ 添加 TimePlugin");
     
     app.add_plugin(GamePlugin);
     println!("✓ 添加 GamePlugin");

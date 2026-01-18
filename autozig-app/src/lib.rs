@@ -48,6 +48,23 @@ pub mod prelude {
 // Schedule Label Types (Zero-Sized Types for type-safe schedule identification)
 // ============================================================================
 
+/// Trait for types that can be used as an application label
+pub trait AppLabel: 'static + Send + Sync {
+    fn as_label(&self) -> &str;
+}
+
+impl AppLabel for &'static str {
+    fn as_label(&self) -> &str {
+        self
+    }
+}
+
+impl AppLabel for String {
+    fn as_label(&self) -> &str {
+        self
+    }
+}
+
 
 use std::borrow::Cow;
 
@@ -243,6 +260,18 @@ impl MainScheduleOrder {
             MainScheduleOrder::PostUpdate,
             MainScheduleOrder::Last,
         ]
+    }
+}
+
+impl ScheduleLabel for MainScheduleOrder {
+    fn label(&self) -> Cow<'static, str> {
+        Cow::Borrowed(self.as_str())
+    }
+}
+
+impl ScheduleLabel for FixedMainScheduleOrder {
+    fn label(&self) -> Cow<'static, str> {
+        Cow::Borrowed(self.as_str())
     }
 }
 
@@ -658,156 +687,291 @@ pub struct PropagateStop;
 // ============================================================================
 
 /// Trait for types that can be used as a collection of plugins
-pub trait Plugins: Sized {
+pub trait Plugins<Marker>: Sized {
     /// Add these plugins to the app
     fn add_to_app(self, app: &mut App);
 }
 
 // Implement Plugins for single Plugin
-impl<P: Plugin> Plugins for P {
+impl<P: Plugin> Plugins<PluginMarker<P>> for P {
     fn add_to_app(self, app: &mut App) {
         app.add_plugin(self);
     }
 }
 
+// Implement Plugins for PluginGroup
+impl<P: PluginGroup> Plugins<PluginGroupMarker<P>> for P {
+    fn add_to_app(self, app: &mut App) {
+        self.build().finish(app);
+    }
+}
+
 // Implement Plugins for tuples of plugins (up to 12 elements)
-impl<P1: Plugin> Plugins for (P1,) {
+impl<P1, M1> Plugins<(M1,)> for (P1,)
+where
+    P1: Plugins<M1>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
+        self.0.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin> Plugins for (P1, P2) {
+impl<P1, P2, M1, M2> Plugins<(M1, M2)> for (P1, P2)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin> Plugins for (P1, P2, P3) {
+impl<P1, P2, P3, M1, M2, M3> Plugins<(M1, M2, M3)> for (P1, P2, P3)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin> Plugins for (P1, P2, P3, P4) {
+impl<P1, P2, P3, P4, M1, M2, M3, M4> Plugins<(M1, M2, M3, M4)> for (P1, P2, P3, P4)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin> Plugins for (P1, P2, P3, P4, P5) {
+impl<P1, P2, P3, P4, P5, M1, M2, M3, M4, M5> Plugins<(M1, M2, M3, M4, M5)>
+    for (P1, P2, P3, P4, P5)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin> Plugins for (P1, P2, P3, P4, P5, P6) {
+impl<
+    P1, P2, P3, P4, P5, P6,
+    M1, M2, M3, M4, M5, M6,
+> Plugins<(M1, M2, M3, M4, M5, M6)> for (P1, P2, P3, P4, P5, P6)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7,
+    M1, M2, M3, M4, M5, M6, M7,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7)> for (P1, P2, P3, P4, P5, P6, P7)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7, P8,
+    M1, M2, M3, M4, M5, M6, M7, M8,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7, M8)> for (P1, P2, P3, P4, P5, P6, P7, P8)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+    P8: Plugins<M8>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
-        app.add_plugin(self.7);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
+        self.7.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7, P8, P9,
+    M1, M2, M3, M4, M5, M6, M7, M8, M9,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7, M8, M9)> for (P1, P2, P3, P4, P5, P6, P7, P8, P9)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+    P8: Plugins<M8>,
+    P9: Plugins<M9>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
-        app.add_plugin(self.7);
-        app.add_plugin(self.8);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
+        self.7.add_to_app(app);
+        self.8.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10,
+    M1, M2, M3, M4, M5, M6, M7, M8, M9, M10,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10)>
+    for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+    P8: Plugins<M8>,
+    P9: Plugins<M9>,
+    P10: Plugins<M10>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
-        app.add_plugin(self.7);
-        app.add_plugin(self.8);
-        app.add_plugin(self.9);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
+        self.7.add_to_app(app);
+        self.8.add_to_app(app);
+        self.9.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin, P11: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11,
+    M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11)>
+    for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+    P8: Plugins<M8>,
+    P9: Plugins<M9>,
+    P10: Plugins<M10>,
+    P11: Plugins<M11>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
-        app.add_plugin(self.7);
-        app.add_plugin(self.8);
-        app.add_plugin(self.9);
-        app.add_plugin(self.10);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
+        self.7.add_to_app(app);
+        self.8.add_to_app(app);
+        self.9.add_to_app(app);
+        self.10.add_to_app(app);
     }
 }
 
-impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin, P11: Plugin, P12: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) {
+impl<
+    P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12,
+    M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12,
+> Plugins<(M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12)>
+    for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12)
+where
+    P1: Plugins<M1>,
+    P2: Plugins<M2>,
+    P3: Plugins<M3>,
+    P4: Plugins<M4>,
+    P5: Plugins<M5>,
+    P6: Plugins<M6>,
+    P7: Plugins<M7>,
+    P8: Plugins<M8>,
+    P9: Plugins<M9>,
+    P10: Plugins<M10>,
+    P11: Plugins<M11>,
+    P12: Plugins<M12>,
+{
     fn add_to_app(self, app: &mut App) {
-        app.add_plugin(self.0);
-        app.add_plugin(self.1);
-        app.add_plugin(self.2);
-        app.add_plugin(self.3);
-        app.add_plugin(self.4);
-        app.add_plugin(self.5);
-        app.add_plugin(self.6);
-        app.add_plugin(self.7);
-        app.add_plugin(self.8);
-        app.add_plugin(self.9);
-        app.add_plugin(self.10);
-        app.add_plugin(self.11);
+        self.0.add_to_app(app);
+        self.1.add_to_app(app);
+        self.2.add_to_app(app);
+        self.3.add_to_app(app);
+        self.4.add_to_app(app);
+        self.5.add_to_app(app);
+        self.6.add_to_app(app);
+        self.7.add_to_app(app);
+        self.8.add_to_app(app);
+        self.9.add_to_app(app);
+        self.10.add_to_app(app);
+        self.11.add_to_app(app);
     }
 }
+
 
 
 // ============================================================================
@@ -1009,14 +1173,14 @@ impl App {
         // Initialize Schedules resource
         let mut schedules = Schedules::new();
         // pre-insert common schedules to avoid cloning checking later
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::First));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PreStartup));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Startup));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PostStartup));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PreUpdate));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Update));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::PostUpdate));
-        schedules.insert(autozig_ecs::schedule::Schedule::new(autozig_ecs::schedule::Last));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::First));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::PreStartup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::Startup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::PostStartup));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::PreUpdate));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::Update));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::PostUpdate));
+        schedules.insert(autozig_ecs::schedule::Schedule::new(MainScheduleOrder::Last));
         world.insert_resource(schedules);
         
         let ptr = app_create(world.as_raw_ptr());
@@ -1052,6 +1216,10 @@ impl App {
     
     /// Update the application for one frame
     pub fn update(&mut self) -> &mut Self {
+        // Set global world pointer for FFI callbacks (essential for schedule runners)
+        // CRITICAL: We must pass the pointer to the Rust World struct, NOT the internal Zig pointer
+        GLOBAL_WORLD_PTR.store(&mut self.world as *mut autozig_ecs::world::World as *mut _, Ordering::SeqCst);
+        
         app_update(self.inner.as_ptr());
         self
     }
@@ -1062,7 +1230,8 @@ impl App {
     /// It internally replaces `self` with an empty App and passes ownership to the runner.
     pub fn run(&mut self) -> AppExit {
         // Set global world pointer for FFI callbacks
-        GLOBAL_WORLD_PTR.store(self.world.as_raw_ptr() as *mut _, Ordering::SeqCst);
+        // CRITICAL: We must pass the pointer to the Rust World struct, NOT the internal Zig pointer
+        GLOBAL_WORLD_PTR.store(&mut self.world as *mut autozig_ecs::world::World as *mut _, Ordering::SeqCst);
         
         let code = app_run(self.inner.as_ptr());
         
@@ -1191,6 +1360,8 @@ impl App {
         NonNull::new(ptr).map(|inner| SubApp { inner, owned: false })
     }
 
+
+
     /// Insert a resource into the application
     pub fn insert_resource<T: 'static>(&mut self, resource: T) -> &mut Self {
         let type_id = core::any::TypeId::of::<T>();
@@ -1263,25 +1434,21 @@ impl App {
     /// app.add_plugins((CorePlugin, PhysicsPlugin, RenderPlugin));
     /// app.add_plugins(DefaultPlugins);
     /// ```
-    pub fn add_plugins<P: Plugins>(&mut self, plugins: P) -> &mut Self {
+    pub fn add_plugins<M>(&mut self, plugins: impl Plugins<M>) -> &mut Self {
         plugins.add_to_app(self);
         self
     }
     
-    /// Add a plugin group
-    ///
-    /// Use this for PluginGroup types like DefaultPlugins.
-    ///
-    /// # Examples
-    /// ```ignore
-    /// app.add_plugin_group(DefaultPlugins);
-    /// app.add_plugin_group(MinimalPlugins);
-    /// ```
-    pub fn add_plugin_group<G: PluginGroup>(&mut self, group: G) -> &mut Self {
-        let builder = group.build();
-        builder.finish(self);
+    /// Configure a sub-app.
+    pub fn configure_sub_app(&mut self, label: impl AppLabel, f: impl FnOnce(&mut SubApp)) -> &mut Self {
+        if let Some(mut sub_app) = self.get_sub_app_mut(label.as_label()) {
+            f(&mut sub_app);
+        } else {
+            panic!("Sub-app not found");
+        }
         self
     }
+
     
     /// Add a system to a specific schedule
     ///
@@ -2139,31 +2306,38 @@ macro_rules! define_runner {
     };
 }
 
-define_runner!(run_rust_first, autozig_ecs::schedule::First);
-define_runner!(run_rust_pre_startup, autozig_ecs::schedule::PreStartup);
-define_runner!(run_rust_startup, autozig_ecs::schedule::Startup);
-define_runner!(run_rust_post_startup, autozig_ecs::schedule::PostStartup);
-define_runner!(run_rust_pre_update, autozig_ecs::schedule::PreUpdate);
-define_runner!(run_rust_update, autozig_ecs::schedule::Update);
-define_runner!(run_rust_post_update, autozig_ecs::schedule::PostUpdate);
-define_runner!(run_rust_last, autozig_ecs::schedule::Last);
+define_runner!(run_rust_first, MainScheduleOrder::First);
+define_runner!(run_rust_pre_startup, MainScheduleOrder::PreStartup);
+define_runner!(run_rust_startup, MainScheduleOrder::Startup);
+define_runner!(run_rust_post_startup, MainScheduleOrder::PostStartup);
+define_runner!(run_rust_pre_update, MainScheduleOrder::PreUpdate);
+define_runner!(run_rust_update, MainScheduleOrder::Update);
+define_runner!(run_rust_post_update, MainScheduleOrder::PostUpdate);
+define_runner!(run_rust_last, MainScheduleOrder::Last);
 
 fn run_rust_schedule(label: impl ScheduleLabel) {
     let raw_ptr = GLOBAL_WORLD_PTR.load(Ordering::SeqCst);
     if raw_ptr.is_null() { 
-        // This might happen if called outside App::run, e.g. manual update
+        // println!("DEBUG: run_rust_schedule: GLOBAL_WORLD_PTR is null");
         return; 
     }
 
+    // unsafe {
+    //    let world = &mut *(raw_ptr as *mut autozig_ecs::world::World);
+    //    println!("DEBUG: run_rust_schedule running label: {:?}", label);
+    //    match world.try_run_schedule(label) {
+    //        Ok(_) => println!("DEBUG: run_rust_schedule success"),
+    //        Err(e) => println!("DEBUG: run_rust_schedule error: {:?}", e),
+    //    }
+    // }
+    
     unsafe {
         // Create temporary wrapper to access World methods
         // SAFETY: We strictly must NOT drop this world, as it owns resources/pointers
-        let mut world = autozig_ecs::world::World::from_raw(raw_ptr);
+        // We cast the pointer directly to &mut World instead of using from_raw to avoid Drop
+        let world = &mut *(raw_ptr as *mut autozig_ecs::world::World);
         
         // Run the schedule using World's schedule runner helpers
         world.try_run_schedule(label);
-        
-        // CRITICAL: Prevent Dropping the World
-        core::mem::forget(world);
     }
 }

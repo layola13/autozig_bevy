@@ -16,7 +16,7 @@ pub fn default<T: Default>() -> T {
 /// set up a simple 3D scene
 fn main() {
     App::new()
-        .add_plugin_group(DefaultPlugins)
+        .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .run();
 }

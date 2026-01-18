@@ -130,13 +130,13 @@ fn main() {
     // Example 3: Plugin group chaining
     println!("Example 3: Adding plugin group");
     let mut app = App::new();
-    app.add_plugin_group(DefaultPlugins);
+    app.add_plugins(DefaultPlugins);
     println!("✓ Plugin group chaining works!\n");
     
     // Example 4: Mixed chaining with resources
     println!("Example 4: Mixed chaining with plugins and resources");
     let mut app = App::new();
-    app.add_plugin_group(DefaultPlugins)
+    app.add_plugins(DefaultPlugins)
         .insert_resource(PlayerState {
             health: 150,
             score: 1000,
@@ -162,7 +162,7 @@ fn main() {
     println!("Example 6: Fluent API style (Bevy-like)");
     let mut app = App::new();
     app
-        .add_plugin_group(DefaultPlugins)
+        .add_plugins(DefaultPlugins)
         .insert_resource(GameSettings::default())
         .insert_resource(PlayerState {
             health: 100,

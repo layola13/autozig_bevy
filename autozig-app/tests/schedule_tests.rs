@@ -7,45 +7,55 @@ use std::sync::Arc;
 // Test counter for tracking system execution
 static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
 
-extern "C" fn reset_counter() {
+extern "C" fn reset_counter_c() {
     TEST_COUNTER.store(0, Ordering::SeqCst);
 }
+fn reset_counter() { reset_counter_c(); }
 
-extern "C" fn increment_counter() {
+extern "C" fn increment_counter_c() {
     TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
 }
+fn increment_counter() { increment_counter_c(); }
 
-extern "C" fn first_system() {
+extern "C" fn first_system_c() {
     TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
 }
+fn first_system() { first_system_c(); }
 
-extern "C" fn pre_startup_system() {
+extern "C" fn pre_startup_system_c() {
     TEST_COUNTER.fetch_add(10, Ordering::SeqCst);
 }
+fn pre_startup_system() { pre_startup_system_c(); }
 
-extern "C" fn startup_system() {
+extern "C" fn startup_system_c() {
     TEST_COUNTER.fetch_add(100, Ordering::SeqCst);
 }
+fn startup_system() { startup_system_c(); }
 
-extern "C" fn post_startup_system() {
+extern "C" fn post_startup_system_c() {
     TEST_COUNTER.fetch_add(1000, Ordering::SeqCst);
 }
+fn post_startup_system() { post_startup_system_c(); }
 
-extern "C" fn pre_update_system() {
+extern "C" fn pre_update_system_c() {
     TEST_COUNTER.fetch_add(10000, Ordering::SeqCst);
 }
+fn pre_update_system() { pre_update_system_c(); }
 
-extern "C" fn update_system() {
+extern "C" fn update_system_c() {
     TEST_COUNTER.fetch_add(100000, Ordering::SeqCst);
 }
+fn update_system() { update_system_c(); }
 
-extern "C" fn post_update_system() {
+extern "C" fn post_update_system_c() {
     TEST_COUNTER.fetch_add(1000000, Ordering::SeqCst);
 }
+fn post_update_system() { post_update_system_c(); }
 
-extern "C" fn last_system() {
+extern "C" fn last_system_c() {
     TEST_COUNTER.fetch_add(10000000, Ordering::SeqCst);
 }
+fn last_system() { last_system_c(); }
 
 #[test]
 fn test_schedule_order_enum() {
@@ -256,13 +266,15 @@ fn test_mixed_startup_and_update() {
     
     let mut app = App::new();
     
-    extern "C" fn startup_inc() {
+    extern "C" fn startup_inc_c() {
         TEST_COUNTER.fetch_add(1000, Ordering::SeqCst);
     }
+    fn startup_inc() { startup_inc_c(); }
     
-    extern "C" fn update_inc() {
+    extern "C" fn update_inc_c() {
         TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     }
+    fn update_inc() { update_inc_c(); }
     
     // Add both startup and update systems
     app.add_systems(MainScheduleOrder::Startup, startup_inc)
@@ -287,17 +299,20 @@ fn test_multiple_systems_same_schedule() {
     
     let mut app = App::new();
     
-    extern "C" fn add_1() {
+    extern "C" fn add_1_c() {
         TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
     }
+    fn add_1() { add_1_c(); }
     
-    extern "C" fn add_2() {
+    extern "C" fn add_2_c() {
         TEST_COUNTER.fetch_add(2, Ordering::SeqCst);
     }
+    fn add_2() { add_2_c(); }
     
-    extern "C" fn add_4() {
+    extern "C" fn add_4_c() {
         TEST_COUNTER.fetch_add(4, Ordering::SeqCst);
     }
+    fn add_4() { add_4_c(); }
     
     // Add multiple systems to the same schedule
     app.add_systems(MainScheduleOrder::Update, add_1)
