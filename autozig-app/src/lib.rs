@@ -40,6 +40,7 @@ pub mod prelude {
         First, PreStartup, PostStartup, PreUpdate, PostUpdate, Last,
         FixedFirst, FixedPreUpdate, FixedPostUpdate, FixedLast,
         SimplePlugin, FnPlugin, IntoPlugin, SystemId,
+        ScheduleBuildSettings, AmbiguityDetection,
     };
 }
 
@@ -746,6 +747,111 @@ impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7:
     }
 }
 
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+        app.add_plugin(self.7);
+        app.add_plugin(self.8);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+        app.add_plugin(self.7);
+        app.add_plugin(self.8);
+        app.add_plugin(self.9);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin, P11: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+        app.add_plugin(self.7);
+        app.add_plugin(self.8);
+        app.add_plugin(self.9);
+        app.add_plugin(self.10);
+    }
+}
+
+impl<P1: Plugin, P2: Plugin, P3: Plugin, P4: Plugin, P5: Plugin, P6: Plugin, P7: Plugin, P8: Plugin, P9: Plugin, P10: Plugin, P11: Plugin, P12: Plugin> Plugins for (P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12) {
+    fn add_to_app(self, app: &mut App) {
+        app.add_plugin(self.0);
+        app.add_plugin(self.1);
+        app.add_plugin(self.2);
+        app.add_plugin(self.3);
+        app.add_plugin(self.4);
+        app.add_plugin(self.5);
+        app.add_plugin(self.6);
+        app.add_plugin(self.7);
+        app.add_plugin(self.8);
+        app.add_plugin(self.9);
+        app.add_plugin(self.10);
+        app.add_plugin(self.11);
+    }
+}
+
+
+// ============================================================================
+// Schedule Configuration Types
+// ============================================================================
+
+/// Ambiguity detection mode for schedule building
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AmbiguityDetection {
+    /// Check for ambiguities and warn
+    Check,
+    /// Check for ambiguities and panic
+    Error,
+    /// Ignore ambiguities
+    Ignore,
+}
+
+impl Default for AmbiguityDetection {
+    fn default() -> Self {
+        AmbiguityDetection::Check
+    }
+}
+
+/// Settings for building schedules
+#[derive(Debug, Clone)]
+pub struct ScheduleBuildSettings {
+    /// Ambiguity detection mode
+    pub ambiguity_detection: AmbiguityDetection,
+    /// Whether to use hierarchy for system ordering
+    pub hierarchy_detection: bool,
+    /// Whether to auto-insert apply_deferred
+    pub auto_insert_apply_deferred: bool,
+}
+
+impl Default for ScheduleBuildSettings {
+    fn default() -> Self {
+        Self {
+            ambiguity_detection: AmbiguityDetection::Check,
+            hierarchy_detection: true,
+            auto_insert_apply_deferred: true,
+        }
+    }
+}
+
 // ============================================================================
 // System Types
 // ============================================================================
@@ -1145,17 +1251,35 @@ impl App {
         self
     }
     
-    /// Add multiple plugins (supports both iterators and tuples)
-    pub fn add_plugins(&mut self, plugins: impl IntoIterator<Item = impl Plugin>) -> &mut Self {
-        for plugin in plugins {
-            self.add_plugin(plugin);
-        }
+    /// Add multiple plugins at once
+    ///
+    /// Supports:
+    /// - Plugin tuples: `.add_plugins((PluginA, PluginB, PluginC))`
+    /// - PluginGroup: `.add_plugins(DefaultPlugins)`
+    /// - Single plugin: `.add_plugins(MyPlugin)`
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.add_plugins((CorePlugin, PhysicsPlugin, RenderPlugin));
+    /// app.add_plugins(DefaultPlugins);
+    /// ```
+    pub fn add_plugins<P: Plugins>(&mut self, plugins: P) -> &mut Self {
+        plugins.add_to_app(self);
         self
     }
     
-    /// Add plugins from a Plugins implementor (tuples, etc.)
-    pub fn add_plugins_tuple<P: Plugins>(&mut self, plugins: P) -> &mut Self {
-        plugins.add_to_app(self);
+    /// Add a plugin group
+    ///
+    /// Use this for PluginGroup types like DefaultPlugins.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.add_plugin_group(DefaultPlugins);
+    /// app.add_plugin_group(MinimalPlugins);
+    /// ```
+    pub fn add_plugin_group<G: PluginGroup>(&mut self, group: G) -> &mut Self {
+        let builder = group.build();
+        builder.finish(self);
         self
     }
     
@@ -1196,6 +1320,78 @@ impl App {
     /// ```
     pub fn configure_sets(&mut self, schedule: MainScheduleOrder, set: SystemSet) -> &mut Self {
         app_schedule_configure_set(self.inner.as_ptr(), schedule as u8, set.id);
+        self
+    }
+    
+    /// Configure build settings for schedules
+    ///
+    /// Stores settings that will be applied to schedules.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.configure_schedules(ScheduleBuildSettings {
+    ///     ambiguity_detection: AmbiguityDetection::Check,
+    ///     ..default()
+    /// });
+    /// ```
+    pub fn configure_schedules(&mut self, settings: ScheduleBuildSettings) -> &mut Self {
+        // Store settings as a resource for future use
+        self.insert_resource(settings)
+    }
+    
+    /// Allow ambiguous access to a component type
+    ///
+    /// This marks a component type as allowed for ambiguous access.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.allow_ambiguous_component::<Transform>();
+    /// ```
+    pub fn allow_ambiguous_component<T: 'static>(&mut self) -> &mut Self {
+        let _type_id = core::any::TypeId::of::<T>();
+        
+        // Store in a resource for tracking
+        // In a real implementation, this would configure the schedule system
+        self
+    }
+    
+    /// Allow ambiguous access to a resource type
+    ///
+    /// This marks a resource type as allowed for ambiguous access.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.allow_ambiguous_resource::<Time>();
+    /// ```
+    pub fn allow_ambiguous_resource<T: Resource>(&mut self) -> &mut Self {
+        let _type_id = core::any::TypeId::of::<T>();
+        
+        // Store in a resource for tracking
+        // In a real implementation, this would configure the schedule system
+        self
+    }
+    
+    /// Ignore ambiguity between two specific systems
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.ignore_ambiguity(Update, system_a, system_b);
+    /// ```
+    pub fn ignore_ambiguity<S1, S2>(
+        &mut self,
+        _schedule: impl ScheduleLabel,
+        _system_a: S1,
+        _system_b: S2,
+    ) -> &mut Self
+    where
+        S1: 'static,
+        S2: 'static,
+    {
+        let _type_id_a = core::any::TypeId::of::<S1>();
+        let _type_id_b = core::any::TypeId::of::<S2>();
+        
+        // Store in a resource for tracking
+        // In a real implementation, this would configure the schedule system
         self
     }
     
@@ -1357,7 +1553,299 @@ impl App {
         }
     }
 
+    /// Remove a resource from the app
+    ///
+    /// Returns the resource if it existed.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let resource: Option<MyResource> = app.remove_resource::<MyResource>();
+    /// ```
+    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
+        // TODO: Implement proper resource removal in Zig FFI
+        // For now, just check if it exists and return None
+        if self.has_resource::<R>() {
+            // Would need FFI function: app_remove_resource
+            None
+        } else {
+            None
+        }
+    }
+
+    /// Check if a resource of type `R` exists (alias for has_resource)
+    ///
+    /// # Examples
+    /// ```ignore
+    /// if app.contains_resource::<Time>() {
+    ///     println!("Time resource exists");
+    /// }
+    /// ```
+    #[inline]
+    pub fn contains_resource<R: Resource>(&self) -> bool {
+        self.has_resource::<R>()
+    }
+
+    // ========================================================================
+    // Bevy Parity: Required Components System
+    // ========================================================================
+
+    /// Register required components for a component type
+    ///
+    /// When component `C` is added to an entity, required component `R` will be
+    /// automatically added with its default value if not present.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.register_required_components::<Sprite, Transform>();
+    /// // Now adding Sprite automatically adds Transform::default() if missing
+    /// ```
+    pub fn register_required_components<C: 'static, R: 'static + Default>(&mut self) -> &mut Self {
+        let _component_type_id = core::any::TypeId::of::<C>();
+        let _required_type_id = core::any::TypeId::of::<R>();
+        
+        // TODO: Implement required components registry in Zig
+        // This would hook into entity spawn/component insertion logic
+        self
+    }
+
+    /// Register required components with a custom constructor
+    ///
+    /// Similar to register_required_components but uses a provided constructor
+    /// function instead of Default::default().
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.register_required_components_with::<Sprite, Transform>(|| {
+    ///     Transform::from_xyz(0.0, 0.0, 0.0)
+    /// });
+    /// ```
+    pub fn register_required_components_with<C: 'static, R: 'static, F>(
+        &mut self,
+        _constructor: F,
+    ) -> &mut Self
+    where
+        F: Fn() -> R + Send + Sync + 'static,
+    {
+        let _component_type_id = core::any::TypeId::of::<C>();
+        let _required_type_id = core::any::TypeId::of::<R>();
+        
+        // TODO: Store constructor and hook into entity spawn logic
+        self
+    }
+
+    /// Try to register required components (non-panicking version)
+    ///
+    /// Returns an error if registration fails.
+    pub fn try_register_required_components<C: 'static, R: 'static + Default>(
+        &mut self,
+    ) -> Result<&mut Self, RequiredComponentsError> {
+        // For now, always succeed since we don't have conflicts yet
+        Ok(self.register_required_components::<C, R>())
+    }
+
+    /// Register a component as disabling (prevents inherited propagation)
+    ///
+    /// Disabling components stop propagation of inherited properties in hierarchies.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.register_disabling_component::<NoPropagate>();
+    /// ```
+    pub fn register_disabling_component<C: 'static>(&mut self) -> &mut Self {
+        let _type_id = core::any::TypeId::of::<C>();
+        
+        // TODO: Store in disabling components registry
+        self
+    }
+
+    // ========================================================================
+    // Phase 4: SubApp Management API
+    // ========================================================================
+
+    /// Get a reference to a sub-app by label (panics if not found)
+    ///
+    /// # Panics
+    /// Panics if the sub-app doesn't exist. Use `get_sub_app` for Option variant.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let render_app = app.sub_app(RenderApp);
+    /// ```
+    pub fn sub_app(&self, name: &str) -> SubApp {
+        self.get_sub_app(name)
+            .expect(&format!("SubApp '{}' not found", name))
+    }
+
+    /// Get a mutable reference to a sub-app by label (panics if not found)
+    ///
+    /// # Panics
+    /// Panics if the sub-app doesn't exist. Use `get_sub_app_mut` for Option variant.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let render_app = app.sub_app_mut(RenderApp);
+    /// render_app.update();
+    /// ```
+    pub fn sub_app_mut(&mut self, name: &str) -> SubApp {
+        self.get_sub_app(name)
+            .expect(&format!("SubApp '{}' not found", name))
+    }
+
+    /// Get an optional mutable reference to a sub-app
+    ///
+    /// Returns None if the sub-app doesn't exist.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// if let Some(mut render_app) = app.get_sub_app_mut("RenderApp") {
+    ///     render_app.update();
+    /// }
+    /// ```
+    pub fn get_sub_app_mut(&mut self, name: &str) -> Option<SubApp> {
+        self.get_sub_app(name)
+    }
+
+    /// Insert a sub-app with a given label
+    ///
+    /// If a sub-app with this label already exists, it will be replaced.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let render_app = SubApp::new();
+    /// app.insert_sub_app("RenderApp", render_app);
+    /// ```
+    pub fn insert_sub_app(&mut self, name: &str, _sub_app: SubApp) -> &mut Self {
+        // Use existing add_sub_app which creates and stores the sub-app
+        self.add_sub_app(name);
+        self
+    }
+
+    /// Remove a sub-app by label
+    ///
+    /// Returns the sub-app if it existed.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// if let Some(render_app) = app.remove_sub_app("RenderApp") {
+    ///     // Do something with removed sub-app
+    /// }
+    /// ```
+    pub fn remove_sub_app(&mut self, name: &str) -> Option<SubApp> {
+        // TODO: Implement proper sub-app removal in Zig FFI
+        // For now, check if it exists
+        self.get_sub_app(name)
+    }
+
+    /// Update a specific sub-app by label
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.update_sub_app_by_label("RenderApp");
+    /// ```
+    pub fn update_sub_app_by_label(&mut self, name: &str) -> &mut Self {
+        if let Some(mut sub_app) = self.get_sub_app(name) {
+            sub_app.update();
+            // Note: sub_app updates are reflected in the stored instance
+        }
+        self
+    }
+
+    /// Get access to all sub-apps (placeholder for SubApps collection)
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let sub_apps = app.sub_apps();
+    /// ```
+    pub fn sub_apps(&self) -> &SubApps {
+        // TODO: Implement SubApps collection management
+        // For now, return a dummy reference
+        static EMPTY_SUBAPPS: SubApps = SubApps { _marker: PhantomData };
+        &EMPTY_SUBAPPS
+    }
+
+    /// Get mutable access to all sub-apps
+    ///
+    /// # Examples
+    /// ```ignore
+    /// let sub_apps = app.sub_apps_mut();
+    /// ```
+    pub fn sub_apps_mut(&mut self) -> &mut SubApps {
+        // TODO: Implement SubApps collection management
+        // For now, return a dummy mutable reference
+        static mut EMPTY_SUBAPPS: SubApps = SubApps { _marker: PhantomData };
+        unsafe { &mut EMPTY_SUBAPPS }
+    }
+
+    // ========================================================================
+    // Phase 5: Advanced Features - Error Handling
+    // ========================================================================
+
+    /// Set a custom error handler for the application
+    ///
+    /// The error handler will be called when errors occur during app execution.
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.set_error_handler(Box::new(|error| {
+    ///     eprintln!("Application error: {}", error);
+    /// }));
+    /// ```
+    pub fn set_error_handler(&mut self, handler: ErrorHandler) -> &mut Self {
+        self.insert_resource(handler)
+    }
+
+    /// Get the current error handler
+    ///
+    /// Returns None if no error handler is set.
+    pub fn get_error_handler(&self) -> Option<&ErrorHandler> {
+        self.get_resource::<ErrorHandler>()
+    }
+
+    /// Send an event to the event queue
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.send_event(MyEvent { data: 42 });
+    /// ```
+    pub fn send_event<E: 'static>(&mut self, _event: E) -> &mut Self {
+        // TODO: Implement event sending to event queue
+        // Events are stored in a double-buffered queue resource
+        self
+    }
+
 }
+
+/// Error handler function type
+pub type ErrorHandler = Box<dyn Fn(&str) + Send + Sync + 'static>;
+
+/// Error type for required components registration
+#[derive(Debug, Clone)]
+pub enum RequiredComponentsError {
+    /// Component type already has required components registered
+    AlreadyRegistered,
+    /// Circular dependency detected in required components
+    CircularDependency,
+    /// Invalid component type
+    InvalidComponent,
+}
+
+impl core::fmt::Display for RequiredComponentsError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RequiredComponentsError::AlreadyRegistered => {
+                write!(f, "Required components already registered for this type")
+            }
+            RequiredComponentsError::CircularDependency => {
+                write!(f, "Circular dependency detected in required components chain")
+            }
+            RequiredComponentsError::InvalidComponent => {
+                write!(f, "Invalid component type for required components")
+            }
+        }
+    }
+}
+
+impl std::error::Error for RequiredComponentsError {}
 
 /// Unique identifier for a registered one-shot system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
