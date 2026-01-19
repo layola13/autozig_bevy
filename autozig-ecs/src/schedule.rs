@@ -31,10 +31,23 @@ include_zig!("src/zig/system.zig", {
 });
 
 unsafe extern "C" fn run_system_trampoline(closure_ptr: *mut std::ffi::c_void, world_ptr: *mut std::ffi::c_void) {
-    let closure = closure_ptr as *mut RawClosure;
-    let ptr: *mut dyn System<In=(), Out=()> = std::mem::transmute(((*closure).data, (*closure).vtable));
-    let world = &mut *(world_ptr as *mut World);
-    (*ptr).run((), world);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let closure = closure_ptr as *mut RawClosure;
+        let ptr: *mut dyn System<In=(), Out=()> = std::mem::transmute(((*closure).data, (*closure).vtable));
+        let world = &mut *(world_ptr as *mut World);
+        (*ptr).run((), world);
+    }));
+
+    if let Err(e) = result {
+         println!("PANIC in run_system_trampoline!");
+         if let Some(s) = e.downcast_ref::<&str>() {
+            println!("System Panic: {}", s);
+        } else if let Some(s) = e.downcast_ref::<String>() {
+            println!("System Panic: {}", s);
+        } else {
+            println!("System Panic: unknown");
+        }
+    }
 }
 
 /// A collection of systems that run in a specific order

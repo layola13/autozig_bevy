@@ -263,6 +263,21 @@ impl World {
         self.resource_registry.insert(resource);
     }
     
+    /// Inserts a Non-Send resource
+    pub fn insert_non_send_resource<R: 'static>(&mut self, resource: R) {
+        self.resource_registry.insert_non_send(resource);
+    }
+
+    /// Checks if a Non-Send resource exists
+    pub fn contains_non_send_resource<R: 'static>(&self) -> bool {
+        self.resource_registry.contains_non_send::<R>()
+    }
+
+    /// Removes a Non-Send resource
+    pub fn remove_non_send_resource<R: 'static>(&mut self) -> Option<R> {
+        self.resource_registry.remove_non_send::<R>()
+    }
+    
     
     /// Retrieves this World's unique ID
     #[inline]

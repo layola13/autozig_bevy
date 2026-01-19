@@ -4,12 +4,13 @@ use autozig_render::RenderPlugin;
 use autozig_camera::Camera3d;
 use autozig_transform::{Transform, GlobalTransform};
 use autozig_time::{Time, TimePlugin};
+use autozig_math::Vec3;
 
 // Need to access APP_PTR from autozig-render
 use autozig_render::APP_PTR;
 
-#[no_mangle]
-pub extern "C" fn setup() {
+
+fn setup() {
     unsafe {
         if APP_PTR.is_null() { return; }
         
@@ -24,10 +25,10 @@ pub extern "C" fn setup() {
         
         // Camera at (0, 0, 5) looking at (0, 0, 0)
         let mut camera = Camera3d::new(45.0f32.to_radians(), 1280.0/720.0);
-        let eye = [0.0, 2.0, 5.0];
+        let eye = Vec3::new(0.0, 2.0, 5.0);
         let target = [0.0, 0.0, 0.0];
         let up = [0.0, 1.0, 0.0];
-        camera.look_at(eye, target, up);
+        camera.look_at(eye.to_array(), target, up);
 
         world.spawn((
             camera,
@@ -43,8 +44,8 @@ pub extern "C" fn setup() {
 
 static mut ANGLE: f32 = 0.0;
 
-#[no_mangle]
-pub extern "C" fn rotate_camera() {
+
+fn rotate_camera() {
     unsafe {
         if APP_PTR.is_null() { return; }
         
@@ -66,14 +67,14 @@ pub extern "C" fn rotate_camera() {
         
         let mut query = world.query::<(&mut Camera3d, &mut Transform)>();
         for (mut camera, mut transform) in query.iter::<(&mut Camera3d, &mut Transform), ()>(&world) {
-            transform.translation = [x, 2.0, z];
+            transform.translation = Vec3::new(x, 2.0, z);
             
             // Re-calculate view matrix
             let eye = transform.translation;
             let target = [0.0, 0.0, 0.0];
             let up = [0.0, 1.0, 0.0];
             
-            camera.look_at(eye, target, up);
+            camera.look_at(eye.to_array(), target, up);
         }
         
         // Ensure to forget world!

@@ -15,10 +15,10 @@ struct Position { x: f32, y: f32 }
 struct Velocity { x: f32, y: f32 }
 
 // Resources
-#[derive(Resource)]
+
 struct Score { value: usize }
 
-#[derive(Resource)]
+
 struct StarSpawnTimer(Timer);
 
 fn main() {

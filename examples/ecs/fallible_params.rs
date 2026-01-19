@@ -7,13 +7,13 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource)]
+
 struct PlayerData {
     name: String,
     score: u32,
 }
 
-#[derive(Resource)]
+
 struct GameConfig {
     difficulty: u32,
 }

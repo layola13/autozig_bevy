@@ -6,7 +6,7 @@ use rand::{Rng, random};
 use std::time::Duration; // No Res<Time> yet in pure ECS, simulating time or using simple counter
 
 // Simulating Time resource for pure ECS example
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct Time {
     seconds: f32,
 }
@@ -66,7 +66,7 @@ fn main() {
 #[derive(Component, PartialEq, Debug)]
 struct MyComponent(f32);
 
-#[derive(Resource, PartialEq, Debug, Default)]
+#[derive(PartialEq, Debug, Default)]
 struct MyResource(f32);
 
 fn setup(mut commands: Commands) {

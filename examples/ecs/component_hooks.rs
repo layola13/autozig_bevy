@@ -11,7 +11,7 @@ use std::sync::{Mutex};
 #[derive(Component)]
 struct MyComponent(usize);
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct HookTracker {
     added: usize,
     inserted: usize,

@@ -6,10 +6,10 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct Counter(u32);
 
-#[derive(Resource)]
+
 struct EnableSystem(bool);
 
 fn main() {

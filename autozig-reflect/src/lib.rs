@@ -25,9 +25,12 @@ pub enum TypeInfo {
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypePath {
-    path: *const u8,
-    len: usize,
+    pub path: *const u8,
+    pub len: usize,
 }
+
+unsafe impl Send for TypePath {}
+unsafe impl Sync for TypePath {}
 
 /// Registration of a type in the type registry
 #[repr(C)]
@@ -36,6 +39,9 @@ pub struct TypeRegistration {
     type_info: *const TypeInfo,
     type_path: TypePath,
 }
+
+unsafe impl Send for TypeRegistration {}
+unsafe impl Sync for TypeRegistration {}
 
 /// Global type registry for reflected types
 pub struct TypeRegistry {
@@ -456,8 +462,8 @@ pub struct DynamicSet {
 
 /// Dynamic struct that can hold named fields
 pub struct DynamicStruct {
-    represented_type: Option<TypePath>,
-    fields: std::collections::HashMap<String, Box<dyn PartialReflect>>,
+    pub represented_type: Option<TypePath>,
+    pub fields: std::collections::HashMap<String, Box<dyn PartialReflect>>,
 }
 
 /// Dynamic tuple that can hold unnamed fields
@@ -560,9 +566,9 @@ pub struct TupleIter<'a> {
 
 /// Struct iterator
 pub struct StructIter<'a> {
-    fields: Vec<&'a str>,
-    strukt: &'a dyn Struct,
-    index: usize,
+    pub fields: Vec<&'a str>,
+    pub strukt: &'a dyn Struct,
+    pub index: usize,
 }
 
 /// Array trait for reflected arrays
@@ -834,3 +840,64 @@ impl fmt::Display for FunctionOverloadError {
 // include_zig!("zig/reflect_all.zig", {
 //     // FFI functions will be defined here
 // });
+
+// ============================================================================
+// Implementation of TypeRegistry
+// ============================================================================
+
+impl Default for TypeRegistry {
+    fn default() -> Self {
+        Self {
+            registrations: std::collections::HashMap::new(),
+        }
+    }
+}
+
+impl TypeRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register<T: Typed>(&mut self) {
+        let info = T::type_info();
+        let registration = TypeRegistration {
+            type_id: std::any::TypeId::of::<T>(),
+            type_info: info as *const TypeInfo,
+            type_path: TypePath {
+                path: std::ptr::null(), // TODO: Implement TypePath construction
+                len: 0,
+            },
+        };
+        self.registrations.insert(std::any::TypeId::of::<T>(), registration);
+    }
+}
+
+// ============================================================================
+// Implementation of TypeRegistryArc
+// ============================================================================
+
+impl Default for TypeRegistryArc {
+    fn default() -> Self {
+        Self {
+            inner: std::sync::Arc::new(std::sync::RwLock::new(TypeRegistry::default())),
+        }
+    }
+}
+
+impl Clone for TypeRegistryArc {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
+impl TypeRegistryArc {
+    pub fn read(&self) -> std::sync::RwLockReadGuard<TypeRegistry> {
+        self.inner.read().unwrap()
+    }
+
+    pub fn write(&self) -> std::sync::RwLockWriteGuard<TypeRegistry> {
+        self.inner.write().unwrap()
+    }
+}

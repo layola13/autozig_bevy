@@ -78,7 +78,7 @@ fn main() {
     // 移除资源
     println!("\n【移除资源测试】");
     let removed = resources.remove::<GameConfig>();
-    println!("✓ GameConfig removed: {}", removed);
+    println!("✓ GameConfig removed: {:?}", removed);
     println!("  GameConfig exists after removal: {}", resources.contains::<GameConfig>());
     
     // 验证移除后无法访问

@@ -45,26 +45,27 @@ pub fn run_hello_world_ecs() {
     let mut app = App::new();
     
     // 注册系统
-    app.add_systems(|| {
+    app.add_systems(Update, || {
         web_sys::console::log_1(&"[System 1] 👋 Hello World from AutoZig-Bevy!".into());
     });
     
     let framework = "AutoZig-ECS";
-    app.add_systems(move || {
+    app.add_systems(Update, move || {
         web_sys::console::log_1(&format!("[System 2] ⚙️  使用框架: {}", framework).into());
     });
     
-    let counter = std::cell::Cell::new(0);
-    app.add_systems(move || {
-        counter.set(counter.get() + 1);
-        web_sys::console::log_1(&format!("[System 3] 🔢 执行计数: {}", counter.get()).into());
+    let counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::new(0));
+    let counter_clone = counter.clone();
+    app.add_systems(Update, move || {
+        counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        web_sys::console::log_1(&format!("[System 3] 🔢 执行计数: {}", counter_clone.load(std::sync::atomic::Ordering::Relaxed)).into());
     });
     
-    app.add_systems(|| {
+    app.add_systems(Update, || {
         web_sys::console::log_1(&"[System 4] 🎮 Update: 更新游戏状态".into());
     });
     
-    app.add_systems(|| {
+    app.add_systems(Update, || {
         web_sys::console::log_1(&"[System 5] 🎨 Render: 渲染当前帧".into());
     });
     
@@ -85,9 +86,9 @@ pub fn run_hello_world_ecs() {
 #[wasm_bindgen]
 pub fn get_system_count_ecs() -> usize {
     let mut app = App::new();
-    app.add_systems(|| {})
-        .add_systems(|| {})
-        .add_systems(|| {});
+    app.add_systems(Update, || {})
+        .add_systems(Update, || {})
+        .add_systems(Update, || {});
     app.closure_system_count()
 }
 
@@ -103,7 +104,7 @@ pub fn run_multiple_times_ecs(times: u32) {
         
         let mut app = App::new();
         let iteration = i;
-        app.add_systems(move || {
+        app.add_systems(Update, move || {
             web_sys::console::log_1(&format!("  迭代 {} 执行", iteration).into());
         });
         

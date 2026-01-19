@@ -6,7 +6,7 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource)]
+
 struct Message(String);
 
 fn main() {

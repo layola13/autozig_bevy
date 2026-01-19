@@ -39,11 +39,37 @@ include_zig!("src/zig/resource.zig", {
 
 /// 计算TypeId的Hash作为跨语言ID
 fn get_type_hash<T: 'static>() -> u64 {
-    use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    let mut hasher = DefaultHasher::new();
+    let mut hasher = TypeIdHasher::default();
     std::any::TypeId::of::<T>().hash(&mut hasher);
     hasher.finish()
+}
+
+// 简单的TypeId哈希器实现（完全安全，与autozig-app保持一致）
+#[derive(Default)]
+struct TypeIdHasher {
+    state: u64,
+}
+
+impl std::hash::Hasher for TypeIdHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        // 使用FNV-1a哈希算法
+        const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+        const FNV_PRIME: u64 = 0x100000001b3;
+        
+        if self.state == 0 {
+            self.state = FNV_OFFSET_BASIS;
+        }
+        
+        for &byte in bytes {
+            self.state ^= byte as u64;
+            self.state = self.state.wrapping_mul(FNV_PRIME);
+        }
+    }
+    
+    fn finish(&self) -> u64 {
+        self.state
+    }
 }
 
 /// ResourceRegistry - 资源注册表（FFI包装）
@@ -59,6 +85,12 @@ impl ResourceRegistry {
     }
 
     pub fn insert<R: Resource>(&mut self, resource: R) {
+        let type_id = get_type_hash::<R>();
+        let ptr = Box::into_raw(Box::new(resource)) as *mut std::ffi::c_void;
+        resource_registry_insert(self.inner, type_id, ptr);
+    }
+    
+    pub fn insert_non_send<R: 'static>(&mut self, resource: R) {
         let type_id = get_type_hash::<R>();
         let ptr = Box::into_raw(Box::new(resource)) as *mut std::ffi::c_void;
         resource_registry_insert(self.inner, type_id, ptr);
@@ -104,9 +136,17 @@ impl ResourceRegistry {
         }
     }
 
+    pub fn remove_non_send<R: 'static>(&mut self) -> Option<R> {
+        self.remove::<R>()
+    }
+
     pub fn contains<R: 'static>(&self) -> bool {
         let type_id = get_type_hash::<R>();
         resource_registry_contains(self.inner, type_id)
+    }
+
+    pub fn contains_non_send<R: 'static>(&self) -> bool {
+        self.contains::<R>()
     }
 }
 
@@ -147,6 +187,18 @@ impl<'w, T> std::ops::Deref for ResMut<'w, T> {
 
 impl<'w, T> std::ops::DerefMut for ResMut<'w, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        self.ptr
+    }
+}
+
+impl<'w, T> Res<'w, T> {
+    pub fn into_inner(self) -> &'w T {
+        self.ptr
+    }
+}
+
+impl<'w, T> ResMut<'w, T> {
+    pub fn into_inner(self) -> &'w mut T {
         self.ptr
     }
 }

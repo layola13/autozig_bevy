@@ -6,7 +6,7 @@ fn main() {
     // 1. 简单闭包 - 无参数
     println!("【测试 1】简单闭包");
     let mut app1 = App::new();
-    app1.add_systems(|| {
+    app1.add_systems(Update, || {
         println!("✓ 简单闭包执行成功");
     });
     println!("  注册了 {} 个闭包系统\n", app1.closure_system_count());
@@ -15,7 +15,7 @@ fn main() {
     println!("【测试 2】捕获外部变量");
     let message = "来自外部的消息";
     let mut app2 = App::new();
-    app2.add_systems(move || {
+    app2.add_systems(Update, move || {
         println!("✓ 捕获变量: {}", message);
     });
     println!("  注册了 {} 个闭包系统\n", app2.closure_system_count());
@@ -24,19 +24,20 @@ fn main() {
     println!("【测试 3】链式注册多个闭包");
     let mut app3 = App::new();
     
-    let counter = std::cell::Cell::new(0);
+    let counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::new(0));
+    let counter_clone = counter.clone();
     
-    app3.add_systems(|| {
+    app3.add_systems(Startup, || {
             println!("  → 系统 1: 初始化");
         })
-        .add_systems(|| {
+        .add_systems(Update, || {
             println!("  → 系统 2: 处理逻辑");
         })
-        .add_systems(move || {
-            counter.set(counter.get() + 1);
-            println!("  → 系统 3: 计数器 = {}", counter.get());
+        .add_systems(Update, move || {
+            counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            println!("  → 系统 3: 计数器 = {}", counter_clone.load(std::sync::atomic::Ordering::Relaxed));
         })
-        .add_systems(|| {
+        .add_systems(Last, || {
             println!("  → 系统 4: 清理");
         });
     
@@ -53,8 +54,8 @@ fn main() {
     };
     
     let mut app4 = App::new();
-    app4.add_systems(create_counter_system("系统A"))
-        .add_systems(create_counter_system("系统B"));
+    app4.add_systems(Update, create_counter_system("系统A"))
+        .add_systems(Update, create_counter_system("系统B"));
     
     println!("  注册了 {} 个闭包系统\n", app4.closure_system_count());
 
@@ -65,16 +66,16 @@ fn main() {
     let startup_message = "应用启动";
     let mut frame_count = 0;
     
-    app.add_systems(move || {
+    app.add_systems(Startup, move || {
             println!("  → Startup: {}", startup_message);
         })
-        .add_systems(move || {
+        .add_systems(Update, move || {
             frame_count += 1;
             if frame_count <= 3 {
                 println!("  → Update: Frame {}", frame_count);
             }
         })
-        .add_systems(|| {
+        .add_systems(Last, || {
             println!("  → Render: 渲染完成");
         });
     

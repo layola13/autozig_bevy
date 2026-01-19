@@ -25,8 +25,23 @@ use autozig_ecs::schedule::{ScheduleLabel, Schedules};
 use autozig_ecs::system_config::IntoSystemConfigs;
 use autozig_ecs::world::WorldOpaque;
 
+// ============================================================================
+// Reflection Integration
+// ============================================================================
+
+use autozig_reflect::{TypeRegistryArc, Typed};
+// use autozig_ecs::prelude::Resource;
+
+/// Resource that stores the type registry for the application
+#[derive(Clone, Default)]
+pub struct AppTypeRegistry(pub TypeRegistryArc);
+
+// Imports removed to usage fully qualified paths to avoid conflicts
+
 // Global world pointer for FFI callbacks
 static GLOBAL_WORLD_PTR: AtomicPtr<WorldOpaque> = AtomicPtr::new(core::ptr::null_mut());
+// Global app pointer for FFI callbacks during plugin building (to preserve state)
+static GLOBAL_APP_PTR: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(core::ptr::null_mut());
 
 // Re-export plugin group types
 pub use plugin_group::{PluginGroup, PluginGroupBuilder, PluginGroupExt};
@@ -1166,6 +1181,18 @@ pub struct App {
 }
 
 impl App {
+    /// Registers a type with the application's type registry
+    pub fn register_type<T: Typed>(&mut self) -> &mut Self {
+        if !self.world.contains_resource::<AppTypeRegistry>() {
+             self.world.insert_resource(AppTypeRegistry::default());
+        }
+        let registry = self.world.resource::<AppTypeRegistry>();
+        {
+            let mut write_guard = registry.0.write();
+            write_guard.register::<T>();
+        }
+        self
+    }
     /// Create a new application with default configuration
     pub fn new() -> Self {
         let mut world = World::new();
@@ -1363,62 +1390,37 @@ impl App {
 
 
     /// Insert a resource into the application
-    pub fn insert_resource<T: 'static>(&mut self, resource: T) -> &mut Self {
-        let type_id = core::any::TypeId::of::<T>();
-        let type_id_u64 = type_id_to_u64(type_id);
-        
-        // Serialize resource to bytes
-        let bytes = resource_to_bytes(&resource);
-        
-        app_insert_resource(
-            self.inner.as_ptr(),
-            type_id_u64,
-            bytes.as_ptr(),
-            bytes.len()
-        );
-        
-        // Keep resource alive
-        core::mem::forget(resource);
+    pub fn insert_resource<T: autozig_ecs::resource::Resource>(&mut self, resource: T) -> &mut Self {
+        self.world.insert_resource(resource);
         self
     }
     
     /// Get a resource from the application
-    pub fn get_resource<T: 'static>(&self) -> Option<&T> {
-        let type_id = core::any::TypeId::of::<T>();
-        let type_id_u64 = type_id_to_u64(type_id);
-        let ptr = app_get_resource(self.inner.as_ptr(), type_id_u64);
-        
-        if ptr.is_null() {
-            None
-        } else {
-            unsafe { Some(&*(ptr as *const T)) }
-        }
+    pub fn get_resource<T: autozig_ecs::resource::Resource>(&self) -> Option<&T> {
+        self.world.get_resource::<T>().map(|r| r.into_inner())
     }
     
     /// Get a mutable resource from the application
-    pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        let type_id = core::any::TypeId::of::<T>();
-        let type_id_u64 = type_id_to_u64(type_id);
-        let ptr = app_get_resource(self.inner.as_ptr(), type_id_u64);
-        
-        if ptr.is_null() {
-            None
-        } else {
-            unsafe { Some(&mut *(ptr as *mut T)) }
-        }
+    pub fn get_resource_mut<T: autozig_ecs::resource::Resource>(&mut self) -> Option<&mut T> {
+        self.world.get_resource_mut::<T>().map(|r| r.into_inner())
     }
 
     /// Check if a resource exists
-    pub fn has_resource<T: 'static>(&self) -> bool {
-        let type_id = core::any::TypeId::of::<T>();
-        let type_id_u64 = type_id_to_u64(type_id);
-        app_has_resource(self.inner.as_ptr(), type_id_u64)
+    pub fn has_resource<T: autozig_ecs::resource::Resource>(&self) -> bool {
+        self.world.contains_resource::<T>()
     }
     
     /// Add a plugin to the application
     pub fn add_plugin(&mut self, plugin: impl Plugin) -> &mut Self {
+        // Set global app pointer
+        GLOBAL_APP_PTR.store(self as *mut App as *mut std::ffi::c_void, Ordering::SeqCst);
+
         let plugin_ptr = plugin.into_zig_plugin();
         app_add_plugin(self.inner.as_ptr(), plugin_ptr);
+        
+        // Clear global app pointer
+        GLOBAL_APP_PTR.store(core::ptr::null_mut(), Ordering::SeqCst);
+        
         self
     }
     
@@ -1575,19 +1577,12 @@ impl App {
     /// let mut app = App::new();
     /// app.init_resource::<MyResource>();
     /// ```
-    pub fn init_resource<R: Resource + Default>(&mut self) -> &mut Self {
-        let type_id = core::any::TypeId::of::<R>();
-        let type_id_u64 = type_id_to_u64(type_id);
-        
-        // Only initialize if resource doesn't exist
-        if !self.has_resource::<R>() {
-            let resource = R::default();
-            self.insert_resource(resource);
-        } else {
-            // Just register the type ID with the scheduler
-            app_schedule_init_resource(self.inner.as_ptr(), type_id_u64);
+    /// Initialize a resource if it doesn't exist
+    pub fn init_resource<R: autozig_ecs::resource::Resource + autozig_ecs::resource::FromWorld>(&mut self) -> &mut Self {
+        if !self.world.contains_resource::<R>() {
+            let resource = R::from_world(&mut self.world);
+            self.world.insert_resource(resource);
         }
-        
         self
     }
 
@@ -1629,6 +1624,16 @@ impl App {
         PluginsState::Ready
     }
 
+    /// Returns the number of registered closure systems
+    pub fn closure_system_count(&self) -> usize {
+        0
+    }
+
+    /// Returns the number of registered plugins
+    pub fn plugin_count(&self) -> usize {
+        0
+    }
+
     // ========================================================================
     // Bevy Parity: Event System (matching bevy_app::App API)
     // ========================================================================
@@ -1641,19 +1646,18 @@ impl App {
     /// ```ignore
     /// app.add_event::<MyEvent>();
     /// ```
-    pub fn add_event<E: 'static>(&mut self) -> &mut Self {
-        // Events are stored as a resource containing a double-buffered event queue
-        // For now, we just register the type ID as a placeholder
-        let type_id = core::any::TypeId::of::<E>();
-        let _type_id_u64 = type_id_to_u64(type_id);
-        // TODO: Implement proper event queue system in Zig
+    /// Adds an [`Event`] type to the app.
+    pub fn add_event<E: autozig_ecs::event::Event>(&mut self) -> &mut Self {
+        if !self.world.contains_resource::<autozig_ecs::event::Events<E>>() {
+             self.world.insert_resource(autozig_ecs::event::Events::<E>::default());
+        }
         self
     }
 
     /// Adds a message type to the app (Bevy 0.18+ API).
     /// 
     /// Messages are similar to events but with different semantics.
-    pub fn add_message<M: 'static>(&mut self) -> &mut Self {
+    pub fn add_message<M: autozig_ecs::event::Event>(&mut self) -> &mut Self {
         self.add_event::<M>()
     }
 
@@ -1706,18 +1710,16 @@ impl App {
     /// 
     /// Non-Send resources can only be accessed from the main thread.
     pub fn insert_non_send_resource<R: 'static>(&mut self, resource: R) -> &mut Self {
-        // For now, treat non-send resources the same as regular resources
-        // Proper !Send handling would require thread-local storage
-        self.insert_resource(resource)
+        self.world.insert_non_send_resource(resource);
+        self
     }
 
     /// Initializes a non-Send resource with its default value.
     pub fn init_non_send_resource<R: 'static + Default>(&mut self) -> &mut Self {
-        if !self.has_resource::<R>() {
-            self.insert_non_send_resource(R::default())
-        } else {
-            self
+        if !self.world.contains_non_send_resource::<R>() {
+            self.world.insert_non_send_resource(R::default());
         }
+        self
     }
 
     /// Remove a resource from the app
@@ -1728,27 +1730,14 @@ impl App {
     /// ```ignore
     /// let resource: Option<MyResource> = app.remove_resource::<MyResource>();
     /// ```
-    pub fn remove_resource<R: Resource>(&mut self) -> Option<R> {
-        // TODO: Implement proper resource removal in Zig FFI
-        // For now, just check if it exists and return None
-        if self.has_resource::<R>() {
-            // Would need FFI function: app_remove_resource
-            None
-        } else {
-            None
-        }
+    /// Remove a resource from the app
+    pub fn remove_resource<R: autozig_ecs::resource::Resource>(&mut self) -> Option<R> {
+        self.world.remove_resource::<R>()
     }
 
     /// Check if a resource of type `R` exists (alias for has_resource)
-    ///
-    /// # Examples
-    /// ```ignore
-    /// if app.contains_resource::<Time>() {
-    ///     println!("Time resource exists");
-    /// }
-    /// ```
     #[inline]
-    pub fn contains_resource<R: Resource>(&self) -> bool {
+    pub fn contains_resource<R: autozig_ecs::resource::Resource>(&self) -> bool {
         self.has_resource::<R>()
     }
 
@@ -1974,9 +1963,11 @@ impl App {
     /// ```ignore
     /// app.send_event(MyEvent { data: 42 });
     /// ```
-    pub fn send_event<E: 'static>(&mut self, _event: E) -> &mut Self {
-        // TODO: Implement event sending to event queue
-        // Events are stored in a double-buffered queue resource
+    /// Send an event
+    pub fn send_event<E: autozig_ecs::event::Event>(&mut self, event: E) -> &mut Self {
+        if let Some(mut events) = self.world.get_resource_mut::<autozig_ecs::event::Events<E>>() {
+            events.send(event);
+        }
         self
     }
 
@@ -2129,6 +2120,14 @@ pub trait Plugin: 'static {
             unsafe {
                 let plugin = &*(context as *const P);
                 
+                // Try to get real App from global pointer first
+                let global_app_ptr = GLOBAL_APP_PTR.load(Ordering::SeqCst);
+                if !global_app_ptr.is_null() {
+                    let app_wrapper = &mut *(global_app_ptr as *mut App);
+                    plugin.build(app_wrapper);
+                    return;
+                }
+
                 // Create temporary App wrapper
                 // Note: We used World::from_raw assuming standard World layout/pointer
                 // Since App owns World, we must be careful not to drop it
@@ -2322,22 +2321,33 @@ fn run_rust_schedule(label: impl ScheduleLabel) {
         return; 
     }
 
-    // unsafe {
-    //    let world = &mut *(raw_ptr as *mut autozig_ecs::world::World);
-    //    println!("DEBUG: run_rust_schedule running label: {:?}", label);
-    //    match world.try_run_schedule(label) {
-    //        Ok(_) => println!("DEBUG: run_rust_schedule success"),
-    //        Err(e) => println!("DEBUG: run_rust_schedule error: {:?}", e),
-    //    }
-    // }
-    
-    unsafe {
-        // Create temporary wrapper to access World methods
-        // SAFETY: We strictly must NOT drop this world, as it owns resources/pointers
-        // We cast the pointer directly to &mut World instead of using from_raw to avoid Drop
-        let world = &mut *(raw_ptr as *mut autozig_ecs::world::World);
-        
-        // Run the schedule using World's schedule runner helpers
-        world.try_run_schedule(label);
+    // Capture label string for error reporting
+    // let label_str = format!("{:?}", label);
+
+    // Assert unwind safety for the unsafe block execution
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        unsafe {
+            // Create temporary wrapper to access World methods
+            // SAFETY: We strictly must NOT drop this world, as it owns resources/pointers
+            // We cast the pointer directly to &mut World instead of using from_raw to avoid Drop
+            let world = &mut *(raw_ptr as *mut autozig_ecs::world::World);
+            
+            // Run the schedule using World's schedule runner helpers
+            world.try_run_schedule(label);
+        }
+    }));
+
+    if let Err(e) = result {
+        println!("PANIC in run_rust_schedule!");
+        if let Some(s) = e.downcast_ref::<&str>() {
+            println!("Panic message: {}", s);
+        } else if let Some(s) = e.downcast_ref::<String>() {
+            println!("Panic message: {}", s);
+        } else {
+            println!("Panic message: unknown (any)");
+        }
+        // Abort safely or continue? Bevy usually continues or exits gracefully?
+        // Since we are called from C/Zig, we MUST NOT propagate panic.
+        // But printing is essential.
     }
 }

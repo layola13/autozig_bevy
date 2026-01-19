@@ -7,10 +7,10 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct Counter(u32);
 
-#[derive(Resource)]
+
 struct ShouldRunOnce(bool);
 
 fn main() {

@@ -9,8 +9,8 @@
 //! - Startup vs Update 系统
 
 use autozig_ecs::prelude::*;
-use autozig_ecs::plugin::App;
-use autozig_ecs::plugin::{CorePlugin, TimePlugin};
+use autozig_app::{App, Plugin, MinimalPlugins};
+use autozig_time::TimePlugin;
 
 /// 自定义插件示例：打印消息插件
 /// 类似 bevy/examples/app/plugin.rs 中的 PrintMessagePlugin
@@ -29,9 +29,13 @@ impl Plugin for PrintMessagePlugin {
         // 这里可以添加资源、系统等
         // 注意：由于 autozig-ecs 的 API 限制，我们使用闭包系统
         let msg = self.message;
-        app.add_systems(move || {
+        app.add_systems(Update, move || {
             println!("  [{}] {}", "PrintMessagePlugin", msg);
         });
+    }
+
+    fn name(&self) -> &str {
+        "PrintMessagePlugin"
     }
 }
 
@@ -49,10 +53,14 @@ impl Plugin for GameRulesPlugin {
         
         let max_players = self.max_players;
         let max_rounds = self.max_rounds;
-        app.add_systems(move || {
+        app.add_systems(Update, move || {
             println!("  [GameRules] 玩家: {}/{}, 回合限制: {}",
                      2, max_players, max_rounds);
         });
+    }
+
+    fn name(&self) -> &str {
+        "GameRulesPlugin"
     }
 }
 
@@ -62,9 +70,13 @@ pub struct LoggerPlugin;
 impl Plugin for LoggerPlugin {
     fn build(&self, app: &mut App) {
         println!("  [Plugin] LoggerPlugin 正在初始化...");
-        app.add_systems(|| {
+        app.add_systems(Update, || {
             println!("  [Logger] 系统正在运行...");
         });
+    }
+
+    fn name(&self) -> &str {
+        "LoggerPlugin"
     }
 }
 
@@ -81,15 +93,15 @@ pub fn run_app_demo() {
     println!("✓ App 实例已创建");
     
     // 添加多个系统
-    app.add_systems(|| {
+    app.add_systems(Startup, || {
         println!("  → System 1: 初始化系统执行");
     });
     
-    app.add_systems(|| {
+    app.add_systems(Update, || {
         println!("  → System 2: 更新系统执行");
     });
     
-    app.add_systems(|| {
+    app.add_systems(Last, || {
         println!("  → System 3: 渲染系统执行");
     });
     
@@ -113,8 +125,8 @@ pub fn run_app_demo() {
     
     // 添加核心插件
     println!("添加插件:");
-    app2.add_plugin(CorePlugin);
-    println!("  ✓ CorePlugin 已添加");
+    app2.add_plugins(MinimalPlugins);
+    println!("  ✓ MinimalPlugins 已添加");
     
     app2.add_plugin(TimePlugin);
     println!("  ✓ TimePlugin 已添加");
@@ -160,7 +172,7 @@ pub fn run_app_demo() {
     
     // 模拟 Startup 系统
     println!("添加 Startup 系统 (启动系统):");
-    app3.add_systems(|| {
+    app3.add_systems(Startup, || {
         println!("  [Startup] 初始化游戏世界...");
         println!("    • 加载配置");
         println!("    • 创建玩家实体");
@@ -169,7 +181,7 @@ pub fn run_app_demo() {
     
     // 模拟 Update 系统
     println!("\n添加 Update 系统 (更新系统):");
-    app3.add_systems(|| {
+    app3.add_systems(Update, || {
         println!("  [Update] 帧 #1: 处理游戏逻辑");
         println!("    • 移动实体");
         println!("    • 检测碰撞");
@@ -178,7 +190,7 @@ pub fn run_app_demo() {
     
     // 模拟 Last 系统
     println!("\n添加 Last 系统 (清理系统):");
-    app3.add_systems(|| {
+    app3.add_systems(Last, || {
         println!("  [Last] 帧结束清理");
         println!("    • 应用延迟命令");
         println!("    • 清理临时数据");
@@ -197,19 +209,19 @@ pub fn run_app_demo() {
     
     let mut app4 = App::new();
     
-    app4.add_systems(|| {
+    app4.add_systems(Update, || {
         println!("  [1] 物理系统: 计算速度和位置");
     });
     
-    app4.add_systems(|| {
+    app4.add_systems(Update, || {
         println!("  [2] 碰撞系统: 检测碰撞 (依赖物理系统)");
     });
     
-    app4.add_systems(|| {
+    app4.add_systems(Update, || {
         println!("  [3] 音效系统: 播放碰撞音效 (依赖碰撞系统)");
     });
     
-    app4.add_systems(|| {
+    app4.add_systems(Update, || {
         println!("  [4] 渲染系统: 绘制实体 (最后执行)");
     });
     

@@ -6,10 +6,10 @@ use autozig_ecs::prelude::*;
 use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
 use autozig_ecs::schedule::{LogLevel, ScheduleBuildSettings};
 
-#[derive(Resource, Debug, Default)]
+#[derive(Debug, Default)]
 struct A(usize);
 
-#[derive(Resource, Debug, Default)]
+#[derive(Debug, Default)]
 struct B(usize);
 
 fn main() {

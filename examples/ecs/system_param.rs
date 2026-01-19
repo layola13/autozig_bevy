@@ -2,13 +2,13 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource)]
+
 pub struct MyResource(pub u32);
 
 #[derive(Component)]
 pub struct MyComponent(pub u32);
 
-#[derive(Resource, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct MyEvent(pub u32);
 
 fn main() {

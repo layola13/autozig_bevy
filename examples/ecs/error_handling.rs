@@ -7,12 +7,12 @@
 
 use autozig_ecs::prelude::*;
 
-#[derive(Resource)]
+
 struct Config {
     value: String,
 }
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct ParsedValue(Option<i32>);
 
 fn main() {

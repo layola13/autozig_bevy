@@ -5,7 +5,37 @@
 
 #![forbid(unsafe_code)]
 
-use crate::{Plugin, PluginGroup, PluginGroupBuilder, SimplePlugin, App};
+use crate::{Plugin, PluginGroup, PluginGroupBuilder, SimplePlugin, App, AppTypeRegistry};
+
+/// Placeholder LogPlugin
+#[derive(Default)]
+pub struct LogPlugin {
+    pub level: Option<&'static str>,
+    pub filter: String,
+}
+
+impl Plugin for LogPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "LogPlugin" }
+}
+
+/// Placeholder RenderPlugin
+#[derive(Default)]
+pub struct RenderPlugin;
+
+impl Plugin for RenderPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "RenderPlugin" }
+}
+
+/// Placeholder WinitPlugin
+#[derive(Default)]
+pub struct WinitPlugin;
+
+impl Plugin for WinitPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "WinitPlugin" }
+}
 
 /// Core plugin that provides basic application infrastructure
 #[derive(Default)]
@@ -44,8 +74,8 @@ impl Plugin for TaskPoolPlugin {
 pub struct TypeRegistrationPlugin;
 
 impl Plugin for TypeRegistrationPlugin {
-    fn build(&self, _app: &mut App) {
-        // Type registration - placeholder
+    fn build(&self, app: &mut App) {
+        app.insert_resource(AppTypeRegistry::default());
     }
     
     fn name(&self) -> &str {
@@ -211,6 +241,9 @@ impl PluginGroup for DefaultPlugins {
         // I/O
         group = group.add(InputPlugin::default());
         group = group.add(WindowPlugin::default());
+        group = group.add(WinitPlugin::default());
+        group = group.add(RenderPlugin::default());
+        group = group.add(LogPlugin::default());
         
         // Assets and scenes
         group = group.add(AssetPlugin::default());

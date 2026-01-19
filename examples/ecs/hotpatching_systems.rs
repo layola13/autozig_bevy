@@ -10,7 +10,7 @@ use autozig_ecs::into_system::{IntoSystem, ParamFunctionSystem, FunctionMarker};
 use std::collections::HashMap;
 
 // Resource to hold our dynamic systems
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct HotSwapRegistry {
     systems: HashMap<String, BoxedSystem>,
 }

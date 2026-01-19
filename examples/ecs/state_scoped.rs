@@ -15,7 +15,7 @@ enum GameState {
 }
 
 
-#[derive(Resource)]
+
 struct TickTock(Timer);
 
 // Custom component to mark entities for despawn

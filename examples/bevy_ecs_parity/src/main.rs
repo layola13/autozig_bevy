@@ -32,14 +32,14 @@ impl fmt::Display for PlayerStreak {
 }
 
 // RESOURCES
-#[derive(Default, Debug, Resource)]
+#[derive(Default, Debug)]
 struct GameState {
     current_round: usize,
     total_players: usize,
     winning_player: Option<String>,
 }
 
-#[derive(Debug, Resource)]
+#[derive(Debug)]
 struct GameRules {
     winning_score: usize,
     max_rounds: usize,
@@ -47,7 +47,7 @@ struct GameRules {
 }
 
 // Helper for "Local" replacement (as requested previously)
-#[derive(Default, Debug, Resource)]
+#[derive(Default, Debug)]
 struct PrintCounter(u32);
 
 // SYSTEMS
@@ -158,15 +158,15 @@ fn main() {
     
     app.add_plugins(ScheduleRunnerPlugin::run_loop(Duration::from_millis(50)));
     
-    app.add_systems(Startup, IntoSystem::<((), Commands<'static>, ResMut<'static, GameState>)>::into_system(startup_system));
+    app.add_systems(Startup, startup_system);
     app.add_systems(Update, (
-        IntoSystem::<((), Res<'static, GameRules>, ResMut<'static, GameState>)>::into_system(new_round_system),
-        IntoSystem::<((), Query<'static, (&Player, &mut Score, &mut PlayerStreak)>)>::into_system(score_system),
-        IntoSystem::<((), Res<'static, GameRules>, ResMut<'static, GameState>, Query<'static, (&Player, &Score)>)>::into_system(score_check_system),
-        IntoSystem::<((), Res<'static, GameRules>, Res<'static, GameState>, EventWriter<'static, AppExit>)>::into_system(game_over_system),
-    ).chain());
+        new_round_system,
+        score_system,
+        score_check_system,
+        game_over_system,
+    ));
     
-    app.add_systems(Last, IntoSystem::<((), ResMut<'static, PrintCounter>)>::into_system(print_at_end_round));
+    app.add_systems(Last, print_at_end_round);
     
     println!("Starting Bevy ECS Parity Demo...");
     use std::io::Write;

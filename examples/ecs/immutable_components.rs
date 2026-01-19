@@ -16,7 +16,7 @@ struct Name(String);
 struct ImmutableTag; 
 
 // Resource
-#[derive(Resource, Default)]
+#[derive(Default)]
 struct NameIndex {
     name_to_entity: HashMap<String, Entity>,
 }
