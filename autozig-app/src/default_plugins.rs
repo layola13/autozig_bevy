@@ -19,23 +19,9 @@ impl Plugin for LogPlugin {
     fn name(&self) -> &str { "LogPlugin" }
 }
 
-/// Placeholder RenderPlugin
-#[derive(Default)]
-pub struct RenderPlugin;
 
-impl Plugin for RenderPlugin {
-    fn build(&self, _app: &mut App) {}
-    fn name(&self) -> &str { "RenderPlugin" }
-}
 
-/// Placeholder WinitPlugin
-#[derive(Default)]
-pub struct WinitPlugin;
 
-impl Plugin for WinitPlugin {
-    fn build(&self, _app: &mut App) {}
-    fn name(&self) -> &str { "WinitPlugin" }
-}
 
 /// Core plugin that provides basic application infrastructure
 #[derive(Default)]
@@ -151,6 +137,24 @@ impl Plugin for InputPlugin {
     fn name(&self) -> &str {
         "InputPlugin"
     }
+}
+
+/// Placeholder RenderPlugin
+#[derive(Default)]
+pub struct RenderPlugin;
+
+impl Plugin for RenderPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "RenderPlugin" }
+}
+
+/// Placeholder WinitPlugin
+#[derive(Default)]
+pub struct WinitPlugin;
+
+impl Plugin for WinitPlugin {
+    fn build(&self, _app: &mut App) {}
+    fn name(&self) -> &str { "WinitPlugin" }
 }
 
 /// Window plugin for window management

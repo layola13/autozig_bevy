@@ -8,6 +8,7 @@ extern crate proc_macro;
 
 mod derefs;
 mod enum_variant_meta;
+mod bundle;
 
 use proc_macro::TokenStream;
 
@@ -97,4 +98,10 @@ mod query_data;
 #[proc_macro_derive(QueryData, attributes(query_data))]
 pub fn derive_query_data(input: TokenStream) -> TokenStream {
     query_data::derive_query_data(input)
+}
+
+/// Derives the `Bundle` trait for a struct.
+#[proc_macro_derive(Bundle)]
+pub fn derive_bundle(input: TokenStream) -> TokenStream {
+    bundle::derive_bundle(input)
 }

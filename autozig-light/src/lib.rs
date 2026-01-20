@@ -6,6 +6,9 @@
 use autozig::include_zig;
 use autozig_app::{App, Plugin};
 use autozig_ecs::component::Component;
+use autozig_ecs::prelude::Bundle;
+use autozig_transform::{Transform, GlobalTransform};
+use autozig_camera::{Visibility, InheritedVisibility, ViewVisibility};
 
 // ============================================================================
 // Plugin System (Bevy Parity)
@@ -198,6 +201,7 @@ impl Default for DirectionalLight {
         directional_light_init()
     }
 }
+impl Component for DirectionalLight {}
 
 // ============================================================================
 // Spot Light
@@ -284,6 +288,7 @@ impl Default for SpotLight {
         spot_light_init()
     }
 }
+impl Component for SpotLight {}
 
 // ============================================================================
 // Ambient Light
@@ -799,6 +804,39 @@ impl Default for ClusterZConfig {
             far_z_mode: ClusterFarZMode::MaxLightRange,
         }
     }
+}
+// ============================================================================
+// BUNDLES
+// ============================================================================
+
+#[derive(Bundle, Default, Clone, Debug)]
+pub struct PointLightBundle {
+    pub point_light: PointLight,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
+}
+
+#[derive(Bundle, Default, Clone, Debug)]
+pub struct DirectionalLightBundle {
+    pub directional_light: DirectionalLight,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
+}
+
+#[derive(Bundle, Default, Clone, Debug)]
+pub struct SpotLightBundle {
+    pub spot_light: SpotLight,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
 }
 
 #[repr(C)]

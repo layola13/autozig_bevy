@@ -12,6 +12,9 @@ autozig = { path = "../../autozig", version = "0.1.2" }
 autozig-asset = { path = "../autozig-asset" }
 autozig-ecs = { path = "../autozig-ecs" }
 autozig-color = { path = "../autozig-color" }
+autozig-transform = { path = "../autozig-transform" }
+autozig-camera = { path = "../autozig-camera" }
+autozig-mesh = { path = "../autozig-mesh" }
 
 [build-dependencies]
 autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }

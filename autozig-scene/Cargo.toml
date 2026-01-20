@@ -1,25 +1,17 @@
 [package]
-name = "autozig-light"
+name = "autozig-scene"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/your-repo/autozig"
-description = "Bevy lighting system for WebGPU/WASM platforms"
-build = "build.rs"
+description = "Bevy scene management for WebGPU/WASM platforms"
 
 [dependencies]
 autozig = { path = "../../autozig", version = "0.1.2" }
 autozig-app = { path = "../autozig-app" }
 autozig-ecs = { path = "../autozig-ecs" }
+autozig-asset = { path = "../autozig-asset" }
 autozig-transform = { path = "../autozig-transform" }
 autozig-camera = { path = "../autozig-camera" }
 
-[build-dependencies]
-autozig-build = { path = "../../autozig/gen/build", version = "0.1.2" }
-
 [lib]
 crate-type = ["lib"]
-
-[[test]]
-name = "light_tests"
-path = "tests/light_tests.rs"

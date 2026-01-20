@@ -5,6 +5,9 @@
 
 use autozig::include_zig;
 use autozig_app::{App, Plugin};
+use autozig_ecs::component::Component;
+use autozig_ecs::prelude::Bundle;
+use autozig_transform::{Transform, GlobalTransform};
 
 // ============================================================================
 // Core Camera Types
@@ -33,6 +36,9 @@ pub struct OrthographicProjection {
     pub scale: f32,  // Scaling factor for 2D cameras
 }
 
+impl Component for PerspectiveProjection {}
+impl Component for OrthographicProjection {}
+
 /// 3D Camera with perspective projection
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +48,7 @@ pub struct Camera3d {
     pub projection_matrix: [f32; 16],
     pub view_projection_matrix: [f32; 16],
 }
+impl Component for Camera3d {}
 
 /// 2D Camera with orthographic projection
 #[repr(C)]
@@ -52,6 +59,7 @@ pub struct Camera2d {
     pub projection_matrix: [f32; 16],
     pub view_projection_matrix: [f32; 16],
 }
+impl Component for Camera2d {}
 
 /// Frustum for culling
 #[repr(C)]
@@ -59,6 +67,7 @@ pub struct Camera2d {
 pub struct Frustum {
     pub planes: [Plane; 6],
 }
+impl Component for Frustum {}
 
 /// Plane representation for frustum
 #[repr(C)]
@@ -94,6 +103,32 @@ pub enum CameraSystems {
     ExtractCameras,
 }
 
+
+// ============================================================================
+// Camera Update System
+// ============================================================================
+
+pub fn camera_system(mut query: autozig_ecs::query::Query<(&mut Camera3d, &Transform)>) {
+    for (mut camera, transform) in query.iter() {
+        // 1. Update Projection Matrix
+        camera.projection_matrix = camera.projection.get_projection_matrix();
+
+        // 2. Update View Matrix
+        let position: [f32; 3] = [transform.translation.x, transform.translation.y, transform.translation.z];
+        let rotation: [f32; 4] = [transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w];
+        unsafe {
+            view_matrix_from_transform(
+                &position as *const [f32; 3],
+                &rotation as *const [f32; 4],
+                &mut camera.view_matrix as *mut [f32; 16]
+            );
+        }
+
+        // 3. Update View-Projection Matrix
+        camera.view_projection_matrix = multiply_matrices(&camera.projection_matrix, &camera.view_matrix);
+    }
+}
+
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         // Initialize ClearColor resource
@@ -103,11 +138,7 @@ impl Plugin for CameraPlugin {
         // app.add_plugins((VisibilityPlugin, VisibilityRangePlugin));
         
         // Add camera systems
-        // app.add_systems(PostUpdate, (
-        //     update_frusta::<Projection>.in_set(CameraSystems::UpdateProjections),
-        //     visibility_propagate_system.in_set(CameraSystems::PropagateVisibility),
-        //     check_visibility.in_set(CameraSystems::CheckVisibility),
-        // ))
+        app.add_systems(autozig_app::PostUpdate, camera_system);
         
         // Add render world extraction
         // app.add_systems(ExtractSchedule, extract_cameras.in_set(CameraSystems::ExtractCameras))
@@ -160,6 +191,74 @@ impl Plugin for VisibilityRangePlugin {
     
     fn name(&self) -> &str {
         "VisibilityRangePlugin"
+    }
+}
+
+// ============================================================================
+// BUNDLES
+// ============================================================================
+
+#[derive(Bundle, Clone, Debug)]
+pub struct Camera3dBundle {
+    pub camera: Camera3d,
+    pub projection: PerspectiveProjection,
+    pub frustum: Frustum,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visible_entities: VisibleEntities,
+    pub view_visibility: ViewVisibility,
+    pub inherited_visibility: InheritedVisibility,
+}
+
+impl Default for Camera3dBundle {
+    fn default() -> Self {
+        Self {
+            camera: Camera3d {
+                 projection: PerspectiveProjection::default(),
+                 view_matrix: [0.0; 16],
+                 projection_matrix: [0.0; 16],
+                 view_projection_matrix: [0.0; 16],
+            },
+            projection: PerspectiveProjection::default(),
+            frustum: Frustum { planes: [Plane { normal: [0.0; 3], distance: 0.0 }; 6] }, // Basic default
+            transform: Transform::default(),
+            global_transform: GlobalTransform::default(),
+            visible_entities: VisibleEntities { entities: vec![] },
+            view_visibility: ViewVisibility::default(),
+            inherited_visibility: InheritedVisibility::default(),
+        }
+    }
+}
+
+#[derive(Bundle, Clone, Debug)]
+pub struct Camera2dBundle {
+    pub camera: Camera2d,
+    pub projection: OrthographicProjection,
+    pub frustum: Frustum,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visible_entities: VisibleEntities,
+    pub view_visibility: ViewVisibility,
+    pub inherited_visibility: InheritedVisibility,
+}
+
+impl Default for Camera2dBundle {
+    fn default() -> Self {
+         Self {
+            camera: Camera2d {
+                 projection: OrthographicProjection::new(-1.0, 1.0, -1.0, 1.0), // Placeholder defaults
+                 view_matrix: [0.0; 16],
+                 projection_matrix: [0.0; 16],
+                 view_projection_matrix: [0.0; 16],
+            },
+            projection: OrthographicProjection::new(-1.0, 1.0, -1.0, 1.0),
+            frustum: Frustum { planes: [Plane { normal: [0.0; 3], distance: 0.0 }; 6] },
+            transform: Transform::default(),
+            global_transform: GlobalTransform::default(),
+            visible_entities: VisibleEntities { entities: vec![] },
+            view_visibility: ViewVisibility::default(),
+            inherited_visibility: InheritedVisibility::default(),
+        }
     }
 }
 
@@ -288,6 +387,7 @@ pub struct ImageRenderTarget {
 pub struct InheritedVisibility {
     visible: bool,
 }
+impl Component for InheritedVisibility {}
 
 impl InheritedVisibility {
     /// Visible constant.
@@ -385,6 +485,7 @@ pub struct SubCameraView {
 pub struct ViewVisibility {
     visible: bool,
 }
+impl Component for ViewVisibility {}
 
 impl ViewVisibility {
     /// Create a new visible ViewVisibility.
@@ -441,6 +542,7 @@ pub struct VisibilityRange {
 pub struct VisibleEntities {
     pub entities: Vec<u64>,
 }
+impl Component for VisibleEntities {}
 
 /// Visible entity ranges for LOD
 #[repr(C)]
@@ -563,6 +665,14 @@ pub enum Visibility {
     Visible = 2,
 }
 
+impl Default for Visibility {
+    fn default() -> Self {
+        Self::Inherited
+    }
+}
+
+impl autozig_ecs::component::Component for Visibility {}
+
 /// Visibility system labels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VisibilitySystems {
@@ -601,7 +711,12 @@ pub trait SetViewVisibility {
 // Projection Functions
 // ============================================================================
 
-include_zig!("src/zig/projection.zig", {
+// ============================================================================
+// Zig FFI Bindings (Consolidated)
+// ============================================================================
+
+include_zig!("src/zig/camera_all.zig", {
+    // Projection Functions
     fn projection_perspective_rh(fov_y: f32, aspect: f32, z_near: f32, z_far: f32, out: *mut [f32; 16]);
     fn projection_perspective_lh(fov_y: f32, aspect: f32, z_near: f32, z_far: f32, out: *mut [f32; 16]);
     fn projection_perspective_infinite_reverse_z(fov_y: f32, aspect: f32, z_near: f32, out: *mut [f32; 16]);
@@ -616,13 +731,8 @@ include_zig!("src/zig/projection.zig", {
     fn projection_extract_far(matrix: *const [f32; 16]) -> f32;
     fn projection_is_perspective(matrix: *const [f32; 16]) -> bool;
     fn projection_is_orthographic(matrix: *const [f32; 16]) -> bool;
-});
 
-// ============================================================================
-// View Matrix Functions
-// ============================================================================
-
-include_zig!("src/zig/view.zig", {
+    // View Matrix Functions
     fn view_matrix_from_transform(position: *const [f32; 3], rotation: *const [f32; 4], out: *mut [f32; 16]);
     fn view_look_at_rh(eye: *const [f32; 3], target: *const [f32; 3], up: *const [f32; 3], out: *mut [f32; 16]);
     fn view_look_at_lh(eye: *const [f32; 3], target: *const [f32; 3], up: *const [f32; 3], out: *mut [f32; 16]);
@@ -633,13 +743,8 @@ include_zig!("src/zig/view.zig", {
     fn view_matrix_2d(position: *const [f32; 2], scale: f32, out: *mut [f32; 16]);
     fn view_matrix_2d_rotated(position: *const [f32; 2], rotation: f32, scale: f32, out: *mut [f32; 16]);
     fn view_matrix_inverse(view_matrix: *const [f32; 16], out: *mut [f32; 16]);
-});
 
-// ============================================================================
-// Frustum Culling Functions
-// ============================================================================
-
-include_zig!("src/zig/frustum.zig", {
+    // Frustum Functions
     fn frustum_from_matrix(view_proj_matrix: *const [f32; 16], out: *mut Frustum);
     fn frustum_test_point(frustum: *const Frustum, point: *const [f32; 3]) -> bool;
     fn frustum_test_aabb(frustum: *const Frustum, min: *const [f32; 3], max: *const [f32; 3]) -> bool;
@@ -1142,9 +1247,3 @@ impl ProjectionUtils {
         projection_is_orthographic(matrix)
     }
 }
-
-// Implement Component for Camera types
-impl autozig_ecs::component::Component for Camera3d {}
-impl autozig_ecs::component::Component for Camera2d {}
-impl autozig_ecs::component::Component for PerspectiveProjection {}
-impl autozig_ecs::component::Component for OrthographicProjection {}

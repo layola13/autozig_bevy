@@ -9,3 +9,10 @@ pub const frustum = @import("frustum.zig");
 // Re-export main types
 pub const Frustum = frustum.Frustum;
 pub const Plane = frustum.Plane;
+
+// Force inclusion of exported functions
+comptime {
+    _ = projection;
+    _ = view;
+    _ = frustum;
+}

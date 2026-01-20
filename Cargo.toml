@@ -22,6 +22,7 @@ members = [
     "autozig-random",
     "autozig-reflect",
     "autozig-render",
+    "autozig-scene",
     "autozig-shader",
     "autozig-sprite",
     "autozig-state",
@@ -35,7 +36,9 @@ members = [
     "autozig-winit",
     "autozig_json",
     "autozig_json_macro",
+    "autozig_json_macro",
     "examples/*",
+    "examples/basic_3d_scene",
 ]
 
 # 统一管理常用依赖版本

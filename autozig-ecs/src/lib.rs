@@ -16,6 +16,7 @@ include_zig!("src/zig/common.zig", {
 
 // Re-export derive macros
 pub use autozig_macro::{Component, Resource, SystemSet};
+pub use autozig_derive::Bundle;
 
 // Core modules
 pub mod ptr;              // Type-erased pointer types (foundational)
@@ -176,6 +177,7 @@ pub mod prelude {
 
     // Re-export derive macros
     pub use autozig_macro::{Component, Resource, SystemSet};
+    pub use autozig_derive::Bundle;
 }
 
 // Re-export commonly used types at crate level

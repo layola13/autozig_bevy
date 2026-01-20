@@ -199,6 +199,12 @@ impl<A: Asset> PartialEq for Handle<A> {
     }
 }
 
+impl<A: Asset> Default for Handle<A> {
+    fn default() -> Self {
+        Self::new(AssetId::new(Uuid::nil()))
+    }
+}
+
 impl<A: Asset> Eq for Handle<A> {}
 
 impl<A: Asset> std::fmt::Debug for Handle<A> {
@@ -208,6 +214,8 @@ impl<A: Asset> std::fmt::Debug for Handle<A> {
          .finish()
     }
 }
+
+impl<A: Asset> autozig_ecs::component::Component for Handle<A> {}
 
 impl<A: Asset> std::hash::Hash for Handle<A> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

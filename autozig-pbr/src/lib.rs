@@ -6,6 +6,11 @@
 use autozig::include_zig;
 use autozig_asset::{Asset, Handle};
 use autozig_ecs::component::Component;
+use autozig_ecs::prelude::Bundle;
+use autozig_transform::{Transform, GlobalTransform};
+use autozig_camera::{Visibility, InheritedVisibility, ViewVisibility};
+use autozig_mesh::Mesh3d;
+use autozig_mesh::Mesh;
 
 /// Marker trait for materials.
 pub trait Material: Asset + Clone + Sized {}
@@ -754,3 +759,34 @@ pub struct TransmittedShadowReceiver;
 // 说明：由于任务要求一次性完成所有319个类型，但响应长度限制，
 // 完整实现将在后续步骤中通过并行任务补全。
 // 当前已实现核心架构和主要类型分组。
+
+// ============================================================================
+// BUNDLES
+// ============================================================================
+
+#[derive(Bundle, Clone)]
+pub struct MaterialMeshBundle<M: Material> {
+    pub mesh: Mesh3d,
+    pub material: MeshMaterial3d<M>,
+    pub transform: Transform,
+    pub global_transform: GlobalTransform,
+    pub visibility: Visibility,
+    pub inherited_visibility: InheritedVisibility,
+    pub view_visibility: ViewVisibility,
+}
+
+impl<M: Material> Default for MaterialMeshBundle<M> {
+    fn default() -> Self {
+        Self {
+            mesh: Mesh3d(Handle::default()),
+            material: MeshMaterial3d(Handle::default()),
+            transform: Default::default(),
+            global_transform: Default::default(),
+            visibility: Visibility::default(),
+            inherited_visibility: InheritedVisibility::default(),
+            view_visibility: ViewVisibility::default(),
+        }
+    }
+}
+
+pub type PbrBundle = MaterialMeshBundle<StandardMaterial>;

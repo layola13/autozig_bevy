@@ -1,0 +1,21 @@
+[package]
+name = "basic_3d_scene"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+autozig-app = { path = "../../autozig-app" }
+autozig-ecs = { path = "../../autozig-ecs" }
+autozig-asset = { path = "../../autozig-asset" }
+autozig-scene = { path = "../../autozig-scene" }
+autozig-camera = { path = "../../autozig-camera" }
+autozig-pbr = { path = "../../autozig-pbr" }
+autozig-light = { path = "../../autozig-light" }
+autozig-mesh = { path = "../../autozig-mesh" }
+autozig-transform = { path = "../../autozig-transform" }
+autozig-render = { path = "../../autozig-render" }
+autozig-window = { path = "../../autozig-window" }
+autozig-winit = { path = "../../autozig-winit" }
+autozig-math = { path = "../../autozig-math" }
+autozig-color = { path = "../../autozig-color" }
+
